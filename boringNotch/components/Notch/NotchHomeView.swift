@@ -424,6 +424,8 @@ struct NotchHomeView: View {
     @ObservedObject var batteryModel = BatteryStatusViewModel.shared
     @ObservedObject var coordinator = BoringViewCoordinator.shared
     let albumArtNamespace: Namespace.ID
+    @Default(.weatherTilePosition) private var weatherTilePosition
+    @Default(.weatherOnLiveTab) private var weatherOnLiveTab
 
     var body: some View {
         Group {
@@ -441,11 +443,23 @@ struct NotchHomeView: View {
 
     private var mainContent: some View {
         HStack(alignment: .top, spacing: (shouldShowCamera && Defaults[.showCalendar]) ? 10 : 15) {
+            if !weatherOnLiveTab && weatherTilePosition == .front {
+                HomeWeatherTile()
+            }
+
             MusicPlayerView(albumArtNamespace: albumArtNamespace)
+
+            if !weatherOnLiveTab && weatherTilePosition == .afterMusic {
+                HomeWeatherTile()
+            }
 
             if Defaults[.showCalendar] {
                 CalendarView()
-                    .frame(width: shouldShowCamera ? 170 : 215)
+                    .frame(
+                        width: (shouldShowCamera || (Defaults[.weatherEnabled] && !weatherOnLiveTab))
+                            ? 170
+                            : 215
+                    )
                     .onHover { isHovering in
                         vm.isHoveringCalendar = isHovering
                     }
@@ -459,6 +473,10 @@ struct NotchHomeView: View {
                     .opacity(vm.notchState == .closed ? 0 : 1)
                     .blur(radius: vm.notchState == .closed ? 20 : 0)
                     .animation(.interactiveSpring(response: 0.32, dampingFraction: 0.76, blendDuration: 0), value: shouldShowCamera)
+            }
+
+            if !weatherOnLiveTab && weatherTilePosition == .end {
+                HomeWeatherTile()
             }
         }
         .transition(.asymmetric(insertion: .opacity.combined(with: .move(edge: .top)), removal: .opacity))

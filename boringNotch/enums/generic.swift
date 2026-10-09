@@ -27,6 +27,7 @@ public enum NotchState {
 public enum NotchViews {
     case home
     case shelf
+    case live
 }
 
 enum SettingsEnum {
@@ -60,6 +61,56 @@ enum WindowHeightMode: String, Defaults.Serializable {
     case matchMenuBar = "Match menubar height"
     case matchRealNotchSize = "Match real notch height"
     case custom = "Custom height"
+}
+
+enum WeatherTilePosition: String, CaseIterable, Defaults.Serializable, Identifiable {
+    case front
+    case afterMusic
+    case end
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .front: "Front"
+        case .afterMusic: "After Music"
+        case .end: "End"
+        }
+    }
+}
+
+enum LiveActivityPriority: String, CaseIterable, Defaults.Serializable, Identifiable {
+    case combined
+    case musicOnly
+    case agentOnly
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .combined: "Music + AI"
+        case .musicOnly: "Music only"
+        case .agentOnly: "AI only"
+        }
+    }
+}
+
+enum ActivityProfile: String, CaseIterable, Defaults.Serializable, Identifiable {
+    case everything
+    case focus
+    case minimal
+    case entertainment
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .everything: "Everything"
+        case .focus: "Focus"
+        case .minimal: "Minimal"
+        case .entertainment: "Entertainment"
+        }
+    }
 }
 
 enum SliderColorEnum: String, CaseIterable, Defaults.Serializable {

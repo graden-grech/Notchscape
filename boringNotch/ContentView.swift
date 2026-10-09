@@ -15,6 +15,12 @@ import SwiftUIIntrospect
 
 @MainActor
 struct ContentView: View {
+    private enum ClosedActivityPage: Int, CaseIterable {
+        case combined
+        case music
+        case agent
+    }
+
     @EnvironmentObject var vm: BoringViewModel
     @ObservedObject var webcamManager = WebcamManager.shared
 
@@ -23,9 +29,17 @@ struct ContentView: View {
     @ObservedObject var batteryModel = BatteryStatusViewModel.shared
     @ObservedObject var brightnessManager = BrightnessManager.shared
     @ObservedObject var volumeManager = VolumeManager.shared
+    @ObservedObject private var agentStatusManager = AgentStatusManager.shared
+    @ObservedObject private var calendarManager = CalendarManager.shared
+    @ObservedObject private var weatherManager = WeatherManager.shared
+    @ObservedObject private var downloadWatcher = DownloadWatcher.shared
+    @ObservedObject private var notchTimer = NotchTimerManager.shared
+    @ObservedObject private var privacyMonitor = PrivacyActivityMonitor.shared
     @State private var hoverTask: Task<Void, Never>?
     @State private var isHovering: Bool = false
     @State private var anyDropDebounceTask: Task<Void, Never>?
+    @State private var closedActivityPage: ClosedActivityPage = .combined
+    @State private var agentDetailExpanded = false
 
     @State private var gestureProgress: CGFloat = .zero
 
@@ -37,11 +51,23 @@ struct ContentView: View {
 
     @Default(.showNotHumanFace) var showNotHumanFace
 
+    @Default(.weatherEnabled) private var weatherEnabled
+    @Default(.weatherOnLiveTab) private var weatherOnLiveTab
+    @Default(.liveActivitiesEnabled) private var liveActivitiesEnabled
+    @Default(.agentStatusEnabled) private var agentStatusEnabled
+    @Default(.liveActivityPriority) private var liveActivityPriority
+    @Default(.activityProfile) private var activityProfile
+    @Default(.privacyActivitiesEnabled) private var privacyActivitiesEnabled
+    @Default(.weatherAlertsEnabled) private var weatherAlertsEnabled
+    @Default(.timerActivitiesEnabled) private var timerActivitiesEnabled
+
     // Shared interactive spring for movement/resizing to avoid conflicting animations
     private let animationSpring = Animation.interactiveSpring(response: 0.38, dampingFraction: 0.8, blendDuration: 0)
 
     private let extendedHoverPadding: CGFloat = 30
     private let zeroHeightHoverPadding: CGFloat = 10
+    private let closedActivityDetailWidth: CGFloat = 154
+    private let closedActivitySpacing: CGFloat = 8
 
     private var topCornerRadius: CGFloat {
        ((vm.notchState == .open) && Defaults[.cornerRadiusScaling])
@@ -58,16 +84,76 @@ struct ContentView: View {
         )
     }
 
+    private var activeAgentActivity: AgentActivity? {
+        guard liveActivitiesEnabled, agentStatusEnabled, activityProfile != .entertainment else { return nil }
+        return agentStatusManager.activities.first
+    }
+
+    private var upcomingCalendarActivity: EventModel? {
+        guard liveActivitiesEnabled,
+              activityProfile == .everything || activityProfile == .focus else { return nil }
+        return calendarManager.upcomingAlertEvent ?? calendarManager.upcomingReminderEvent
+    }
+
+    private var activeDownload: DownloadFile? {
+        guard liveActivitiesEnabled,
+              activityProfile == .everything || activityProfile == .entertainment else { return nil }
+        return downloadWatcher.downloadFiles.first
+    }
+
+    private var activeWeatherAlert: WeatherSnapshot? {
+        guard liveActivitiesEnabled,
+              activityProfile == .everything,
+              weatherAlertsEnabled,
+              let weather = weatherManager.weather,
+              weather.isAlertWorthy else { return nil }
+        return weather
+    }
+
+    private var privacyActivityIsVisible: Bool {
+        liveActivitiesEnabled
+            && privacyActivitiesEnabled
+            && activityProfile != .entertainment
+            && privacyMonitor.shouldShowActivity
+            && (privacyMonitor.microphoneInUse || privacyMonitor.cameraInUse)
+    }
+
+    private var timerActivityIsVisible: Bool {
+        liveActivitiesEnabled
+            && timerActivitiesEnabled
+            && (activityProfile == .everything || activityProfile == .focus)
+            && (notchTimer.endDate != nil || notchTimer.justFinished)
+    }
+
+    private var hasMusicActivity: Bool {
+        liveActivitiesEnabled
+            && (activityProfile == .everything || activityProfile == .entertainment)
+            && (!coordinator.expandingView.show || coordinator.expandingView.type == .music)
+            && (musicManager.isPlaying || !musicManager.isPlayerIdle)
+            && coordinator.musicLiveActivityEnabled
+            && !vm.hideOnClosed
+    }
+
     private var computedChinWidth: CGFloat {
         var chinWidth: CGFloat = vm.closedNotchSize.width
 
-        if coordinator.expandingView.type == .battery && coordinator.expandingView.show
+        if (upcomingCalendarActivity != nil || timerActivityIsVisible
+            || activeDownload != nil || activeWeatherAlert != nil)
+            && vm.notchState == .closed && !vm.hideOnClosed {
+            // Keep equal-width lanes on both sides so the hardware-notch gap
+            // remains centered even when the detail pill is only on the right.
+            chinWidth += 2 * (closedActivityDetailWidth + closedActivitySpacing)
+        } else if privacyActivityIsVisible && vm.notchState == .closed && !vm.hideOnClosed {
+            chinWidth += (2 * max(0, vm.effectiveClosedNotchHeight - 12) + 20)
+        } else if activeAgentActivity != nil && vm.notchState == .closed && !vm.hideOnClosed {
+            chinWidth += agentDetailExpanded
+                ? 2 * (closedActivityDetailWidth + closedActivitySpacing)
+                : (2 * max(0, vm.effectiveClosedNotchHeight - 12) + 20)
+        } else if coordinator.expandingView.type == .battery && coordinator.expandingView.show
             && vm.notchState == .closed && Defaults[.showPowerStatusNotifications]
         {
             chinWidth = 640
-        } else if (!coordinator.expandingView.show || coordinator.expandingView.type == .music)
-            && vm.notchState == .closed && (musicManager.isPlaying || !musicManager.isPlayerIdle)
-            && coordinator.musicLiveActivityEnabled && !vm.hideOnClosed
+        } else if vm.notchState == .closed && hasMusicActivity
         {
             chinWidth += (2 * max(0, vm.effectiveClosedNotchHeight - 12) + 20)
         } else if !coordinator.expandingView.show && vm.notchState == .closed
@@ -101,24 +187,31 @@ struct ContentView: View {
                     )
                     .padding([.horizontal, .bottom], vm.notchState == .open ? 12 : 0)
                     .background(.black)
-                    .clipShape(currentNotchShape)
                     .overlay(alignment: .top) {
                         Rectangle()
                             .fill(.black)
                             .frame(height: 1)
                             .padding(.horizontal, topCornerRadius)
                     }
-                    .shadow(
-                        color: ((vm.notchState == .open || isHovering) && Defaults[.enableShadow])
-                            ? .black.opacity(0.7) : .clear, radius: Defaults[.cornerRadiusScaling] ? 6 : 4
-                    )
                     .padding(
                         .bottom,
                         vm.effectiveClosedNotchHeight == 0 ? 10 : 0
                     )
                 
                 mainLayout
-                    .frame(height: vm.notchState == .open ? vm.notchSize.height : nil)
+                    .frame(
+                        width: vm.notchState == .open ? vm.notchSize.width : nil,
+                        height: vm.notchState == .open ? vm.notchSize.height : nil
+                    )
+                    // Apply the mask after the final frame. Flexible Home/Live
+                    // content can otherwise grow beyond the earlier mask and
+                    // expose a rectangular outer edge.
+                    .clipShape(currentNotchShape)
+                    .shadow(
+                        color: ((vm.notchState == .open || isHovering) && Defaults[.enableShadow])
+                            ? .black.opacity(0.7) : .clear,
+                        radius: Defaults[.cornerRadiusScaling] ? 6 : 4
+                    )
                     .conditionalModifier(true) { view in
                         let openAnimation = Animation.spring(response: 0.42, dampingFraction: 0.8, blendDuration: 0)
                         let closeAnimation = Animation.spring(response: 0.45, dampingFraction: 1.0, blendDuration: 0)
@@ -214,6 +307,16 @@ struct ContentView: View {
         .background(dragDetector)
         .preferredColorScheme(.dark)
         .environmentObject(vm)
+        .onChange(of: weatherOnLiveTab) { _, _ in
+            withAnimation(animationSpring) {
+                vm.refreshOpenNotchSize()
+            }
+        }
+        .onChange(of: weatherEnabled) { _, _ in
+            withAnimation(animationSpring) {
+                vm.refreshOpenNotchSize()
+            }
+        }
         .onChange(of: vm.anyDropZoneTargeting) { _, isTargeted in
             anyDropDebounceTask?.cancel()
 
@@ -287,7 +390,51 @@ struct ContentView: View {
                       } else if coordinator.sneakPeek.show && Defaults[.inlineHUD] && (coordinator.sneakPeek.type != .music) && (coordinator.sneakPeek.type != .battery) && vm.notchState == .closed {
                           InlineHUD(type: $coordinator.sneakPeek.type, value: $coordinator.sneakPeek.value, icon: $coordinator.sneakPeek.icon, hoverAnimation: $isHovering, gestureProgress: $gestureProgress)
                               .transition(.opacity)
-                      } else if (!coordinator.expandingView.show || coordinator.expandingView.type == .music) && vm.notchState == .closed && (musicManager.isPlaying || !musicManager.isPlayerIdle) && coordinator.musicLiveActivityEnabled && !vm.hideOnClosed {
+                      } else if let event = upcomingCalendarActivity,
+                                vm.notchState == .closed,
+                                !vm.hideOnClosed {
+                          CalendarLiveActivity(event: event)
+                              .transition(.scale(scale: 0.9).combined(with: .opacity))
+                      } else if timerActivityIsVisible,
+                                vm.notchState == .closed,
+                                !vm.hideOnClosed {
+                          TimerLiveActivity()
+                              .transition(.scale(scale: 0.9).combined(with: .opacity))
+                      } else if privacyActivityIsVisible,
+                                vm.notchState == .closed,
+                                !vm.hideOnClosed {
+                          PrivacyLiveActivity()
+                              .transition(.scale(scale: 0.9).combined(with: .opacity))
+                      } else if let activity = activeAgentActivity,
+                                vm.notchState == .closed,
+                                !vm.hideOnClosed,
+                                hasMusicActivity {
+                          ConcurrentLiveActivity(activity: activity)
+                              .transition(.scale(scale: 0.88).combined(with: .opacity))
+                      } else if let activity = activeAgentActivity,
+                                vm.notchState == .closed,
+                                !vm.hideOnClosed {
+                          AgentLiveActivity(activity: activity)
+                              .transition(.scale(scale: 0.88).combined(with: .opacity))
+                      } else if let download = activeDownload,
+                                vm.notchState == .closed,
+                                !vm.hideOnClosed {
+                          DownloadLiveActivity(download: download, completedName: nil)
+                              .transition(.scale(scale: 0.9).combined(with: .opacity))
+                      } else if let completedName = downloadWatcher.recentlyCompletedName,
+                                liveActivitiesEnabled,
+                                activityProfile != .focus,
+                                activityProfile != .minimal,
+                                vm.notchState == .closed,
+                                !vm.hideOnClosed {
+                          DownloadLiveActivity(download: nil, completedName: completedName)
+                              .transition(.scale(scale: 0.9).combined(with: .opacity))
+                      } else if let weather = activeWeatherAlert,
+                                vm.notchState == .closed,
+                                !vm.hideOnClosed {
+                          WeatherAlertLiveActivity(weather: weather)
+                              .transition(.scale(scale: 0.9).combined(with: .opacity))
+                      } else if vm.notchState == .closed && hasMusicActivity {
                           MusicLiveActivity()
                               .frame(alignment: .center)
                       } else if !coordinator.expandingView.show && vm.notchState == .closed && (!musicManager.isPlaying && musicManager.isPlayerIdle) && Defaults[.showNotHumanFace] && !vm.hideOnClosed  {
@@ -347,6 +494,8 @@ struct ContentView: View {
                     switch coordinator.currentView {
                     case .home:
                         NotchHomeView(albumArtNamespace: albumArtNamespace)
+                    case .live:
+                        LiveDashboardView()
                     case .shelf:
                         ShelfView()
                     }
@@ -362,6 +511,370 @@ struct ContentView: View {
             }
         }
         .onDrop(of: [.fileURL, .url, .utf8PlainText, .plainText, .data], delegate: GeneralDropTargetDelegate(isTargeted: $vm.generalDropTargeting))
+    }
+
+    @ViewBuilder
+    func ConcurrentLiveActivity(activity: AgentActivity) -> some View {
+        switch liveActivityPriority {
+        case .combined:
+            DualActivitySwitcher(activity: activity)
+        case .musicOnly:
+            MusicLiveActivity()
+        case .agentOnly:
+            AgentLiveActivity(activity: activity)
+        }
+    }
+
+    @ViewBuilder
+    func DualActivitySwitcher(activity: AgentActivity) -> some View {
+        Group {
+            switch closedActivityPage {
+            case .combined:
+                CombinedLiveActivity(activity: activity)
+            case .music:
+                MusicLiveActivity()
+            case .agent:
+                AgentLiveActivity(activity: activity)
+            }
+        }
+        .id(closedActivityPage)
+        .transition(.asymmetric(
+            insertion: .move(edge: .trailing).combined(with: .opacity),
+            removal: .move(edge: .leading).combined(with: .opacity)
+        ))
+        .contentShape(Rectangle())
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 18)
+                .onEnded { value in
+                    guard abs(value.translation.width) > abs(value.translation.height),
+                          abs(value.translation.width) > 24 else { return }
+
+                    let pages = ClosedActivityPage.allCases
+                    guard let currentIndex = pages.firstIndex(of: closedActivityPage) else { return }
+                    let delta = value.translation.width < 0 ? 1 : -1
+                    let nextIndex = (currentIndex + delta + pages.count) % pages.count
+                    withAnimation(.snappy(duration: 0.28)) {
+                        closedActivityPage = pages[nextIndex]
+                    }
+                }
+        )
+        .accessibilityHint("Swipe left or right to switch between combined, music, and agent activity")
+    }
+
+    @ViewBuilder
+    func CombinedLiveActivity(activity: AgentActivity) -> some View {
+        let side = max(0, vm.effectiveClosedNotchHeight - 12)
+
+        HStack(spacing: 8) {
+            Image(nsImage: musicManager.albumArt)
+                .resizable()
+                .scaledToFill()
+                .clipShape(RoundedRectangle(
+                    cornerRadius: MusicPlayerImageSizes.cornerRadiusInset.closed,
+                    style: .continuous
+                ))
+                .frame(width: side, height: side)
+                .shadow(color: Color(nsColor: musicManager.avgColor).opacity(0.35), radius: 5)
+                .accessibilityLabel("Music: \(musicManager.songTitle) by \(musicManager.artistName)")
+                .frame(
+                    width: agentDetailExpanded ? closedActivityDetailWidth : side,
+                    alignment: .trailing
+                )
+
+            Rectangle()
+                .fill(.black)
+                .frame(width: vm.closedNotchSize.width - cornerRadiusInsets.closed.top)
+
+            AgentActivityBadge(activity: activity, providerSymbol: true)
+                .frame(
+                    width: agentDetailExpanded ? closedActivityDetailWidth : nil,
+                    alignment: .leading
+                )
+        }
+        .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
+    }
+
+    @ViewBuilder
+    func AgentActivityBadge(activity: AgentActivity, providerSymbol: Bool) -> some View {
+        let isClaude = activity.provider.localizedCaseInsensitiveContains("claude")
+        let isFinished = activity.state == .completed
+        let accent = isFinished
+            ? Color.green
+            : isClaude
+                ? Color(red: 0.95, green: 0.43, blue: 0.20)
+                : Color(red: 0.55, green: 0.36, blue: 0.96)
+        let secondary = isFinished
+            ? Color.green
+            : isClaude
+                ? Color(red: 1.0, green: 0.68, blue: 0.34)
+                : Color(red: 0.35, green: 0.24, blue: 0.78)
+        let side = max(0, vm.effectiveClosedNotchHeight - 12)
+        let symbol = activity.state == .completed
+            ? "checkmark"
+            : activity.state == .interrupted
+                ? "pause.fill"
+                : activity.state == .needsInput
+                    ? "exclamationmark"
+                    : providerSymbol
+                        ? (isClaude ? "sun.max.fill" : "sparkles")
+                        : "waveform.path"
+
+        Button {
+            withAnimation(.snappy(duration: 0.3)) {
+                agentDetailExpanded.toggle()
+            }
+        } label: {
+            HStack(spacing: 7) {
+                ZStack {
+                    Group {
+                        if isFinished {
+                            Circle()
+                                .fill(Color.green)
+                        } else {
+                            RoundedRectangle(cornerRadius: max(6, side * 0.28), style: .continuous)
+                                .fill(LinearGradient(
+                                    colors: [secondary, accent],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ))
+                        }
+                    }
+                        .overlay {
+                            if isFinished {
+                                Circle().strokeBorder(.white.opacity(0.18), lineWidth: 0.75)
+                            } else {
+                                RoundedRectangle(cornerRadius: max(6, side * 0.28), style: .continuous)
+                                    .strokeBorder(.white.opacity(0.24), lineWidth: 0.75)
+                            }
+                        }
+
+                    Image(systemName: symbol)
+                        .font(.system(
+                            size: max(9, side * (isFinished ? 0.38 : 0.44)),
+                            weight: isFinished ? .semibold : .bold
+                        ))
+                        .foregroundStyle(.white)
+                        .symbolEffect(.pulse, options: .repeating, isActive: activity.state == .working)
+                }
+                .frame(width: side, height: side)
+
+                if agentDetailExpanded {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(activity.provider)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.white)
+                        Text(activity.detail)
+                            .font(.caption2)
+                            .foregroundStyle(accent)
+                            .lineLimit(1)
+                    }
+                    .frame(width: 112, alignment: .leading)
+                    .transition(.move(edge: .trailing).combined(with: .opacity))
+                }
+            }
+            .padding(.trailing, agentDetailExpanded ? 7 : 0)
+            .background(.black, in: Capsule())
+            .overlay {
+                Capsule().strokeBorder(accent.opacity(agentDetailExpanded ? 0.32 : 0), lineWidth: 0.75)
+            }
+            .shadow(
+                color: isFinished ? .black.opacity(0.22) : accent.opacity(0.45),
+                radius: isFinished ? 2 : 6,
+                y: isFinished ? 1 : 0
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(activity.provider), \(activity.state.label), \(activity.detail)")
+        .accessibilityHint("Click to show or hide agent details")
+        .contextMenu {
+            Button("Open \(activity.provider)") {
+                let bundleID = isClaude ? "com.anthropic.claudefordesktop" : "com.openai.codex"
+                if let appURL = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) {
+                    NSWorkspace.shared.open(appURL)
+                }
+            }
+            Divider()
+            ForEach(LiveActivityPriority.allCases) { priority in
+                Button(priority.title) { Defaults[.liveActivityPriority] = priority }
+            }
+        }
+    }
+
+    @ViewBuilder
+    func CalendarLiveActivity(event: EventModel) -> some View {
+        let side = max(0, vm.effectiveClosedNotchHeight - 12)
+        let destination = event.meetingURL ?? event.calendarAppURL()
+
+        HStack(spacing: 8) {
+            ZStack {
+                RoundedRectangle(cornerRadius: max(6, side * 0.28), style: .continuous)
+                    .fill(LinearGradient(
+                        colors: [Color(red: 0.18, green: 0.62, blue: 1.0), .blue],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ))
+                Image(systemName: event.type.isReminder ? "checklist" : "calendar")
+                    .font(.system(size: max(10, side * 0.45), weight: .semibold))
+                    .foregroundStyle(.white)
+            }
+            .frame(width: side, height: side)
+            .shadow(color: .blue.opacity(0.4), radius: 6)
+            .frame(width: closedActivityDetailWidth, alignment: .trailing)
+
+            Rectangle()
+                .fill(.black)
+                .frame(width: vm.closedNotchSize.width - cornerRadiusInsets.closed.top)
+
+            Button {
+                if let destination { NSWorkspace.shared.open(destination) }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: event.type.isReminder ? "bell.fill" : event.meetingURL == nil ? "arrow.up.forward.app.fill" : "video.fill")
+                        .foregroundStyle(.blue)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(event.title)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .lineLimit(1)
+                        Text(event.start, style: .relative)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.horizontal, 9)
+                .frame(width: 154, height: side, alignment: .leading)
+                .background(Color.blue.opacity(0.14), in: Capsule())
+                .overlay { Capsule().strokeBorder(Color.blue.opacity(0.35), lineWidth: 0.75) }
+            }
+            .buttonStyle(.plain)
+            .disabled(destination == nil)
+        }
+        .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
+        .accessibilityLabel("Upcoming event \(event.title)")
+    }
+
+    @ViewBuilder
+    func TimerLiveActivity() -> some View {
+        let side = max(0, vm.effectiveClosedNotchHeight - 12)
+        let finished = notchTimer.justFinished
+        HStack(spacing: 8) {
+            ZStack {
+                RoundedRectangle(cornerRadius: max(6, side * 0.28), style: .continuous)
+                    .fill(finished ? Color.green.gradient : Color.orange.gradient)
+                Image(systemName: finished ? "checkmark" : "timer")
+                    .font(.system(size: max(10, side * 0.44), weight: .bold))
+                    .foregroundStyle(.white)
+                    .symbolEffect(.bounce, value: finished)
+            }
+            .frame(width: side, height: side)
+            .frame(width: closedActivityDetailWidth, alignment: .trailing)
+            Rectangle().fill(.black).frame(width: vm.closedNotchSize.width - cornerRadiusInsets.closed.top)
+            Button { notchTimer.cancel() } label: {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(finished ? "Timer finished" : notchTimer.label)
+                        .font(.caption2.weight(.semibold)).lineLimit(1)
+                    Text(finished ? "Done" : timerText(notchTimer.remainingSeconds))
+                        .font(.caption.monospacedDigit()).foregroundStyle(finished ? .green : .orange)
+                }
+                .padding(.horizontal, 10)
+                .frame(width: 154, height: side, alignment: .leading)
+                .background(Color.orange.opacity(0.13), in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .help("Click to cancel")
+        }
+        .frame(height: vm.effectiveClosedNotchHeight)
+    }
+
+    private func timerText(_ seconds: Int) -> String {
+        String(format: "%d:%02d", seconds / 60, seconds % 60)
+    }
+
+    @ViewBuilder
+    func PrivacyLiveActivity() -> some View {
+        let side = max(0, vm.effectiveClosedNotchHeight - 12)
+        let camera = privacyMonitor.cameraInUse
+        let both = camera && privacyMonitor.microphoneInUse
+        let color: Color = camera ? .green : .orange
+        HStack(spacing: 8) {
+            ZStack {
+                Circle().fill(color)
+                Image(systemName: both ? "video.badge.waveform.fill" : camera ? "video.fill" : "mic.fill")
+                    .font(.system(size: max(9, side * 0.4), weight: .bold)).foregroundStyle(.black)
+            }
+            .frame(width: side, height: side)
+            .shadow(color: color.opacity(0.45), radius: 6)
+            Rectangle().fill(.black).frame(width: vm.closedNotchSize.width - cornerRadiusInsets.closed.top)
+            Circle()
+                .fill(color)
+                .frame(width: 7, height: 7)
+                .shadow(color: color.opacity(0.5), radius: 3)
+                .frame(width: side, height: side)
+        }
+        .frame(height: vm.effectiveClosedNotchHeight)
+        .accessibilityLabel(both ? "Camera and microphone active" : camera ? "Camera active" : "Microphone active")
+    }
+
+    @ViewBuilder
+    func DownloadLiveActivity(download: DownloadFile?, completedName: String?) -> some View {
+        let side = max(0, vm.effectiveClosedNotchHeight - 12)
+        let finished = completedName != nil
+        HStack(spacing: 8) {
+            ZStack {
+                RoundedRectangle(cornerRadius: max(6, side * 0.28), style: .continuous)
+                    .fill(finished ? Color.green.gradient : Color.blue.gradient)
+                Image(systemName: finished ? "checkmark" : "arrow.down")
+                    .font(.system(size: max(10, side * 0.44), weight: .bold)).foregroundStyle(.white)
+                    .symbolEffect(.bounce, value: finished)
+            }
+            .frame(width: side, height: side)
+            .frame(width: closedActivityDetailWidth, alignment: .trailing)
+            Rectangle().fill(.black).frame(width: vm.closedNotchSize.width - cornerRadiusInsets.closed.top)
+            Button {
+                if let download { downloadWatcher.reveal(download) }
+            } label: {
+                HStack(spacing: 7) {
+                    if !finished { ProgressView().controlSize(.mini) }
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(finished ? "Download finished" : "Downloading")
+                            .font(.caption2.weight(.semibold))
+                        Text(completedName ?? download?.name ?? "File")
+                            .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                    }
+                }
+                .padding(.horizontal, 9)
+                .frame(width: 154, height: side, alignment: .leading)
+                .background((finished ? Color.green : Color.blue).opacity(0.13), in: Capsule())
+            }
+            .buttonStyle(.plain)
+        }
+        .frame(height: vm.effectiveClosedNotchHeight)
+    }
+
+    @ViewBuilder
+    func WeatherAlertLiveActivity(weather: WeatherSnapshot) -> some View {
+        let side = max(0, vm.effectiveClosedNotchHeight - 12)
+        HStack(spacing: 8) {
+            ZStack {
+                RoundedRectangle(cornerRadius: max(6, side * 0.28), style: .continuous)
+                    .fill(Color.indigo.gradient)
+                Image(systemName: weather.symbol)
+                    .symbolRenderingMode(.multicolor)
+                    .font(.system(size: max(10, side * 0.46), weight: .semibold))
+            }
+            .frame(width: side, height: side)
+            .frame(width: closedActivityDetailWidth, alignment: .trailing)
+            Rectangle().fill(.black).frame(width: vm.closedNotchSize.width - cornerRadiusInsets.closed.top)
+            VStack(alignment: .leading, spacing: 0) {
+                Text("Weather alert").font(.caption2.weight(.semibold))
+                Text("\(weather.condition) • \(weather.temperature, specifier: "%.0f")°")
+                    .font(.caption2).foregroundStyle(.indigo).lineLimit(1)
+            }
+            .padding(.horizontal, 10)
+            .frame(width: 154, height: side, alignment: .leading)
+            .background(Color.indigo.opacity(0.14), in: Capsule())
+        }
+        .frame(height: vm.effectiveClosedNotchHeight)
     }
 
     @ViewBuilder
@@ -484,6 +997,57 @@ struct ContentView: View {
             height: vm.effectiveClosedNotchHeight,
             alignment: .center
         )
+    }
+
+    @ViewBuilder
+    func AgentLiveActivity(activity: AgentActivity) -> some View {
+        let isClaude = activity.provider.localizedCaseInsensitiveContains("claude")
+        let accent = isClaude
+            ? Color(red: 0.95, green: 0.43, blue: 0.20)
+            : Color(red: 0.55, green: 0.36, blue: 0.96)
+        let secondary = isClaude
+            ? Color(red: 1.0, green: 0.68, blue: 0.34)
+            : Color(red: 0.35, green: 0.24, blue: 0.78)
+        let side = max(0, vm.effectiveClosedNotchHeight - 12)
+
+        HStack(spacing: 8) {
+            ZStack {
+                RoundedRectangle(cornerRadius: max(6, side * 0.28), style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [secondary, accent],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .overlay {
+                        RoundedRectangle(cornerRadius: max(6, side * 0.28), style: .continuous)
+                            .strokeBorder(.white.opacity(0.22), lineWidth: 0.75)
+                    }
+
+                Image(systemName: isClaude ? "sun.max.fill" : "sparkles")
+                    .font(.system(size: max(10, side * 0.48), weight: .semibold))
+                    .foregroundStyle(.white)
+                    .symbolEffect(.pulse, options: .repeating, isActive: activity.state == .working)
+            }
+            .frame(width: side, height: side)
+            .shadow(color: accent.opacity(0.45), radius: 6)
+            .frame(
+                width: agentDetailExpanded ? closedActivityDetailWidth : side,
+                alignment: .trailing
+            )
+
+            Rectangle()
+                .fill(.black)
+                .frame(width: vm.closedNotchSize.width - cornerRadiusInsets.closed.top)
+
+            AgentActivityBadge(activity: activity, providerSymbol: false)
+                .frame(
+                    width: agentDetailExpanded ? closedActivityDetailWidth : nil,
+                    alignment: .leading
+                )
+        }
+        .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
     }
 
     @ViewBuilder

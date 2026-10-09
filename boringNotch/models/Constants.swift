@@ -151,7 +151,7 @@ extension Defaults.Keys {
     static let selectedDownloadIconStyle = Key<DownloadIconStyle>("selectedDownloadIconStyle", default: DownloadIconStyle.onlyAppIcon)
     
     // MARK: HUD
-    static let hudReplacement = Key<Bool>("hudReplacement", default: false)
+    static let hudReplacement = Key<Bool>("hudReplacement", default: true)
     static let inlineHUD = Key<Bool>("inlineHUD", default: false)
     static let enableGradient = Key<Bool>("enableGradient", default: false)
     static let systemEventIndicatorShadow = Key<Bool>("systemEventIndicatorShadow", default: false)
@@ -176,6 +176,23 @@ extension Defaults.Keys {
     static let hideAllDayEvents = Key<Bool>("hideAllDayEvents", default: false)
     static let showFullEventTitles = Key<Bool>("showFullEventTitles", default: false)
     static let autoScrollToNextEvent = Key<Bool>("autoScrollToNextEvent", default: true)
+    static let calendarAlertsEnabled = Key<Bool>("calendarAlertsEnabled", default: true)
+    static let calendarAlertLeadMinutes = Key<Int>("calendarAlertLeadMinutes", default: 10)
+
+    // MARK: Live dashboard
+    static let liveActivitiesEnabled = Key<Bool>("liveActivitiesEnabled", default: true)
+    static let activityProfile = Key<ActivityProfile>("activityProfile", default: .everything)
+    static let privacyActivitiesEnabled = Key<Bool>("privacyActivitiesEnabled", default: true)
+    static let weatherAlertsEnabled = Key<Bool>("weatherAlertsEnabled", default: true)
+    static let timerActivitiesEnabled = Key<Bool>("timerActivitiesEnabled", default: true)
+    static let agentStatusEnabled = Key<Bool>("agentStatusEnabled", default: true)
+    static let liveActivityPriority = Key<LiveActivityPriority>("liveActivityPriority", default: .combined)
+    static let weatherEnabled = Key<Bool>("weatherEnabled", default: true)
+    static let weatherUseCurrentLocation = Key<Bool>("weatherUseCurrentLocation", default: true)
+    static let weatherOnLiveTab = Key<Bool>("weatherOnLiveTab", default: false)
+    static let weatherTilePosition = Key<WeatherTilePosition>("weatherTilePosition", default: .afterMusic)
+    static let weatherLocation = Key<String>("weatherLocation", default: "")
+    static let weatherUseCelsius = Key<Bool>("weatherUseCelsius", default: false)
     
     // MARK: Fullscreen Media Detection
     static let hideNotchOption = Key<HideNotchOption>("hideNotchOption", default: .nowPlayingOnly)

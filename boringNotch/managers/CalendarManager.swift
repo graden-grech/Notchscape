@@ -23,16 +23,21 @@ class CalendarManager: ObservableObject {
     @Published var selectedCalendarIDs: Set<String> = []
     @Published var calendarAuthorizationStatus: EKAuthorizationStatus = .notDetermined
     @Published var reminderAuthorizationStatus: EKAuthorizationStatus = .notDetermined
+    @Published private(set) var upcomingAlertEvent: EventModel?
+    @Published private(set) var upcomingReminderEvent: EventModel?
     private var selectedCalendars: [CalendarModel] = []
     private let calendarService = CalendarService()
 
     private var eventStoreChangedObserver: NSObjectProtocol?
+    private var alertTimer: Timer?
 
     private init() {
         self.currentWeekStartDate = CalendarManager.startOfDay(Date())
         setupEventStoreChangedObserver()
         Task {
             await reloadCalendarAndReminderLists()
+            await refreshUpcomingAlert()
+            startAlertTimer()
         }
     }
 
@@ -40,6 +45,7 @@ class CalendarManager: ObservableObject {
         if let observer = eventStoreChangedObserver {
             NotificationCenter.default.removeObserver(observer)
         }
+        alertTimer?.invalidate()
     }
 
     private func setupEventStoreChangedObserver() {
@@ -50,7 +56,51 @@ class CalendarManager: ObservableObject {
         ) { [weak self] _ in
             Task {
                 await self?.reloadCalendarAndReminderLists()
+                await self?.refreshUpcomingAlert()
             }
+        }
+    }
+
+    private func startAlertTimer() {
+        guard alertTimer == nil else { return }
+        alertTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                await self?.refreshUpcomingAlert()
+            }
+        }
+    }
+
+    func refreshUpcomingAlert() async {
+        guard Defaults[.calendarAlertsEnabled],
+              EKEventStore.authorizationStatus(for: .event) == .fullAccess else {
+            upcomingAlertEvent = nil
+            upcomingReminderEvent = nil
+            return
+        }
+
+        let now = Date()
+        let leadMinutes = max(1, Defaults[.calendarAlertLeadMinutes])
+        let windowEnd = now.addingTimeInterval(TimeInterval(leadMinutes * 60))
+        let calendarIDs = selectedCalendars.map(\.id)
+        let candidates = await calendarService.events(
+            from: now.addingTimeInterval(-300),
+            to: windowEnd,
+            calendars: calendarIDs
+        )
+
+        upcomingAlertEvent = candidates.first { event in
+            event.type.isEvent
+                && !event.isAllDay
+                && event.attendance != .declined
+                && event.start >= now.addingTimeInterval(-300)
+                && event.start <= windowEnd
+        }
+        upcomingReminderEvent = candidates.first { event in
+            guard case .reminder(let completed) = event.type else { return false }
+            return !completed
+                && !event.isAllDay
+                && event.start >= now.addingTimeInterval(-300)
+                && event.start <= windowEnd
         }
     }
 
@@ -191,6 +241,7 @@ class CalendarManager: ObservableObject {
             calendars: calendarIDs
         )
         self.events = eventsResult
+        await refreshUpcomingAlert()
     }
     
     func setReminderCompleted(reminderID: String, completed: Bool) async {

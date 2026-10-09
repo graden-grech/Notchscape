@@ -5,6 +5,7 @@
 //  Created by Richard Kunkli on 07/08/2024.
 //
 
+import AppKit
 import AVFoundation
 import Defaults
 import EventKit
@@ -38,6 +39,15 @@ struct SettingsView: View {
                 }
                 NavigationLink(value: "Calendar") {
                     Label("Calendar", systemImage: "calendar")
+                }
+                NavigationLink(value: "Agents") {
+                    Label("AI Agents", systemImage: "sparkles")
+                }
+                NavigationLink(value: "Weather") {
+                    Label("Weather", systemImage: "cloud.sun")
+                }
+                NavigationLink(value: "Activities") {
+                    Label("Live Activities", systemImage: "waveform.path.ecg")
                 }
                 NavigationLink(value: "HUD") {
                     Label("HUDs", systemImage: "dial.medium.fill")
@@ -79,6 +89,12 @@ struct SettingsView: View {
                     Media()
                 case "Calendar":
                     CalendarSettings()
+                case "Agents":
+                    AgentSettings()
+                case "Weather":
+                    WeatherSettings()
+                case "Activities":
+                    ActivitySettings()
                 case "HUD":
                     HUD()
                 case "Battery":
@@ -470,6 +486,7 @@ struct HUD: View {
     @Default(.hudReplacement) var hudReplacement
     @ObservedObject var coordinator = BoringViewCoordinator.shared
     @State private var accessibilityAuthorized = false
+    @State private var hudInterceptorActive = false
     
     var body: some View {
         Form {
@@ -499,12 +516,41 @@ struct HUD: View {
 
                         HStack(spacing: 12) {
                             Button("Request Accessibility") {
-                                XPCHelperClient.shared.requestAccessibilityAuthorization()
+                                Task {
+                                    accessibilityAuthorized = await XPCHelperClient.shared
+                                        .ensureAccessibilityAuthorization(promptIfNeeded: true)
+
+                                    if accessibilityAuthorized {
+                                        Defaults[.hudReplacement] = true
+                                        hudInterceptorActive = await MediaKeyInterceptor.shared.start()
+                                    } else if
+                                       let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                                        NSWorkspace.shared.open(url)
+                                    }
+                                }
                             }
                             .buttonStyle(.borderedProminent)
+
+                            Button("Open System Settings") {
+                                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                                    NSWorkspace.shared.open(url)
+                                }
+                            }
                         }
+
+                        Text("After you enable Boring Notch, the HUD replacement will turn on automatically.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                     .padding(.top, 6)
+                }
+
+                if accessibilityAuthorized {
+                    Label(
+                        hudInterceptorActive ? "HUD interceptor is active" : "Turn on Replace system HUD to start the interceptor",
+                        systemImage: hudInterceptorActive ? "checkmark.circle.fill" : "info.circle"
+                    )
+                    .foregroundStyle(hudInterceptorActive ? .green : .secondary)
                 }
             }
             
@@ -576,6 +622,7 @@ struct HUD: View {
         .navigationTitle("HUDs")
         .task {
             accessibilityAuthorized = await XPCHelperClient.shared.isAccessibilityAuthorized()
+            hudInterceptorActive = MediaKeyInterceptor.shared.isActive
         }
         .onAppear {
             XPCHelperClient.shared.startMonitoringAccessibilityAuthorization()
@@ -586,6 +633,23 @@ struct HUD: View {
         .onReceive(NotificationCenter.default.publisher(for: .accessibilityAuthorizationChanged)) { notification in
             if let granted = notification.userInfo?["granted"] as? Bool {
                 accessibilityAuthorized = granted
+                if granted {
+                    Defaults[.hudReplacement] = true
+                    Task {
+                        hudInterceptorActive = await MediaKeyInterceptor.shared.start()
+                    }
+                } else {
+                    hudInterceptorActive = false
+                }
+            }
+        }
+        .onChange(of: hudReplacement) { enabled in
+            if enabled {
+                Task {
+                    hudInterceptorActive = await MediaKeyInterceptor.shared.start()
+                }
+            } else {
+                hudInterceptorActive = false
             }
         }
     }
@@ -713,6 +777,8 @@ struct CalendarSettings: View {
     @Default(.hideCompletedReminders) var hideCompletedReminders
     @Default(.hideAllDayEvents) var hideAllDayEvents
     @Default(.autoScrollToNextEvent) var autoScrollToNextEvent
+    @Default(.calendarAlertsEnabled) private var calendarAlertsEnabled
+    @Default(.calendarAlertLeadMinutes) private var calendarAlertLeadMinutes
 
     var body: some View {
         Form {
@@ -730,6 +796,25 @@ struct CalendarSettings: View {
             }
             Defaults.Toggle(key: .showFullEventTitles) {
                 Text("Always show full event titles")
+            }
+            Section(header: Text("Upcoming Event Alerts")) {
+                Toggle("Show events on the closed notch", isOn: $calendarAlertsEnabled)
+                    .onChange(of: calendarAlertsEnabled) {
+                        Task { await calendarManager.refreshUpcomingAlert() }
+                    }
+                Picker("Show before event", selection: $calendarAlertLeadMinutes) {
+                    Text("5 minutes").tag(5)
+                    Text("10 minutes").tag(10)
+                    Text("15 minutes").tag(15)
+                    Text("30 minutes").tag(30)
+                }
+                .disabled(!calendarAlertsEnabled)
+                .onChange(of: calendarAlertLeadMinutes) {
+                    Task { await calendarManager.refreshUpcomingAlert() }
+                }
+                Text("Click an alert to join its meeting link, or open the event in Calendar.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Section(header: Text("Calendars")) {
                 if calendarManager.calendarAuthorizationStatus != .fullAccess {
@@ -812,6 +897,236 @@ struct CalendarSettings: View {
                 await calendarManager.checkReminderAuthorization()
             }
         }
+    }
+}
+
+struct ActivitySettings: View {
+    @Default(.liveActivitiesEnabled) private var liveActivitiesEnabled
+    @Default(.activityProfile) private var activityProfile
+    @Default(.privacyActivitiesEnabled) private var privacyActivitiesEnabled
+    @Default(.weatherAlertsEnabled) private var weatherAlertsEnabled
+    @Default(.timerActivitiesEnabled) private var timerActivitiesEnabled
+    @Default(.enableDownloadListener) private var enableDownloadListener
+    @ObservedObject private var timer = NotchTimerManager.shared
+    @ObservedObject private var privacy = PrivacyActivityMonitor.shared
+    @ObservedObject private var downloads = DownloadWatcher.shared
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Show Live Activities", isOn: $liveActivitiesEnabled)
+            } footer: {
+                Text("Turn this off to hide all music, AI, calendar, timer, privacy, download, and weather activities from the closed notch. HUDs and the expanded notch still work normally.")
+            }
+
+            Section("Activity Profile") {
+                Picker("Show", selection: $activityProfile) {
+                    ForEach(ActivityProfile.allCases) { profile in
+                        Text(profile.title).tag(profile)
+                    }
+                }
+                Text("Focus hides music and downloads. Entertainment keeps music and downloads. Minimal keeps only AI and privacy indicators.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .disabled(!liveActivitiesEnabled)
+
+            Section("Sources") {
+                Toggle("Microphone and camera indicators", isOn: $privacyActivitiesEnabled)
+                Toggle("Weather warnings", isOn: $weatherAlertsEnabled)
+                Toggle("Timers", isOn: $timerActivitiesEnabled)
+                Toggle("Downloads folder progress", isOn: $enableDownloadListener)
+                if privacy.microphoneInUse || privacy.cameraInUse {
+                    Label(
+                        privacy.cameraInUse && privacy.microphoneInUse
+                            ? "Camera and microphone currently active"
+                            : privacy.cameraInUse ? "Camera currently active" : "Microphone currently active",
+                        systemImage: privacy.cameraInUse ? "video.fill" : "mic.fill"
+                    )
+                    .foregroundStyle(privacy.cameraInUse ? .green : .orange)
+                }
+                if let download = downloads.downloadFiles.first {
+                    LabeledContent("Active download", value: download.name)
+                }
+            }
+            .disabled(!liveActivitiesEnabled)
+
+            Section("Quick Timers") {
+                HStack {
+                    Button("5 min") { timer.start(minutes: 5) }
+                    Button("10 min") { timer.start(minutes: 10) }
+                    Button("25 min Focus") { timer.start(minutes: 25, label: "Focus timer") }
+                    Spacer()
+                    if timer.endDate != nil {
+                        Button("Cancel", role: .destructive) { timer.cancel() }
+                    }
+                }
+                if timer.endDate != nil {
+                    LabeledContent("Remaining", value: String(format: "%d:%02d", timer.remainingSeconds / 60, timer.remainingSeconds % 60))
+                }
+            }
+            .disabled(!liveActivitiesEnabled)
+
+            Section("Controls") {
+                Text("Click an AI badge for details. Press and hold it to open the agent or change Music/AI priority. Click timers to cancel, downloads to reveal them, and calendar alerts to join meetings.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .disabled(!liveActivitiesEnabled)
+        }
+        .navigationTitle("Live Activities")
+        .accentColor(.effectiveAccent)
+    }
+}
+
+struct AgentSettings: View {
+    @ObservedObject private var manager = AgentStatusManager.shared
+    @Default(.liveActivityPriority) private var liveActivityPriority
+
+    var body: some View {
+        Form {
+            Section {
+                Defaults.Toggle(key: .agentStatusEnabled) {
+                    Text("Show AI agent status")
+                }
+                Picker("When music and AI are active", selection: $liveActivityPriority) {
+                    ForEach(LiveActivityPriority.allCases) { priority in
+                        Text(priority.title).tag(priority)
+                    }
+                }
+                LabeledContent("Local bridge") {
+                    Label(
+                        manager.isListening ? "Listening on 127.0.0.1:\(AgentStatusManager.port)" : "Not connected",
+                        systemImage: manager.isListening ? "checkmark.circle.fill" : "exclamationmark.circle"
+                    )
+                    .foregroundStyle(manager.isListening ? .green : .orange)
+                }
+            } header: {
+                Text("AI Agents")
+            } footer: {
+                Text("In Music + AI mode, swipe the closed notch to switch between the combined, music-only, and AI-only views. Activity stays on this Mac.")
+            }
+
+            Section {
+                Button("Copy Codex hook configuration") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(Self.hookConfiguration, forType: .string)
+                }
+                Button("Copy Claude Code hook command") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(Self.claudeHookCommand, forType: .string)
+                }
+                Text("Codex uses ~/.codex/hooks.json. Claude Code uses the command in ~/.claude/settings.json.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
+            } header: {
+                Text("Setup")
+            }
+        }
+        .navigationTitle("AI Agents")
+        .accentColor(.effectiveAccent)
+        .onAppear { manager.start() }
+    }
+
+    private static let hookConfiguration = """
+    {
+      "description": "Send local Codex activity to boringNotch.",
+      "hooks": {
+        "SessionStart": [{"hooks": [{"type": "command", "command": "/usr/bin/curl -sS --max-time 1 -H 'Content-Type: application/json' --data-binary @- http://127.0.0.1:43765/codex >/dev/null", "timeout": 2}]}],
+        "UserPromptSubmit": [{"hooks": [{"type": "command", "command": "/usr/bin/curl -sS --max-time 1 -H 'Content-Type: application/json' --data-binary @- http://127.0.0.1:43765/codex >/dev/null", "timeout": 2}]}],
+        "PreToolUse": [{"hooks": [{"type": "command", "command": "/usr/bin/curl -sS --max-time 1 -H 'Content-Type: application/json' --data-binary @- http://127.0.0.1:43765/codex >/dev/null", "timeout": 2}]}],
+        "PostToolUse": [{"hooks": [{"type": "command", "command": "/usr/bin/curl -sS --max-time 1 -H 'Content-Type: application/json' --data-binary @- http://127.0.0.1:43765/codex >/dev/null", "timeout": 2}]}],
+        "PermissionRequest": [{"hooks": [{"type": "command", "command": "/usr/bin/curl -sS --max-time 1 -H 'Content-Type: application/json' --data-binary @- http://127.0.0.1:43765/codex >/dev/null", "timeout": 2}]}],
+        "Stop": [{"hooks": [{"type": "command", "command": "/usr/bin/curl -sS --max-time 1 -H 'Content-Type: application/json' --data-binary @- http://127.0.0.1:43765/codex >/dev/null", "timeout": 2}]}],
+        "Interrupt": [{"hooks": [{"type": "command", "command": "/usr/bin/curl -sS --max-time 1 -H 'Content-Type: application/json' --data-binary @- http://127.0.0.1:43765/codex >/dev/null", "timeout": 2}]}],
+        "SessionEnd": [{"hooks": [{"type": "command", "command": "/usr/bin/curl -sS --max-time 1 -H 'Content-Type: application/json' --data-binary @- http://127.0.0.1:43765/codex >/dev/null", "timeout": 2}]}]
+      }
+    }
+    """
+
+    private static let claudeHookCommand = """
+    /usr/bin/jq -c '. + {"provider":"Claude Code"}' | /usr/bin/curl -sS --connect-timeout 0.2 --max-time 1 -H 'Content-Type: application/json' --data-binary @- http://127.0.0.1:43765/claude >/dev/null # boringnotch-agents-claude-hook
+    """
+}
+
+struct WeatherSettings: View {
+    @ObservedObject private var manager = WeatherManager.shared
+    @Default(.weatherUseCurrentLocation) private var useCurrentLocation
+    @Default(.weatherLocation) private var location
+    @Default(.weatherUseCelsius) private var useCelsius
+    @Default(.weatherOnLiveTab) private var weatherOnLiveTab
+    @Default(.weatherTilePosition) private var tilePosition
+
+    var body: some View {
+        Form {
+            Section {
+                Defaults.Toggle(key: .weatherEnabled) {
+                    Text("Show weather")
+                }
+                Toggle("Use current location", isOn: $useCurrentLocation)
+                    .onChange(of: useCurrentLocation) { manager.refresh() }
+
+                Toggle("Show on Live tab", isOn: $weatherOnLiveTab)
+
+                if !weatherOnLiveTab {
+                    Picker("Home tile position", selection: $tilePosition) {
+                        ForEach(WeatherTilePosition.allCases) { position in
+                            Text(position.title).tag(position)
+                        }
+                    }
+                }
+
+                if !useCurrentLocation {
+                    TextField("City or postal code", text: $location)
+                        .onSubmit { manager.refresh() }
+                }
+
+                Picker("Temperature unit", selection: $useCelsius) {
+                    Text("Fahrenheit").tag(false)
+                    Text("Celsius").tag(true)
+                }
+                .onChange(of: useCelsius) { manager.refresh() }
+
+                Button("Refresh Weather") {
+                    manager.refresh()
+                }
+                .disabled((!useCurrentLocation && location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) || manager.isLoading)
+
+                if useCurrentLocation {
+                    LabeledContent("Permission", value: manager.locationPermissionDescription)
+
+                    if manager.locationAuthorizationStatus == .denied {
+                        Button("Open Location Settings") {
+                            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }
+                    }
+                }
+            } header: {
+                Text("Location")
+            } footer: {
+                Text(useCurrentLocation
+                     ? "Your approximate coordinates are sent to Open-Meteo to retrieve local weather. No weather API key is needed."
+                     : "The city name is sent to Open-Meteo to retrieve the forecast. No weather API key is needed.")
+            }
+
+            if let weather = manager.weather {
+                Section("Preview") {
+                    let valueString = String(format: "%.0f° • %@", weather.temperature, weather.condition)
+                    LabeledContent(weather.location, value: valueString)
+                }
+            } else if let error = manager.errorMessage {
+                Section {
+                    Label(error, systemImage: "exclamationmark.triangle")
+                        .foregroundStyle(.orange)
+                }
+            }
+        }
+        .navigationTitle("Weather")
+        .accentColor(.effectiveAccent)
+        .onAppear { manager.refresh() }
     }
 }
 

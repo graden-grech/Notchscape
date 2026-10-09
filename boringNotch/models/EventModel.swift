@@ -67,7 +67,23 @@ extension EventType {
 }
 
 extension EventModel {
-    
+    var meetingURL: URL? {
+        var candidates: [URL] = []
+        if let url { candidates.append(url) }
+
+        for text in [location, notes].compactMap({ $0 }) {
+            guard let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue) else { continue }
+            let range = NSRange(text.startIndex..<text.endIndex, in: text)
+            candidates.append(contentsOf: detector.matches(in: text, range: range).compactMap(\.url))
+        }
+
+        let meetingHosts = ["zoom", "teams", "meet.google", "webex", "facetime"]
+        return candidates.first { candidate in
+            let value = candidate.absoluteString.lowercased()
+            return meetingHosts.contains { value.contains($0) }
+        }
+    }
+
     var eventStatus: EventStatus {
         if start > Date() {
             return .upcoming

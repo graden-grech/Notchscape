@@ -13,6 +13,8 @@ class AudioSpectrum: NSView {
     private var barScales: [CGFloat] = []
     private var isPlaying: Bool = true
     private var animationTimer: Timer?
+    private let barWidth: CGFloat = 3
+    private let totalHeight: CGFloat = 14
     
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -27,31 +29,35 @@ class AudioSpectrum: NSView {
     }
 
     private func setupBars() {
-        let barWidth: CGFloat = 2
         let barCount = 4
-        let spacing: CGFloat = barWidth
-        let totalWidth = CGFloat(barCount) * (barWidth + spacing)
-        let totalHeight: CGFloat = 14
+        let spacing: CGFloat = 1.25
+        let totalWidth = CGFloat(barCount) * barWidth + CGFloat(barCount - 1) * spacing
         frame.size = CGSize(width: totalWidth, height: totalHeight)
 
         for i in 0 ..< barCount {
             let xPosition = CGFloat(i) * (barWidth + spacing)
             let barLayer = CAShapeLayer()
             barLayer.frame = CGRect(x: xPosition, y: 0, width: barWidth, height: totalHeight)
-            barLayer.anchorPoint = CGPoint(x: 0.5, y: 0.5)
-            barLayer.position = CGPoint(x: xPosition + barWidth / 2, y: totalHeight / 2)
-            barLayer.fillColor = NSColor.white.cgColor
-            barLayer.backgroundColor = NSColor.white.cgColor
+            barLayer.fillColor = NSColor.clear.cgColor
+            barLayer.strokeColor = NSColor.white.cgColor
+            barLayer.lineWidth = barWidth
+            barLayer.lineCap = .round
             barLayer.allowsGroupOpacity = false
-            barLayer.masksToBounds = true
-            let path = NSBezierPath(roundedRect: CGRect(x: 0, y: 0, width: barWidth, height: totalHeight),
-                                    xRadius: barWidth / 2,
-                                    yRadius: barWidth / 2)
-            barLayer.path = path.cgPath
+            barLayer.path = barPath(scale: 0.35)
             barLayers.append(barLayer)
             barScales.append(0.35)
             layer?.addSublayer(barLayer)
         }
+    }
+
+    private func barPath(scale: CGFloat) -> CGPath {
+        let visibleHeight = max(barWidth, totalHeight * scale)
+        let centerY = totalHeight / 2
+        let halfLine = max(0, (visibleHeight - barWidth) / 2)
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: barWidth / 2, y: centerY - halfLine))
+        path.addLine(to: CGPoint(x: barWidth / 2, y: centerY + halfLine))
+        return path
     }
     
     private func startAnimating() {
@@ -72,24 +78,23 @@ class AudioSpectrum: NSView {
             let currentScale = barScales[i]
             let targetScale = CGFloat.random(in: 0.35 ... 1.0)
             barScales[i] = targetScale
-            let animation = CABasicAnimation(keyPath: "transform.scale.y")
-            animation.fromValue = currentScale
-            animation.toValue = targetScale
-            animation.duration = 0.3
-            animation.autoreverses = true
-            animation.fillMode = .forwards
-            animation.isRemovedOnCompletion = false
+            let animation = CABasicAnimation(keyPath: "path")
+            animation.fromValue = barPath(scale: currentScale)
+            animation.toValue = barPath(scale: targetScale)
+            animation.duration = 0.28
+            animation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
             if #available(macOS 13.0, *) {
                 animation.preferredFrameRateRange = CAFrameRateRange(minimum: 24, maximum: 24, preferred: 24)
             }
-            barLayer.add(animation, forKey: "scaleY")
+            barLayer.path = barPath(scale: targetScale)
+            barLayer.add(animation, forKey: "roundedHeight")
         }
     }
     
     private func resetBars() {
         for (i, barLayer) in barLayers.enumerated() {
             barLayer.removeAllAnimations()
-            barLayer.transform = CATransform3DMakeScale(1, 0.35, 1)
+            barLayer.path = barPath(scale: 0.35)
             barScales[i] = 0.35
         }
     }

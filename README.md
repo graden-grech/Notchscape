@@ -6,10 +6,18 @@
   <br>
 </h1>
 
+<p align="center"><strong>Graden's custom boringNotch build</strong></p>
+
+This public fork adds local weather, Codex and Claude Code agent activities,
+privacy indicators, configurable Live Activities, timer controls, and a more
+Apple-like completion treatment. It keeps the original project as the upstream
+base while shipping updates from
+[`graden-grech/boringNotch-custom`](https://github.com/graden-grech/boringNotch-custom).
+
 
 <p align="center">
   <a title="Crowdin" target="_blank" href="https://crowdin.com/project/boring-notch"><img src="https://badges.crowdin.net/boring-notch/localized.svg"></a>
-  <img src="https://github.com/TheBoredTeam/boring.notch/actions/workflows/cicd.yml/badge.svg" alt="TheBoringNotch Build & Test" style="margin-right: 10px;" />
+  <img src="https://github.com/graden-grech/boringNotch-custom/actions/workflows/cicd.yml/badge.svg" alt="Custom boringNotch Build & Test" style="margin-right: 10px;" />
   <a href="https://discord.gg/c8JXA7qrPm">
     <img src="https://dcbadge.limes.pink/api/server/https://discord.gg/c8JXA7qrPm?style=flat" alt="Discord Badge" />
   </a>
@@ -52,7 +60,7 @@ Say hello to **Boring Notch**, the coolest way to make your MacBook’s notch th
 
 ### Option 1: Download and Install Manually
 
-<a href="https://github.com/TheBoredTeam/boring.notch/releases/latest/download/boringNotch.dmg" target="_self"><img width="200" src="https://github.com/user-attachments/assets/e3179be1-8416-4b8a-b417-743e1ecc67d6" alt="Download for macOS" /></a>
+<a href="https://github.com/graden-grech/boringNotch-custom/releases/latest/download/boringNotch-custom.zip" target="_self"><img width="200" src="https://github.com/user-attachments/assets/e3179be1-8416-4b8a-b417-743e1ecc67d6" alt="Download Graden's custom build for macOS" /></a>
 
 Once downloaded, open the `.dmg` and move **Boring Notch** to your `/Applications` folder.
 
@@ -90,9 +98,10 @@ Then open the app normally.
 
 ---
 
-### Option 2: Install via Homebrew
+### Original Homebrew build
 
-You can also install using [Homebrew](https://brew.sh). The Homebrew installation automatically bypasses the macOS security warning described above.
+The Homebrew command below installs the original upstream app, not this custom
+edition. Use the release download above if you want weather and AI activities.
 
 ```bash
 brew install --cask TheBoredTeam/boring-notch/boring-notch

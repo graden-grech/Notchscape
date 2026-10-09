@@ -21,11 +21,74 @@ struct DynamicNotchApp: App {
     let updaterController: SPUStandardUpdaterController
 
     init() {
+        Self.migrateSandboxPreferencesIfNeeded()
+
         updaterController = SPUStandardUpdaterController(
             startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
 
+        // Keep the local agent bridge available even before the Live tab is opened.
+        _ = AgentStatusManager.shared
+
+        // Start the HUD interceptor at process launch. This cannot rely only on
+        // the settings/coordinator view lifecycle because the notch app may run
+        // without either view being constructed yet.
+        Task { @MainActor in
+            if Defaults[.hudReplacement] {
+                await MediaKeyInterceptor.shared.start(promptIfNeeded: false)
+            }
+        }
+
         // Initialize the settings window controller with the updater controller
         SettingsWindowController.shared.setUpdaterController(updaterController)
+    }
+
+    private static func migrateSandboxPreferencesIfNeeded() {
+        guard let bundleID = Bundle.main.bundleIdentifier else { return }
+
+        let legacyURL = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Containers")
+            .appendingPathComponent(bundleID)
+            .appendingPathComponent("Data/Library/Preferences")
+            .appendingPathComponent("\(bundleID).plist")
+
+        let defaults = UserDefaults.standard
+        let existing = defaults.persistentDomain(forName: bundleID) ?? [:]
+
+        // AppDelegate constructs objects with @Default properties before this
+        // App initializer runs, so refresh the typed cache from the real
+        // unsandboxed domain even when there is no legacy container left.
+        if let currentHUDEnabled = existing["hudReplacement"] as? Bool {
+            Defaults[.hudReplacement] = currentHUDEnabled
+        }
+
+        guard
+            let data = try? Data(contentsOf: legacyURL),
+            let legacy = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
+        else { return }
+
+        var migrated = false
+
+        let hudMigrationKey = "didMigrateUnsandboxedHUDPreference"
+        if existing["hudReplacement"] == nil,
+           !defaults.bool(forKey: hudMigrationKey),
+                  let legacyHUDEnabled = legacy["hudReplacement"] as? Bool {
+            // The Defaults package may already have cached the key's default
+            // value while AppDelegate and its coordinator are initialized.
+            // Write through Defaults so that cache and disk agree immediately.
+            Defaults[.hudReplacement] = legacyHUDEnabled
+            defaults.set(true, forKey: hudMigrationKey)
+            migrated = true
+        }
+
+        for (key, value) in legacy where existing[key] == nil {
+            defaults.set(value, forKey: key)
+            migrated = true
+        }
+
+        if migrated {
+            defaults.synchronize()
+            NSLog("Boring Notch: migrated preferences from the previous sandboxed build")
+        }
     }
 
     var body: some Scene {
@@ -280,6 +343,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+
+        // Start the HUD after AppKit has finished launching. Starting it only
+        // from `App.init()` can race the application run loop, which leaves a
+        // successfully-created event tap without a reliable run-loop owner (or
+        // prevents the startup task from running at all on some launches).
+        Task { @MainActor in
+            let hudEnabled = Defaults[.hudReplacement]
+            let accessibilityGranted = await XPCHelperClient.shared.isAccessibilityAuthorized()
+            NSLog(
+                "Boring Notch HUD: launch check enabled=%@ accessibility=%@",
+                hudEnabled ? "yes" : "no",
+                accessibilityGranted ? "granted" : "denied"
+            )
+
+            if hudEnabled && accessibilityGranted {
+                _ = await MediaKeyInterceptor.shared.start(promptIfNeeded: false)
+            }
+        }
 
         NotificationCenter.default.addObserver(
             self,

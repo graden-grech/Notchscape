@@ -27,6 +27,7 @@ final class MediaKeyInterceptor {
     
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
+    private var isStarting = false
     private let step: Float = 1.0 / 16.0
     private var audioPlayer: AVAudioPlayer?
     
@@ -44,23 +45,29 @@ final class MediaKeyInterceptor {
     
     // MARK: - Event Tap
     
-    func start(promptIfNeeded: Bool = false) async {
-        guard eventTap == nil else { return }
+    @discardableResult
+    @MainActor
+    func start(promptIfNeeded: Bool = false) async -> Bool {
+        guard eventTap == nil else { return true }
+        guard !isStarting else { return false }
+        isStarting = true
+        defer { isStarting = false }
         
         // Ensure HUD replacement is enabled
         guard Defaults[.hudReplacement] else {
             stop()
-            return
+            return false
         }
         
         // Check accessibility authorization
         let authorized = await XPCHelperClient.shared.isAccessibilityAuthorized()
+        NSLog("Boring Notch HUD: start requested, accessibility=%@", authorized ? "granted" : "denied")
         if !authorized {
             if promptIfNeeded {
                 let granted = await ensureAccessibilityAuthorization(promptIfNeeded: true)
-                guard granted else { return }
+                guard granted else { return false }
             } else {
-                return
+                return false
             }
         }
         
@@ -70,9 +77,15 @@ final class MediaKeyInterceptor {
             place: .headInsertEventTap,
             options: .defaultTap,
             eventsOfInterest: mask,
-            callback: { _, _, cgEvent, userInfo in
-                guard let userInfo else { return Unmanaged.passRetained(cgEvent) }
+            callback: { _, type, cgEvent, userInfo in
+                guard let userInfo else { return Unmanaged.passUnretained(cgEvent) }
                 let interceptor = Unmanaged<MediaKeyInterceptor>.fromOpaque(userInfo).takeUnretainedValue()
+                if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
+                    if let eventTap = interceptor.eventTap {
+                        CGEvent.tapEnable(tap: eventTap, enable: true)
+                    }
+                    return Unmanaged.passUnretained(cgEvent)
+                }
                 return interceptor.handleEvent(cgEvent)
             },
             userInfo: UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
@@ -84,8 +97,15 @@ final class MediaKeyInterceptor {
                 CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
             }
             CGEvent.tapEnable(tap: eventTap, enable: true)
+            NSLog("Boring Notch HUD: media-key event tap is active")
+            return true
         }
+
+        NSLog("Boring Notch HUD: failed to create the media-key event tap")
+        return false
     }
+
+    var isActive: Bool { eventTap != nil }
     
     func stop() {
         if let eventTap {
@@ -103,12 +123,12 @@ final class MediaKeyInterceptor {
     private func handleEvent(_ cgEvent: CGEvent) -> Unmanaged<CGEvent>? {
         // Ensure the CGEvent has a valid type before converting to NSEvent
         guard cgEvent.type != .null else {
-            return Unmanaged.passRetained(cgEvent)
+            return Unmanaged.passUnretained(cgEvent)
         }
         guard let nsEvent = NSEvent(cgEvent: cgEvent),
               nsEvent.type == .systemDefined,
               nsEvent.subtype.rawValue == 8 else {
-            return Unmanaged.passRetained(cgEvent)
+            return Unmanaged.passUnretained(cgEvent)
         }
         
         let data1 = nsEvent.data1
@@ -118,7 +138,7 @@ final class MediaKeyInterceptor {
         // 0xA = key down, 0xB = key up. Only handle key down.
         guard stateByte == 0xA,
               let keyType = NXKeyType(rawValue: keyCode) else {
-            return Unmanaged.passRetained(cgEvent)
+            return Unmanaged.passUnretained(cgEvent)
         }
         
         let flags = nsEvent.modifierFlags

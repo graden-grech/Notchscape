@@ -190,11 +190,16 @@ class BoringViewModel: NSObject, ObservableObject {
     }
 
     func open() {
-        self.notchSize = openNotchSize
+        self.notchSize = getOpenNotchSize()
         self.notchState = .open
         
         // Force music information update when notch is opened
         MusicManager.shared.forceUpdate()
+    }
+
+    func refreshOpenNotchSize() {
+        guard notchState == .open else { return }
+        notchSize = getOpenNotchSize()
     }
 
     func close() {
