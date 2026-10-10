@@ -597,27 +597,13 @@ struct ContentView: View {
     @ViewBuilder
     func AgentActivityBadge(activity: AgentActivity, providerSymbol: Bool) -> some View {
         let isClaude = activity.provider.localizedCaseInsensitiveContains("claude")
-        let isFinished = activity.state == .completed
-        let accent = isFinished
+        let accent = activity.state == .completed
             ? Color.green
-            : isClaude
-                ? Color(red: 0.95, green: 0.43, blue: 0.20)
-                : Color(red: 0.55, green: 0.36, blue: 0.96)
-        let secondary = isFinished
-            ? Color.green
-            : isClaude
-                ? Color(red: 1.0, green: 0.68, blue: 0.34)
-                : Color(red: 0.35, green: 0.24, blue: 0.78)
+            : AgentProviderStyle.accent(for: activity.provider)
         let side = max(0, vm.effectiveClosedNotchHeight - 12)
-        let symbol = activity.state == .completed
-            ? "checkmark"
-            : activity.state == .interrupted
-                ? "pause.fill"
-                : activity.state == .needsInput
-                    ? "exclamationmark"
-                    : providerSymbol
-                        ? (isClaude ? "sun.max.fill" : "sparkles")
-                        : "waveform.path"
+        let symbolOverride = activity.state == .working && !providerSymbol
+            ? "waveform.path"
+            : nil
 
         Button {
             withAnimation(.snappy(duration: 0.3)) {
@@ -625,38 +611,12 @@ struct ContentView: View {
             }
         } label: {
             HStack(spacing: 7) {
-                ZStack {
-                    Group {
-                        if isFinished {
-                            Circle()
-                                .fill(Color.green)
-                        } else {
-                            RoundedRectangle(cornerRadius: max(6, side * 0.28), style: .continuous)
-                                .fill(LinearGradient(
-                                    colors: [secondary, accent],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ))
-                        }
-                    }
-                        .overlay {
-                            if isFinished {
-                                Circle().strokeBorder(.white.opacity(0.18), lineWidth: 0.75)
-                            } else {
-                                RoundedRectangle(cornerRadius: max(6, side * 0.28), style: .continuous)
-                                    .strokeBorder(.white.opacity(0.24), lineWidth: 0.75)
-                            }
-                        }
-
-                    Image(systemName: symbol)
-                        .font(.system(
-                            size: max(9, side * (isFinished ? 0.38 : 0.44)),
-                            weight: isFinished ? .semibold : .bold
-                        ))
-                        .foregroundStyle(.white)
-                        .symbolEffect(.pulse, options: .repeating, isActive: activity.state == .working)
-                }
-                .frame(width: side, height: side)
+                AgentProviderMark(
+                    provider: activity.provider,
+                    state: activity.state,
+                    size: side,
+                    symbolOverride: symbolOverride
+                )
 
                 if agentDetailExpanded {
                     VStack(alignment: .leading, spacing: 0) {
@@ -673,15 +633,8 @@ struct ContentView: View {
                 }
             }
             .padding(.trailing, agentDetailExpanded ? 7 : 0)
-            .background(.black, in: Capsule())
-            .overlay {
-                Capsule().strokeBorder(accent.opacity(agentDetailExpanded ? 0.32 : 0), lineWidth: 0.75)
-            }
-            .shadow(
-                color: isFinished ? .black.opacity(0.22) : accent.opacity(0.45),
-                radius: isFinished ? 2 : 6,
-                y: isFinished ? 1 : 0
-            )
+            .background(.black.opacity(0.74), in: Capsule())
+            .liquidGlassCapsule(tint: accent)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(activity.provider), \(activity.state.label), \(activity.detail)")
@@ -743,8 +696,8 @@ struct ContentView: View {
                 }
                 .padding(.horizontal, 9)
                 .frame(width: 154, height: side, alignment: .leading)
-                .background(Color.blue.opacity(0.14), in: Capsule())
-                .overlay { Capsule().strokeBorder(Color.blue.opacity(0.35), lineWidth: 0.75) }
+                .background(.black.opacity(0.72), in: Capsule())
+                .liquidGlassCapsule(tint: .blue)
             }
             .buttonStyle(.plain)
             .disabled(destination == nil)
@@ -778,7 +731,8 @@ struct ContentView: View {
                 }
                 .padding(.horizontal, 10)
                 .frame(width: 154, height: side, alignment: .leading)
-                .background(Color.orange.opacity(0.13), in: Capsule())
+                .background(.black.opacity(0.72), in: Capsule())
+                .liquidGlassCapsule(tint: finished ? .green : .orange)
             }
             .buttonStyle(.plain)
             .help("Click to cancel")
@@ -844,7 +798,8 @@ struct ContentView: View {
                 }
                 .padding(.horizontal, 9)
                 .frame(width: 154, height: side, alignment: .leading)
-                .background((finished ? Color.green : Color.blue).opacity(0.13), in: Capsule())
+                .background(.black.opacity(0.72), in: Capsule())
+                .liquidGlassCapsule(tint: finished ? .green : .blue)
             }
             .buttonStyle(.plain)
         }
@@ -872,7 +827,8 @@ struct ContentView: View {
             }
             .padding(.horizontal, 10)
             .frame(width: 154, height: side, alignment: .leading)
-            .background(Color.indigo.opacity(0.14), in: Capsule())
+            .background(.black.opacity(0.72), in: Capsule())
+            .liquidGlassCapsule(tint: .indigo)
         }
         .frame(height: vm.effectiveClosedNotchHeight)
     }
@@ -1001,37 +957,10 @@ struct ContentView: View {
 
     @ViewBuilder
     func AgentLiveActivity(activity: AgentActivity) -> some View {
-        let isClaude = activity.provider.localizedCaseInsensitiveContains("claude")
-        let accent = isClaude
-            ? Color(red: 0.95, green: 0.43, blue: 0.20)
-            : Color(red: 0.55, green: 0.36, blue: 0.96)
-        let secondary = isClaude
-            ? Color(red: 1.0, green: 0.68, blue: 0.34)
-            : Color(red: 0.35, green: 0.24, blue: 0.78)
         let side = max(0, vm.effectiveClosedNotchHeight - 12)
 
         HStack(spacing: 8) {
-            ZStack {
-                RoundedRectangle(cornerRadius: max(6, side * 0.28), style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: [secondary, accent],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .overlay {
-                        RoundedRectangle(cornerRadius: max(6, side * 0.28), style: .continuous)
-                            .strokeBorder(.white.opacity(0.22), lineWidth: 0.75)
-                    }
-
-                Image(systemName: isClaude ? "sun.max.fill" : "sparkles")
-                    .font(.system(size: max(10, side * 0.48), weight: .semibold))
-                    .foregroundStyle(.white)
-                    .symbolEffect(.pulse, options: .repeating, isActive: activity.state == .working)
-            }
-            .frame(width: side, height: side)
-            .shadow(color: accent.opacity(0.45), radius: 6)
+            AgentProviderMark(provider: activity.provider, state: activity.state, size: side)
             .frame(
                 width: agentDetailExpanded ? closedActivityDetailWidth : side,
                 alignment: .trailing

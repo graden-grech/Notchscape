@@ -22,13 +22,15 @@ struct LiveDashboardView: View {
     }
 
     private var agentCard: some View {
-        dashboardCard(title: "AI Agents", symbol: "sparkles") {
+        dashboardCard(title: "AI Agents", symbol: "apple.intelligence", tint: .purple) {
             if let activity = agents.activities.first {
                 VStack(alignment: .leading, spacing: 7) {
                     HStack(spacing: 8) {
-                        Image(systemName: activity.state.symbol)
-                            .foregroundStyle(color(for: activity.state))
-                            .symbolEffect(.pulse, isActive: activity.state == .working)
+                        AgentProviderMark(
+                            provider: activity.provider,
+                            state: activity.state,
+                            size: 30
+                        )
                         VStack(alignment: .leading, spacing: 1) {
                             Text(activity.title)
                                 .font(.subheadline.weight(.semibold))
@@ -46,8 +48,11 @@ struct LiveDashboardView: View {
                 }
             } else {
                 VStack(alignment: .leading, spacing: 6) {
-                    Label(agents.isListening ? "Ready for Codex" : "Starting bridge…", systemImage: agents.isListening ? "dot.radiowaves.left.and.right" : "hourglass")
-                        .font(.subheadline.weight(.medium))
+                    HStack(spacing: 8) {
+                        AgentProviderMark(provider: "Codex", state: .working, size: 28)
+                        Text(agents.isListening ? "Ready for Codex" : "Starting bridge…")
+                            .font(.subheadline.weight(.medium))
+                    }
                     Text("Agent activity will appear here.")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
@@ -59,6 +64,7 @@ struct LiveDashboardView: View {
     private func dashboardCard<Content: View>(
         title: String,
         symbol: String,
+        tint: Color,
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 9) {
@@ -70,20 +76,7 @@ struct LiveDashboardView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Color.white.opacity(0.075), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
-        }
-    }
-
-    private func color(for state: AgentActivityState) -> Color {
-        switch state {
-        case .working: .blue
-        case .needsInput: .orange
-        case .completed: .green
-        case .interrupted: .gray
-        }
+        .liquidGlassPanel(tint: tint, cornerRadius: 16)
     }
 }
 
@@ -141,16 +134,7 @@ struct HomeWeatherTile: View {
             .padding(12)
             .frame(width: 132)
             .frame(maxHeight: .infinity, alignment: .topLeading)
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .background {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(weatherTint.opacity(0.22))
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.75)
-            }
-            .shadow(color: weatherTint.opacity(0.16), radius: 12, y: 5)
+            .liquidGlassPanel(tint: weatherTint, cornerRadius: 18)
             .task { weather.refresh() }
         }
     }

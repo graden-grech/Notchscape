@@ -1,4 +1,9 @@
-# boringNotch Custom 2.7.4
+# boringNotch Custom 2.7.5
+
+- Redesigns the Codex and Claude Code marks as clean circular Apple-style
+  glyphs while preserving their purple and orange identities.
+- Adds a layered Liquid Glass appearance to AI badges, weather, dashboard
+  cards, and Live Activity detail capsules.
 
 - Adds Codex and Claude Code activities with provider colors, Music/AI priority,
   dual-activity layouts, and four-second completion indicators.

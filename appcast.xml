@@ -1,0 +1,35 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>Boring Notch</title>
+        <item>
+            <title>2.7.5</title>
+            <pubDate>Fri, 09 Oct 2026 23:11:20 -0400</pubDate>
+            <link>https://github.com/graden-grech/boringNotch-custom/releases/tag/v2.7.5</link>
+            <sparkle:version>273</sparkle:version>
+            <sparkle:shortVersionString>2.7.5</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[# boringNotch Custom 2.7.5
+
+- Redesigns the Codex and Claude Code marks as clean circular Apple-style
+  glyphs while preserving their purple and orange identities.
+- Adds a layered Liquid Glass appearance to AI badges, weather, dashboard
+  cards, and Live Activity detail capsules.
+
+- Adds Codex and Claude Code activities with provider colors, Music/AI priority,
+  dual-activity layouts, and four-second completion indicators.
+- Adds a location-aware weather tile that can live on Home or the Live page.
+- Restores native notch sizing when weather is on the Live page and keeps the
+  calendar at its normal size.
+- Adds Live Activity controls, timers, download status, calendar alerts, and
+  Apple-style privacy indicators.
+- Improves the HUD permission flow and keeps the original rounded notch shape.
+- Refines the AI completion checkmark and music waveform with a cleaner,
+  Apple-like appearance.
+- Moves Sparkle updates to the public `graden-grech/boringNotch-custom` feed.
+]]></description>
+            <enclosure url="https://github.com/graden-grech/boringNotch-custom/releases/download/v2.7.5/boringNotch-custom.zip" length="8366732" type="application/octet-stream" sparkle:edSignature="Hj4wPSVXZ1lDTmD4TP0W6SLRhGvxeFrA9rCWo99COdJRLLRyG1cUZg7QnhGYXkGwmXEf2CU+qkHHJICZCSmIAw=="/>
+        </item>
+    </channel>
+</rss>
