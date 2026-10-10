@@ -152,7 +152,11 @@ class BoringViewCoordinator: ObservableObject {
                             if granted {
                                 await MediaKeyInterceptor.shared.start()
                             } else {
-                                Defaults[.hudReplacement] = false
+                                // Keep the user's HUD preference enabled while macOS
+                                // waits for Accessibility approval. The global
+                                // authorization monitor starts the interceptor as
+                                // soon as permission is granted.
+                                XPCHelperClient.shared.startMonitoringAccessibilityAuthorization()
                             }
                         }
                     } else {
@@ -167,7 +171,8 @@ class BoringViewCoordinator: ObservableObject {
             if Defaults[.hudReplacement] {
                 let authorized = await XPCHelperClient.shared.isAccessibilityAuthorized()
                 if !authorized {
-                    Defaults[.hudReplacement] = false
+                    XPCHelperClient.shared.startMonitoringAccessibilityAuthorization()
+                    _ = await MediaKeyInterceptor.shared.start(promptIfNeeded: true)
                 } else {
                     await MediaKeyInterceptor.shared.start(promptIfNeeded: false)
                 }

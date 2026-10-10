@@ -357,10 +357,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 accessibilityGranted ? "granted" : "denied"
             )
 
-            if hudEnabled && accessibilityGranted {
-                _ = await MediaKeyInterceptor.shared.start(promptIfNeeded: false)
+            if hudEnabled {
+                XPCHelperClient.shared.startMonitoringAccessibilityAuthorization()
+                _ = await MediaKeyInterceptor.shared.start(
+                    promptIfNeeded: !accessibilityGranted
+                )
             }
         }
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(accessibilityAuthorizationDidChange(_:)),
+            name: .accessibilityAuthorizationChanged,
+            object: nil
+        )
 
         NotificationCenter.default.addObserver(
             self,
@@ -517,6 +527,18 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         previousScreens = NSScreen.screens
+    }
+
+    @objc private func accessibilityAuthorizationDidChange(_ notification: Notification) {
+        guard let granted = notification.userInfo?["granted"] as? Bool else { return }
+
+        Task { @MainActor in
+            if granted && Defaults[.hudReplacement] {
+                _ = await MediaKeyInterceptor.shared.start(promptIfNeeded: false)
+            } else if !granted {
+                MediaKeyInterceptor.shared.stop()
+            }
+        }
     }
 
     func playWelcomeSound() {

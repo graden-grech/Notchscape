@@ -12,35 +12,37 @@ struct HoverButton: View {
     var iconColor: Color = .primary
     var scale: Image.Scale = .medium
     var action: () -> Void
-    var contentTransition: ContentTransition = .symbolEffect;
     
     @State private var isHovering = false
 
     var body: some View {
         let size = CGFloat(scale == .large ? 40 : 30)
-        
-        Button(action: action) {
-            Rectangle()
-                .fill(.clear)
-                .contentShape(Rectangle())
-                .frame(width: size, height: size)
-                .overlay {
-                    Capsule()
-                        .fill(isHovering ? Color.gray.opacity(0.2) : .clear)
-                        .frame(width: size, height: size)
-                        .overlay {
-                            Image(systemName: icon)
-                                .foregroundColor(iconColor)
-                                .contentTransition(contentTransition)
-                                .font(scale == .large ? .largeTitle : .body)
-                        }
-                }
+
+        Group {
+            if #available(macOS 26.0, *) {
+                button(size: size)
+                    .buttonStyle(.plain)
+                    .glassEffect(.regular, in: Circle())
+            } else {
+                button(size: size)
+                    .buttonStyle(.plain)
+            }
         }
-        .buttonStyle(PlainButtonStyle())
         .onHover { hovering in
             withAnimation(.smooth(duration: 0.3)) {
                 isHovering = hovering
             }
+        }
+    }
+
+    private func button(size: CGFloat) -> some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .foregroundColor(iconColor)
+                .font(scale == .large ? .largeTitle : .body)
+                .frame(width: size, height: size)
+                .background(isHovering ? Color.white.opacity(0.08) : .clear, in: Circle())
+                .contentShape(Circle())
         }
     }
 }

@@ -59,16 +59,22 @@ struct ShelfView: View {
     }
 
     var panel: some View {
-        RoundedRectangle(cornerRadius: 16)
-            .stroke(
+        content
+            .padding()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .liquidGlassPanel(tint: vm.dragDetectorTargeting ? .accentColor : .white, cornerRadius: 18)
+            .overlay {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .stroke(
                 vm.dragDetectorTargeting
                     ? Color.accentColor.opacity(0.9)
-                    : Color.white.opacity(0.1),
-                style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [10])
-            )
-            .overlay {
-                content
-                    .padding()
+                    : Color.white.opacity(0.10),
+                style: StrokeStyle(
+                    lineWidth: vm.dragDetectorTargeting ? 2 : 1,
+                    lineCap: .round,
+                    dash: vm.dragDetectorTargeting ? [9] : []
+                )
+                )
             }
             .transaction { transaction in
                 transaction.animation = vm.animation

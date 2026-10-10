@@ -69,6 +69,15 @@ struct ContentView: View {
     private let closedActivityDetailWidth: CGFloat = 154
     private let closedActivitySpacing: CGFloat = 8
 
+    private var agentActivityTransition: AnyTransition {
+        .asymmetric(
+            insertion: .scale(scale: 0.82, anchor: .top).combined(with: .opacity),
+            removal: .move(edge: .top)
+                .combined(with: .scale(scale: 0.55, anchor: .top))
+                .combined(with: .opacity)
+        )
+    }
+
     private var topCornerRadius: CGFloat {
        ((vm.notchState == .open) && Defaults[.cornerRadiusScaling])
                 ? cornerRadiusInsets.opened.top
@@ -304,6 +313,7 @@ struct ContentView: View {
             anchor: .top
         )
         .animation(.smooth, value: gestureProgress)
+        .animation(.snappy(duration: 0.48, extraBounce: 0.04), value: activeAgentActivity)
         .background(dragDetector)
         .preferredColorScheme(.dark)
         .environmentObject(vm)
@@ -410,12 +420,12 @@ struct ContentView: View {
                                 !vm.hideOnClosed,
                                 hasMusicActivity {
                           ConcurrentLiveActivity(activity: activity)
-                              .transition(.scale(scale: 0.88).combined(with: .opacity))
+                              .transition(agentActivityTransition)
                       } else if let activity = activeAgentActivity,
                                 vm.notchState == .closed,
                                 !vm.hideOnClosed {
                           AgentLiveActivity(activity: activity)
-                              .transition(.scale(scale: 0.88).combined(with: .opacity))
+                              .transition(agentActivityTransition)
                       } else if let download = activeDownload,
                                 vm.notchState == .closed,
                                 !vm.hideOnClosed {
@@ -498,6 +508,8 @@ struct ContentView: View {
                         LiveDashboardView()
                     case .shelf:
                         ShelfView()
+                    case .system:
+                        SystemDashboardView()
                     }
                 }
                 .transition(
@@ -597,9 +609,11 @@ struct ContentView: View {
     @ViewBuilder
     func AgentActivityBadge(activity: AgentActivity, providerSymbol: Bool) -> some View {
         let isClaude = activity.provider.localizedCaseInsensitiveContains("claude")
-        let accent = activity.state == .completed
-            ? Color.green
-            : AgentProviderStyle.accent(for: activity.provider)
+        let accent: Color = switch activity.state {
+        case .completed: .green
+        case .usageLimited: .red
+        default: AgentProviderStyle.accent(for: activity.provider)
+        }
         let side = max(0, vm.effectiveClosedNotchHeight - 12)
         let symbolOverride = activity.state == .working && !providerSymbol
             ? "waveform.path"
@@ -958,25 +972,33 @@ struct ContentView: View {
     @ViewBuilder
     func AgentLiveActivity(activity: AgentActivity) -> some View {
         let side = max(0, vm.effectiveClosedNotchHeight - 12)
+        let isTerminal = activity.state == .completed || activity.state == .usageLimited
 
         HStack(spacing: 8) {
             AgentProviderMark(provider: activity.provider, state: activity.state, size: side)
             .frame(
-                width: agentDetailExpanded ? closedActivityDetailWidth : side,
+                width: isTerminal ? side : (agentDetailExpanded ? closedActivityDetailWidth : side),
                 alignment: .trailing
             )
+            .transition(.scale(scale: 0.65).combined(with: .opacity))
 
             Rectangle()
                 .fill(.black)
                 .frame(width: vm.closedNotchSize.width - cornerRadiusInsets.closed.top)
 
-            AgentActivityBadge(activity: activity, providerSymbol: false)
-                .frame(
-                    width: agentDetailExpanded ? closedActivityDetailWidth : nil,
-                    alignment: .leading
-                )
+            if isTerminal {
+                // Completion and quota alerts intentionally pop on one side only.
+                Color.clear.frame(width: side, height: side)
+            } else {
+                AgentActivityBadge(activity: activity, providerSymbol: false)
+                    .frame(
+                        width: agentDetailExpanded ? closedActivityDetailWidth : nil,
+                        alignment: .leading
+                    )
+            }
         }
         .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
+        .animation(.snappy(duration: 0.32, extraBounce: 0.12), value: activity.state)
     }
 
     @ViewBuilder

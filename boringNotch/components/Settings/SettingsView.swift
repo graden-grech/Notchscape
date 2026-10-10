@@ -49,6 +49,9 @@ struct SettingsView: View {
                 NavigationLink(value: "Activities") {
                     Label("Live Activities", systemImage: "waveform.path.ecg")
                 }
+                NavigationLink(value: "System") {
+                    Label("System", systemImage: "gauge.with.dots.needle.50percent")
+                }
                 NavigationLink(value: "HUD") {
                     Label("HUDs", systemImage: "dial.medium.fill")
                 }
@@ -75,6 +78,8 @@ struct SettingsView: View {
                 }
             }
             .listStyle(SidebarListStyle())
+            .scrollContentBackground(.hidden)
+            .background(.ultraThinMaterial)
             .tint(.effectiveAccent)
             .toolbar(removing: .sidebarToggle)
             .navigationSplitViewColumnWidth(200)
@@ -95,6 +100,8 @@ struct SettingsView: View {
                     WeatherSettings()
                 case "Activities":
                     ActivitySettings()
+                case "System":
+                    SystemSettings()
                 case "HUD":
                     HUD()
                 case "Battery":
@@ -122,6 +129,8 @@ struct SettingsView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .scrollContentBackground(.hidden)
+            .background(Color.clear)
         }
         .navigationSplitViewStyle(.balanced)
         .toolbar(removing: .sidebarToggle)
@@ -134,12 +143,46 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .frame(width: 700)
-        .background(Color(NSColor.windowBackgroundColor))
+        .background(LiquidGlassSettingsBackground())
         .tint(.effectiveAccent)
         .id(accentColorUpdateTrigger)
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("AccentColorChanged"))) { _ in
             accentColorUpdateTrigger = UUID()
         }
+    }
+}
+
+struct SystemSettings: View {
+    @Default(.systemDashboardEnabled) private var systemDashboardEnabled
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Show System tab in the notch", isOn: $systemDashboardEnabled)
+                LabeledContent("Sampling", value: "Only while the tab is visible")
+                LabeledContent("Refresh rate", value: "Every 1.5 seconds")
+            } header: {
+                Text("System Dashboard")
+            } footer: {
+                Text("Shows CPU, memory, storage, and thermal pressure with shortcuts for Activity Monitor, System Settings, display sleep, and Lock Screen.")
+            }
+
+            Section("Fan Control") {
+                Label("Monitoring only", systemImage: "fan")
+                Text("macOS does not provide a safe public fan-control API. This version reports thermal pressure without overriding Apple's cooling controller.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Privacy and efficiency") {
+                Label("No performance data leaves your Mac", systemImage: "lock.shield.fill")
+                Text("The sampler stops as soon as you leave the System tab, keeping background CPU use close to zero.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .navigationTitle("System")
+        .accentColor(.effectiveAccent)
     }
 }
 
@@ -649,6 +692,7 @@ struct HUD: View {
                     hudInterceptorActive = await MediaKeyInterceptor.shared.start()
                 }
             } else {
+                MediaKeyInterceptor.shared.stop()
                 hudInterceptorActive = false
             }
         }
@@ -1697,10 +1741,12 @@ struct Appearance: View {
                 }
                     .disabled(!checkVideoInput())
                 Picker("Mirror shape", selection: $mirrorShape) {
-                    Text("Circle")
-                        .tag(MirrorShapeEnum.circle)
-                    Text("Square")
-                        .tag(MirrorShapeEnum.rectangle)
+                    ForEach(
+                        [MirrorShapeEnum.circle, .rectangle, .roundedRectangle, .squircle, .capsule],
+                        id: \.rawValue
+                    ) { shape in
+                        Text(shape.rawValue).tag(shape)
+                    }
                 }
                 Defaults.Toggle(key: .showNotHumanFace) {
                     Text("Show cool face animation while inactive")

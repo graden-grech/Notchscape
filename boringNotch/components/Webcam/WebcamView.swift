@@ -22,16 +22,19 @@ struct CameraPreviewView: View {
                 if let previewLayer = webcamManager.previewLayer {
                     CameraPreviewLayerView(previewLayer: previewLayer)
                         .scaleEffect(x: -1, y: 1)
-                        .clipShape(RoundedRectangle(cornerRadius: Defaults[.mirrorShape] == .rectangle ? !Defaults[.cornerRadiusScaling] ? MusicPlayerImageSizes.cornerRadiusInset.closed : MusicPlayerImageSizes.cornerRadiusInset.opened : 100))
+                        .clipShape(MirrorClipShape(style: Defaults[.mirrorShape]))
                         .frame(width: geometry.size.width, height: geometry.size.width)
                         .opacity(webcamManager.isSessionRunning ? 1 : 0)
                 }
 
                 if !webcamManager.isSessionRunning {
                     ZStack {
-                        RoundedRectangle(cornerRadius: Defaults[.mirrorShape] == .rectangle ? !Defaults[.cornerRadiusScaling] ? MusicPlayerImageSizes.cornerRadiusInset.closed : 12 : 100)
+                        MirrorClipShape(style: Defaults[.mirrorShape])
                             .fill(Color(red: 20/255, green: 20/255, blue: 20/255))
-                            .strokeBorder(.white.opacity(0.04), lineWidth: 1)
+                            .overlay {
+                                MirrorClipShape(style: Defaults[.mirrorShape])
+                                    .stroke(.white.opacity(0.04), lineWidth: 1)
+                            }
                             .frame(width: geometry.size.width, height: geometry.size.width)
                         VStack(spacing: 8) {
                             Image(systemName: webcamManager.authorizationStatus == .denied ? "exclamationmark.triangle" : "web.camera")
@@ -43,7 +46,30 @@ struct CameraPreviewView: View {
                         }
                     }
                 }
+
+                MirrorClipShape(style: Defaults[.mirrorShape])
+                    .fill(
+                        LinearGradient(
+                            colors: [.white.opacity(0.16), .clear, .black.opacity(0.10)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .overlay {
+                        MirrorClipShape(style: Defaults[.mirrorShape])
+                            .stroke(
+                                LinearGradient(
+                                    colors: [.white.opacity(0.46), .white.opacity(0.05)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1
+                            )
+                    }
+                    .frame(width: geometry.size.width, height: geometry.size.width)
+                    .allowsHitTesting(false)
             }
+            .shadow(color: .black.opacity(0.25), radius: 10, y: 5)
             .onTapGesture {
                 handleCameraTap()
             }
@@ -89,6 +115,30 @@ struct CameraPreviewView: View {
             }
         @unknown default:
             break
+        }
+    }
+}
+
+private struct MirrorClipShape: Shape {
+    let style: MirrorShapeEnum
+
+    func path(in rect: CGRect) -> Path {
+        switch style {
+        case .circle:
+            return Circle().path(in: rect)
+        case .capsule:
+            return Capsule(style: .continuous).path(in: rect)
+        case .roundedRectangle:
+            return RoundedRectangle(cornerRadius: min(rect.width, rect.height) * 0.22, style: .continuous)
+                .path(in: rect)
+        case .squircle:
+            return RoundedRectangle(cornerRadius: min(rect.width, rect.height) * 0.36, style: .continuous)
+                .path(in: rect)
+        case .rectangle:
+            let radius = Defaults[.cornerRadiusScaling]
+                ? MusicPlayerImageSizes.cornerRadiusInset.opened
+                : MusicPlayerImageSizes.cornerRadiusInset.closed
+            return RoundedRectangle(cornerRadius: radius, style: .continuous).path(in: rect)
         }
     }
 }

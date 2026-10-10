@@ -41,9 +41,13 @@ class SettingsWindowController: NSWindowController {
         guard let window = window else { return }
         
         window.title = "Boring Notch Settings"
-        window.titlebarAppearsTransparent = false
+        window.titlebarAppearsTransparent = true
         window.titleVisibility = .visible
-        window.toolbarStyle = .unified
+        window.toolbarStyle = .unifiedCompact
+        window.titlebarSeparatorStyle = .none
+        window.backgroundColor = .clear
+        window.isOpaque = false
+        window.animationBehavior = .documentWindow
         window.isMovableByWindowBackground = true
         
         // Make it behave like a regular app window with proper Spaces support
@@ -67,9 +71,6 @@ class SettingsWindowController: NSWindowController {
     }
     
     func showWindow() {
-        // Set app to regular mode first
-        NSApp.setActivationPolicy(.regular)
-        
         // If window is already visible, bring it to front properly
         if window?.isVisible == true {
             NSApp.activate(ignoringOtherApps: true)
@@ -100,8 +101,8 @@ class SettingsWindowController: NSWindowController {
     private func relinquishFocus() {
         window?.orderOut(nil)
         
-        // Set app back to accessory mode immediately
-        NSApp.setActivationPolicy(.accessory)
+        // Keeping the app's accessory activation policy avoids a costly Dock and
+        // menu-bar rebuild every time Settings opens or closes.
     }
 }
 

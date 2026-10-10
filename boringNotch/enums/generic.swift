@@ -28,6 +28,7 @@ public enum NotchViews {
     case home
     case shelf
     case live
+    case system
 }
 
 enum SettingsEnum {
@@ -55,6 +56,9 @@ enum DownloadIconStyle: String, Defaults.Serializable {
 enum MirrorShapeEnum: String, Defaults.Serializable {
     case rectangle = "Rectangular"
     case circle = "Circular"
+    case roundedRectangle = "Rounded Rectangle"
+    case squircle = "Squircle"
+    case capsule = "Capsule"
 }
 
 enum WindowHeightMode: String, Defaults.Serializable {

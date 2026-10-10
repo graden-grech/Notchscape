@@ -7,6 +7,7 @@ enum AgentActivityState: String, Codable {
     case needsInput
     case completed
     case interrupted
+    case usageLimited
 
     var label: String {
         switch self {
@@ -14,6 +15,7 @@ enum AgentActivityState: String, Codable {
         case .needsInput: "Needs input"
         case .completed: "Completed"
         case .interrupted: "Interrupted"
+        case .usageLimited: "Usage limit reached"
         }
     }
 
@@ -23,6 +25,7 @@ enum AgentActivityState: String, Codable {
         case .needsInput: "person.crop.circle.badge.questionmark"
         case .completed: "checkmark.circle.fill"
         case .interrupted: "pause.circle.fill"
+        case .usageLimited: "exclamationmark.circle.fill"
         }
     }
 }
@@ -130,16 +133,30 @@ final class AgentStatusManager: ObservableObject {
         let project = cwd.map { URL(fileURLWithPath: $0).lastPathComponent } ?? "Codex task"
         let tool = object["tool_name"] as? String
 
+        let searchablePayload = Self.flattenedStrings(in: object).joined(separator: " ").lowercased()
+        let usageLimitPhrases = [
+            "usage limit", "rate limit", "rate_limit", "quota exceeded",
+            "too many requests", "5 hour", "five hour", "try again later",
+            "out of tokens", "token limit"
+        ]
+        let hitUsageLimit = usageLimitPhrases.contains { searchablePayload.contains($0) }
+
         let state: AgentActivityState
-        switch event {
-        case "PermissionRequest": state = .needsInput
-        case "Stop", "SessionEnd": state = .completed
-        case "Interrupt": state = .interrupted
-        default: state = .working
+        if hitUsageLimit || event == "UsageLimit" || event == "RateLimit" {
+            state = .usageLimited
+        } else {
+            switch event {
+            case "PermissionRequest": state = .needsInput
+            case "Stop", "SessionEnd": state = .completed
+            case "Interrupt": state = .interrupted
+            default: state = .working
+            }
         }
 
         let detail: String
-        switch event {
+        switch state {
+        case .usageLimited: detail = "Usage limit reached"
+        default: switch event {
         case "PermissionRequest": detail = "Waiting for approval"
         case "Stop": detail = "Turn finished"
         case "SessionEnd": detail = "Session finished"
@@ -150,6 +167,7 @@ final class AgentStatusManager: ObservableObject {
         case "SubagentStop": detail = "Subagent finished"
         case "UserPromptSubmit": detail = "Thinking"
         default: detail = "Active"
+        }
         }
 
         let activity = AgentActivity(
@@ -166,9 +184,18 @@ final class AgentStatusManager: ObservableObject {
         activities.insert(activity, at: 0)
         activities = Array(activities.prefix(6))
 
-        if state == .completed || state == .interrupted {
+        if state == .completed || state == .interrupted || state == .usageLimited {
             dismissalTasks[activity.id] = Task { @MainActor [weak self] in
-                try? await Task.sleep(for: .seconds(4))
+                try? await Task.sleep(for: .seconds(state == .usageLimited ? 3 : 4))
+                guard !Task.isCancelled else { return }
+                self?.activities.removeAll { $0.id == activity.id }
+                self?.dismissalTasks[activity.id] = nil
+            }
+        } else if state == .working {
+            // If an agent exits without a final hook (for example after a network
+            // or quota failure), do not leave a permanent "working" activity.
+            dismissalTasks[activity.id] = Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .seconds(120))
                 guard !Task.isCancelled else { return }
                 self?.activities.removeAll { $0.id == activity.id }
                 self?.dismissalTasks[activity.id] = nil
@@ -177,6 +204,19 @@ final class AgentStatusManager: ObservableObject {
 
         let cutoff = Date().addingTimeInterval(-300)
         activities.removeAll { $0.state == .completed && $0.updatedAt < cutoff }
+    }
+
+    private static func flattenedStrings(in value: Any) -> [String] {
+        switch value {
+        case let string as String:
+            return [string]
+        case let dictionary as [String: Any]:
+            return dictionary.flatMap { flattenedStrings(in: $0.value) }
+        case let array as [Any]:
+            return array.flatMap(flattenedStrings(in:))
+        default:
+            return []
+        }
     }
 }
 
