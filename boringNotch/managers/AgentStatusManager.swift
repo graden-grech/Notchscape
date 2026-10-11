@@ -134,15 +134,13 @@ final class AgentStatusManager: ObservableObject {
         let tool = object["tool_name"] as? String
 
         let searchablePayload = Self.flattenedStrings(in: object).joined(separator: " ").lowercased()
-        let usageLimitPhrases = [
-            "usage limit", "rate limit", "rate_limit", "quota exceeded",
-            "too many requests", "5 hour", "five hour", "try again later",
-            "out of tokens", "token limit"
-        ]
-        let hitUsageLimit = usageLimitPhrases.contains { searchablePayload.contains($0) }
+        let hitUsageLimit = Self.indicatesUsageLimitReached(
+            event: event,
+            payload: searchablePayload
+        )
 
         let state: AgentActivityState
-        if hitUsageLimit || event == "UsageLimit" || event == "RateLimit" {
+        if hitUsageLimit {
             state = .usageLimited
         } else {
             switch event {
@@ -217,6 +215,38 @@ final class AgentStatusManager: ObservableObject {
         default:
             return []
         }
+    }
+
+    /// Low-usage notices such as "15% remaining" are advisory and must not
+    /// replace an active task with the brief red limit-reached activity.
+    private static func indicatesUsageLimitReached(event: String, payload: String) -> Bool {
+        let normalizedEvent = event.lowercased()
+        if normalizedEvent == "usagelimit" || normalizedEvent == "ratelimit" {
+            return true
+        }
+
+        if containsNonzeroRemainingUsage(in: payload) {
+            return false
+        }
+
+        let exhaustedPhrases = [
+            "usage limit reached", "rate limit reached", "limit reached",
+            "reached your usage limit", "reached your rate limit",
+            "rate_limit_exceeded", "rate_limit_error", "quota exceeded",
+            "too many requests", "limit has been reached", "limit was reached",
+            "you've hit your", "you have hit your", "you hit your",
+            "out of tokens", "tokens exhausted", "token budget exhausted",
+            "usage has been exhausted", "no usage remaining", "no tokens remaining",
+            "0% left", "0% remaining", "try again later"
+        ]
+        return exhaustedPhrases.contains { payload.contains($0) }
+    }
+
+    private static func containsNonzeroRemainingUsage(in payload: String) -> Bool {
+        let pattern = #"\b(?:[1-9]|[1-9][0-9]|100)\s*%[^.\n]{0,100}\b(?:left|remaining)\b"#
+        guard let expression = try? NSRegularExpression(pattern: pattern) else { return false }
+        let range = NSRange(payload.startIndex..., in: payload)
+        return expression.firstMatch(in: payload, range: range) != nil
     }
 }
 
