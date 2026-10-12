@@ -7,6 +7,7 @@
 
 import Foundation
 import Defaults
+import AppKit
 
 public enum Style {
     case notch
@@ -67,6 +68,107 @@ enum WindowHeightMode: String, Defaults.Serializable {
     case custom = "Custom height"
 }
 
+enum NonNotchPresentation: String, CaseIterable, Defaults.Serializable, Identifiable {
+    case dynamicIsland
+    case notch
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .dynamicIsland: "Dynamic Island"
+        case .notch: "Notch"
+        }
+    }
+}
+
+enum AppIconVariant: String, CaseIterable, Defaults.Serializable, Identifiable {
+    case standard
+    case autumn
+    case halloween
+    case christmas
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .standard: "Standard"
+        case .autumn: "Autumn"
+        case .halloween: "Halloween"
+        case .christmas: "Christmas"
+        }
+    }
+
+    var assetName: String {
+        switch self {
+        case .standard: "AppIconStandard"
+        case .autumn: "AppIconAutumn"
+        case .halloween: "AppIconHalloween"
+        case .christmas: "AppIconChristmas"
+        }
+    }
+
+    @MainActor
+    func apply() {
+        guard let image = NSImage(named: assetName) else { return }
+        NSApp.applicationIconImage = image
+    }
+}
+
+enum AppTheme: String, CaseIterable, Defaults.Serializable, Identifiable {
+    case system
+    case autumn
+    case halloween
+    case christmas
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .system: "System"
+        case .autumn: "Autumn"
+        case .halloween: "Halloween"
+        case .christmas: "Christmas"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .system: "apple.logo"
+        case .autumn: "leaf.fill"
+        case .halloween: "moon.stars.fill"
+        case .christmas: "snowflake"
+        }
+    }
+
+    var accentColor: NSColor? {
+        switch self {
+        case .system: nil
+        case .autumn: NSColor(red: 0.82, green: 0.32, blue: 0.12, alpha: 1)
+        case .halloween: NSColor(red: 0.62, green: 0.32, blue: 0.92, alpha: 1)
+        case .christmas: NSColor(red: 0.14, green: 0.62, blue: 0.38, alpha: 1)
+        }
+    }
+
+    var matchingIcon: AppIconVariant {
+        switch self {
+        case .system: .standard
+        case .autumn: .autumn
+        case .halloween: .halloween
+        case .christmas: .christmas
+        }
+    }
+
+    var homeDecoration: String? {
+        switch self {
+        case .system: nil
+        case .autumn: "🍁"
+        case .halloween: "🎃"
+        case .christmas: "🎄"
+        }
+    }
+}
+
 enum WeatherTilePosition: String, CaseIterable, Defaults.Serializable, Identifiable {
     case front
     case afterMusic
@@ -79,6 +181,55 @@ enum WeatherTilePosition: String, CaseIterable, Defaults.Serializable, Identifia
         case .front: "Front"
         case .afterMusic: "After Music"
         case .end: "End"
+        }
+    }
+}
+
+enum SportsLeague: String, CaseIterable, Defaults.Serializable, Identifiable {
+    case nba
+    case nfl
+    case mlb
+    case nhl
+    case mls
+    case wnba
+    case collegeFootball
+    case collegeBasketball
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .nba: "NBA"
+        case .nfl: "NFL"
+        case .mlb: "MLB"
+        case .nhl: "NHL"
+        case .mls: "MLS"
+        case .wnba: "WNBA"
+        case .collegeFootball: "College Football"
+        case .collegeBasketball: "College Basketball"
+        }
+    }
+
+    var endpointPath: String {
+        switch self {
+        case .nba: "basketball/nba"
+        case .nfl: "football/nfl"
+        case .mlb: "baseball/mlb"
+        case .nhl: "hockey/nhl"
+        case .mls: "soccer/usa.1"
+        case .wnba: "basketball/wnba"
+        case .collegeFootball: "football/college-football"
+        case .collegeBasketball: "basketball/mens-college-basketball"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .nba, .wnba, .collegeBasketball: "basketball.fill"
+        case .nfl, .collegeFootball: "football.fill"
+        case .mlb: "baseball.fill"
+        case .nhl: "hockey.puck.fill"
+        case .mls: "soccerball"
         }
     }
 }

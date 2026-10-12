@@ -89,6 +89,10 @@ extension Defaults.Keys {
         default: WindowHeightMode.matchMenuBar
     )
     static let nonNotchHeight = Key<CGFloat>("nonNotchHeight", default: 32)
+    static let nonNotchPresentation = Key<NonNotchPresentation>(
+        "nonNotchPresentation",
+        default: .dynamicIsland
+    )
     static let notchHeight = Key<CGFloat>("notchHeight", default: 32)
     //static let openLastTabByDefault = Key<Bool>("openLastTabByDefault", default: false)
     static let showOnLockScreen = Key<Bool>("showOnLockScreen", default: false)
@@ -104,6 +108,8 @@ extension Defaults.Keys {
     static let lightingEffect = Key<Bool>("lightingEffect", default: true)
     static let enableShadow = Key<Bool>("enableShadow", default: true)
     static let cornerRadiusScaling = Key<Bool>("cornerRadiusScaling", default: true)
+    static let appIconVariant = Key<AppIconVariant>("appIconVariant", default: .standard)
+    static let appTheme = Key<AppTheme>("appTheme", default: .system)
 
     static let showNotHumanFace = Key<Bool>("showNotHumanFace", default: false)
     static let tileShowLabels = Key<Bool>("tileShowLabels", default: false)
@@ -188,6 +194,13 @@ extension Defaults.Keys {
     static let timerActivitiesEnabled = Key<Bool>("timerActivitiesEnabled", default: true)
     static let agentStatusEnabled = Key<Bool>("agentStatusEnabled", default: true)
     static let liveActivityPriority = Key<LiveActivityPriority>("liveActivityPriority", default: .combined)
+    static let sportsActivitiesEnabled = Key<Bool>("sportsActivitiesEnabled", default: false)
+    static let sportsLeague = Key<SportsLeague>("sportsLeague", default: .nba)
+    static let sportsFavoriteTeam = Key<String>("sportsFavoriteTeam", default: "")
+    static let sportsEnabledLeagues = Key<Set<SportsLeague>>("sportsEnabledLeagues", default: [.nba])
+    static let sportsFavoriteTeams = Key<Set<String>>("sportsFavoriteTeams", default: [])
+    static let sportsScoreNotificationsEnabled = Key<Bool>("sportsScoreNotificationsEnabled", default: true)
+    static let sportsShowUpcoming = Key<Bool>("sportsShowUpcoming", default: true)
     static let weatherEnabled = Key<Bool>("weatherEnabled", default: true)
     static let weatherUseCurrentLocation = Key<Bool>("weatherUseCurrentLocation", default: true)
     static let weatherOnLiveTab = Key<Bool>("weatherOnLiveTab", default: false)

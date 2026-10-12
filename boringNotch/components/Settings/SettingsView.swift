@@ -46,6 +46,9 @@ struct SettingsView: View {
                 NavigationLink(value: "Weather") {
                     Label("Weather", systemImage: "cloud.sun")
                 }
+                NavigationLink(value: "Sports") {
+                    Label("Sports", systemImage: "sportscourt")
+                }
                 NavigationLink(value: "Activities") {
                     Label("Live Activities", systemImage: "waveform.path.ecg")
                 }
@@ -98,6 +101,8 @@ struct SettingsView: View {
                     AgentSettings()
                 case "Weather":
                     WeatherSettings()
+                case "Sports":
+                    SportsSettings()
                 case "Activities":
                     ActivitySettings()
                 case "System":
@@ -200,6 +205,7 @@ struct GeneralSettings: View {
     @Default(.minimumHoverDuration) var minimumHoverDuration
     @Default(.nonNotchHeight) var nonNotchHeight
     @Default(.nonNotchHeightMode) var nonNotchHeightMode
+    @Default(.nonNotchPresentation) var nonNotchPresentation
     @Default(.notchHeight) var notchHeight
     @Default(.notchHeightMode) var notchHeightMode
     @Default(.showOnAllDisplays) var showOnAllDisplays
@@ -252,6 +258,17 @@ struct GeneralSettings: View {
             }
 
             Section {
+                Picker("Style on displays without a notch", selection: $nonNotchPresentation) {
+                    ForEach(NonNotchPresentation.allCases) { presentation in
+                        Text(presentation.title).tag(presentation)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: nonNotchPresentation) {
+                    NotificationCenter.default.post(
+                        name: Notification.Name.notchHeightChanged, object: nil)
+                }
+
                 Picker(
                     selection: $notchHeightMode,
                     label:
@@ -315,18 +332,14 @@ struct GeneralSettings: View {
                     }
                 }
             } header: {
-                Text("Notch sizing")
+                Text("Display style and sizing")
+            } footer: {
+                Text("Dynamic Island stays inside the menu bar. Notch attaches to the top edge. Macs with a physical notch always match their hardware.")
             }
 
             NotchBehaviour()
 
             gestureControls()
-        }
-        .toolbar {
-            Button("Quit app") {
-                NSApp.terminate(self)
-            }
-            .controlSize(.extraLarge)
         }
         .accentColor(.effectiveAccent)
         .navigationTitle("General")
@@ -950,6 +963,7 @@ struct ActivitySettings: View {
     @Default(.privacyActivitiesEnabled) private var privacyActivitiesEnabled
     @Default(.weatherAlertsEnabled) private var weatherAlertsEnabled
     @Default(.timerActivitiesEnabled) private var timerActivitiesEnabled
+    @Default(.sportsActivitiesEnabled) private var sportsActivitiesEnabled
     @Default(.enableDownloadListener) private var enableDownloadListener
     @ObservedObject private var timer = NotchTimerManager.shared
     @ObservedObject private var privacy = PrivacyActivityMonitor.shared
@@ -960,7 +974,7 @@ struct ActivitySettings: View {
             Section {
                 Toggle("Show Live Activities", isOn: $liveActivitiesEnabled)
             } footer: {
-                Text("Turn this off to hide all music, AI, calendar, timer, privacy, download, and weather activities from the closed notch. HUDs and the expanded notch still work normally.")
+                Text("Turn this off to hide all music, AI, sports, calendar, timer, privacy, download, and weather activities from the closed notch. HUDs and the expanded notch still work normally.")
             }
 
             Section("Activity Profile") {
@@ -979,6 +993,7 @@ struct ActivitySettings: View {
                 Toggle("Microphone and camera indicators", isOn: $privacyActivitiesEnabled)
                 Toggle("Weather warnings", isOn: $weatherAlertsEnabled)
                 Toggle("Timers", isOn: $timerActivitiesEnabled)
+                Toggle("Sports scores", isOn: $sportsActivitiesEnabled)
                 Toggle("Downloads folder progress", isOn: $enableDownloadListener)
                 if privacy.microphoneInUse || privacy.cameraInUse {
                     Label(
@@ -1012,7 +1027,7 @@ struct ActivitySettings: View {
             .disabled(!liveActivitiesEnabled)
 
             Section("Controls") {
-                Text("Click an AI badge for details. Press and hold it to open the agent or change Music/AI priority. Click timers to cancel, downloads to reveal them, and calendar alerts to join meetings.")
+                Text("Click sports activities for game details, AI badges for agent details, timers to cancel, downloads to reveal them, and calendar alerts to join meetings.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -1092,6 +1107,228 @@ struct AgentSettings: View {
     private static let claudeHookCommand = """
     /usr/bin/jq -c '. + {"provider":"Claude Code"}' | /usr/bin/curl -sS --connect-timeout 0.2 --max-time 1 -H 'Content-Type: application/json' --data-binary @- http://127.0.0.1:43765/claude >/dev/null # boringnotch-agents-claude-hook
     """
+}
+
+struct SportsSettings: View {
+    @ObservedObject private var sports = SportsActivityManager.shared
+    @Default(.sportsActivitiesEnabled) private var sportsActivitiesEnabled
+    @Default(.sportsEnabledLeagues) private var enabledLeagues
+    @Default(.sportsFavoriteTeams) private var favoriteTeams
+    @Default(.sportsScoreNotificationsEnabled) private var scoreNotificationsEnabled
+    @Default(.sportsShowUpcoming) private var showUpcoming
+    @State private var browsingLeague: SportsLeague = .nba
+    @State private var teamSearch = ""
+
+    private var filteredTeams: [SportsDirectoryTeam] {
+        guard !teamSearch.isEmpty else { return sports.availableTeams }
+        return sports.availableTeams.filter {
+            $0.name.localizedCaseInsensitiveContains(teamSearch)
+                || $0.abbreviation.localizedCaseInsensitiveContains(teamSearch)
+        }
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Show sports Live Activities", isOn: $sportsActivitiesEnabled)
+                Toggle("Score update pop-downs", isOn: $scoreNotificationsEnabled)
+                Toggle("Show upcoming games", isOn: $showUpcoming)
+            } header: {
+                Label("Live scores", systemImage: "sportscourt.fill")
+            } footer: {
+                Text("Your favorite games appear beside the notch. Score changes briefly drop down underneath it, similar to Apple Sports.")
+            }
+
+            Section("Leagues") {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(SportsLeague.allCases) { league in
+                            let selected = enabledLeagues.contains(league)
+                            Button {
+                                if selected {
+                                    enabledLeagues.remove(league)
+                                } else {
+                                    enabledLeagues.insert(league)
+                                }
+                                sports.configurationChanged()
+                            } label: {
+                                Label(league.title, systemImage: selected ? "checkmark.circle.fill" : league.symbol)
+                                    .font(.callout.weight(.semibold))
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 8)
+                                    .foregroundStyle(selected ? .white : .primary)
+                                    .background(
+                                        selected ? Color.accentColor : Color.secondary.opacity(0.12),
+                                        in: Capsule()
+                                    )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+
+                Text("Choose every league you want followed. At least one league is recommended.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .disabled(!sportsActivitiesEnabled)
+
+            Section {
+                Picker("Browse", selection: $browsingLeague) {
+                    ForEach(SportsLeague.allCases) { league in
+                        Text(league.title).tag(league)
+                    }
+                }
+
+                TextField("Search teams", text: $teamSearch)
+                    .textFieldStyle(.roundedBorder)
+
+                if sports.isLoadingTeams {
+                    HStack {
+                        Spacer()
+                        ProgressView().controlSize(.small)
+                        Text("Loading teams…").foregroundStyle(.secondary)
+                        Spacer()
+                    }
+                    .frame(height: 90)
+                } else if let message = sports.teamsErrorMessage {
+                    ContentUnavailableView(
+                        "Couldn’t Load Teams",
+                        systemImage: "wifi.exclamationmark",
+                        description: Text(message)
+                    )
+                    .frame(height: 130)
+                } else {
+                    ScrollView {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 210), spacing: 8)], spacing: 8) {
+                            ForEach(filteredTeams) { team in
+                                favoriteTeamButton(team)
+                            }
+                        }
+                        .padding(.vertical, 2)
+                    }
+                    .frame(minHeight: 170, maxHeight: 310)
+                }
+            } header: {
+                HStack {
+                    Text("Favorite teams")
+                    Spacer()
+                    if !favoriteTeams.isEmpty {
+                        Text("\(favoriteTeams.count) selected")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } footer: {
+                Text("Tap the star beside any team. When a favorite is playing, its game takes priority over other scores.")
+            }
+            .disabled(!sportsActivitiesEnabled)
+
+            Section("Current activity") {
+                if let game = sports.currentGame {
+                    LabeledContent("Matchup", value: "\(game.away.abbreviation) at \(game.home.abbreviation)")
+                    LabeledContent("Score", value: game.scoreSummary)
+                    LabeledContent("Status", value: game.statusText)
+                } else if sports.isLoading {
+                    HStack {
+                        ProgressView().controlSize(.small)
+                        Text("Checking live scores…")
+                    }
+                } else {
+                    Text(sports.errorMessage ?? "No matching game is available right now.")
+                        .foregroundStyle(.secondary)
+                }
+
+                Button("Refresh Scores") {
+                    Task { await sports.refresh() }
+                }
+                .disabled(!sportsActivitiesEnabled || sports.isLoading)
+
+                Button("Preview Score Pop-down") {
+                    sports.showScorePreview()
+                }
+                .disabled(!sportsActivitiesEnabled || !scoreNotificationsEnabled)
+            }
+            .disabled(!sportsActivitiesEnabled)
+
+            Section("Data source") {
+                Label("No account or API key required", systemImage: "lock.shield.fill")
+                Text("Scores come from ESPN's public scoreboard feed. This custom feature is not affiliated with or endorsed by Apple or ESPN.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .navigationTitle("Sports")
+        .accentColor(.effectiveAccent)
+        .onAppear {
+            if let first = enabledLeagues.first { browsingLeague = first }
+            sports.start()
+            Task { await sports.loadTeams(for: browsingLeague) }
+        }
+        .onChange(of: sportsActivitiesEnabled) { _, _ in sports.configurationChanged() }
+        .onChange(of: showUpcoming) { _, _ in sports.configurationChanged() }
+        .onChange(of: browsingLeague) { _, league in
+            teamSearch = ""
+            Task { await sports.loadTeams(for: league) }
+        }
+    }
+
+    @ViewBuilder
+    private func favoriteTeamButton(_ team: SportsDirectoryTeam) -> some View {
+        let selected = favoriteTeams.contains(team.favoriteKey)
+        Button {
+            if selected {
+                favoriteTeams.remove(team.favoriteKey)
+            } else {
+                favoriteTeams.insert(team.favoriteKey)
+                enabledLeagues.insert(team.league)
+            }
+            sports.configurationChanged()
+        } label: {
+            HStack(spacing: 10) {
+                AsyncImage(url: team.logoURL) { phase in
+                    if case .success(let image) = phase {
+                        image
+                            .resizable()
+                            .interpolation(.high)
+                            .antialiased(true)
+                            .scaledToFit()
+                    } else {
+                        Image(systemName: team.league.symbol)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .frame(width: 30, height: 30)
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(team.name)
+                        .font(.callout.weight(.medium))
+                        .lineLimit(1)
+                    Text(team.abbreviation)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer(minLength: 4)
+
+                Image(systemName: selected ? "star.fill" : "star")
+                    .foregroundStyle(selected ? Color.yellow : Color.secondary)
+                    .symbolEffect(.bounce, value: selected)
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 48)
+            .background(
+                selected ? Color.accentColor.opacity(0.13) : Color.secondary.opacity(0.07),
+                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(selected ? Color.accentColor.opacity(0.38) : Color.white.opacity(0.06))
+            }
+        }
+        .buttonStyle(.plain)
+    }
 }
 
 struct WeatherSettings: View {
@@ -1523,9 +1760,9 @@ struct Appearance: View {
     @Default(.useMusicVisualizer) var useMusicVisualizer
     @Default(.customVisualizers) var customVisualizers
     @Default(.selectedVisualizer) var selectedVisualizer
+    @Default(.appTheme) var appTheme
+    @Default(.appIconVariant) var appIconVariant
 
-    let icons: [String] = ["logo2"]
-    @State private var selectedIcon: String = "logo2"
     @State private var selectedListVisualizer: CustomVisualizer? = nil
     @State private var isPresented: Bool = false
     @State private var name: String = ""
@@ -1541,6 +1778,46 @@ struct Appearance: View {
 
             } header: {
                 Text("General")
+            }
+
+            Section {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 10)], spacing: 10) {
+                    ForEach(AppTheme.allCases) { theme in
+                        Button {
+                            withAnimation(.smooth(duration: 0.22)) {
+                                appTheme = theme
+                                appIconVariant = theme.matchingIcon
+                            }
+                            theme.matchingIcon.apply()
+                        } label: {
+                            VStack(spacing: 6) {
+                                Image(systemName: theme.symbol)
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .frame(width: 36, height: 30)
+                                Text(theme.title)
+                                    .font(.caption.weight(appTheme == theme ? .semibold : .regular))
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 9)
+                            .background(
+                                appTheme == theme ? Color.effectiveAccent.opacity(0.24) : Color.white.opacity(0.045),
+                                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            )
+                            .overlay {
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .strokeBorder(
+                                        appTheme == theme ? Color.effectiveAccent.opacity(0.8) : .white.opacity(0.1),
+                                        lineWidth: appTheme == theme ? 1.5 : 0.75
+                                    )
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            } header: {
+                Text("Menu theme")
+            } footer: {
+                Text("Seasonal themes tint controls and navigation while keeping music, calendar, and content tiles readable. Choosing a theme also selects its matching app icon.")
             }
 
             Section {
@@ -1776,12 +2053,10 @@ struct Advanced: View {
     @Default(.extendHoverArea) var extendHoverArea
     @Default(.showOnLockScreen) var showOnLockScreen
     @Default(.hideFromScreenRecording) var hideFromScreenRecording
+    @Default(.appIconVariant) var appIconVariant
     
     @State private var customAccentColor: Color = .accentColor
     @State private var selectedPresetColor: PresetAccentColor? = nil
-    let icons: [String] = ["logo2"]
-    @State private var selectedIcon: String = "logo2"
-    
     // macOS accent colors
     enum PresetAccentColor: String, CaseIterable, Identifiable {
         case blue = "Blue"
@@ -1930,47 +2205,41 @@ struct Advanced: View {
             }
             
             Section {
-                HStack {
-                    ForEach(icons, id: \.self) { icon in
-                        Spacer()
-                        VStack {
-                            Image(icon)
-                                .resizable()
-                                .frame(width: 80, height: 80)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 20, style: .circular)
-                                        .strokeBorder(
-                                            icon == selectedIcon ? Color.effectiveAccent : .clear,
-                                            lineWidth: 2.5
-                                        )
-                                )
-
-                            Text("Default")
-                                .fontWeight(.medium)
-                                .font(.caption)
-                                .foregroundStyle(icon == selectedIcon ? .white : .secondary)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 3)
-                                .background(
-                                    Capsule()
-                                        .fill(icon == selectedIcon ? Color.effectiveAccent : .clear)
-                                )
-                        }
-                        .onTapGesture {
-                            withAnimation {
-                                selectedIcon = icon
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 12)], spacing: 12) {
+                    ForEach(AppIconVariant.allCases) { variant in
+                        Button {
+                            withAnimation(.smooth(duration: 0.2)) {
+                                appIconVariant = variant
                             }
-                            NSApp.applicationIconImage = NSImage(named: icon)
+                            variant.apply()
+                        } label: {
+                            VStack(spacing: 7) {
+                                Image(variant.assetName)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 72, height: 72)
+                                    .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
+                                    .overlay {
+                                        RoundedRectangle(cornerRadius: 17, style: .continuous)
+                                            .strokeBorder(
+                                                variant == appIconVariant ? Color.effectiveAccent : .white.opacity(0.12),
+                                                lineWidth: variant == appIconVariant ? 2.5 : 0.75
+                                            )
+                                    }
+
+                                Text(variant.title)
+                                    .font(.caption.weight(variant == appIconVariant ? .semibold : .regular))
+                                    .foregroundStyle(variant == appIconVariant ? .primary : .secondary)
+                            }
+                            .frame(maxWidth: .infinity)
                         }
-                        Spacer()
+                        .buttonStyle(.plain)
                     }
                 }
-                .disabled(true)
             } header: {
-                HStack {
-                    Text("App icon")
-                    customBadge(text: "Coming soon")
-                }
+                Text("App icon")
+            } footer: {
+                Text("Changes the running app and Dock icon. Finder may keep the installed bundle icon until the app is updated or relaunched.")
             }
             
             Section {

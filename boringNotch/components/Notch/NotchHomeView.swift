@@ -19,7 +19,7 @@ struct MusicPlayerView: View {
     var body: some View {
         HStack {
             AlbumArtView(vm: vm, albumArtNamespace: albumArtNamespace).padding(.all, 5)
-            MusicControlsView().drawingGroup().compositingGroup()
+            MusicControlsView()
         }
     }
 }
@@ -154,7 +154,7 @@ struct MusicControlsView: View {
             )
             .fontWeight(.medium)
             if Defaults[.enableLyrics] {
-                TimelineView(.animation(minimumInterval: 0.25)) { timeline in
+                TimelineView(.animation(minimumInterval: 0.25, paused: !musicManager.isPlaying)) { timeline in
                     let currentElapsed: Double = {
                         guard musicManager.isPlaying else { return musicManager.elapsedTime }
                         let delta = timeline.date.timeIntervalSince(musicManager.timestampDate)
@@ -190,7 +190,7 @@ struct MusicControlsView: View {
     }
 
     private var musicSlider: some View {
-        TimelineView(.animation(minimumInterval: musicManager.playbackRate > 0 ? 0.1 : nil)) { timeline in
+        TimelineView(.animation(minimumInterval: 0.25, paused: !musicManager.isPlaying || musicManager.playbackRate <= 0)) { timeline in
             MusicSliderView(
                 sliderValue: $sliderValue,
                 duration: $musicManager.songDuration,
@@ -430,6 +430,7 @@ struct NotchHomeView: View {
     let albumArtNamespace: Namespace.ID
     @Default(.weatherTilePosition) private var weatherTilePosition
     @Default(.weatherOnLiveTab) private var weatherOnLiveTab
+    @Default(.appTheme) private var appTheme
 
     var body: some View {
         Group {
@@ -471,6 +472,13 @@ struct NotchHomeView: View {
                     .transition(.opacity)
             }
 
+            if appTheme == .christmas {
+                ChristmasHomeTree()
+                    .frame(width: 81, height: 130)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+
             if shouldShowCamera {
                 CameraPreviewView(webcamManager: webcamManager)
                     .scaledToFit()
@@ -485,6 +493,52 @@ struct NotchHomeView: View {
         }
         .transition(.asymmetric(insertion: .opacity.combined(with: .move(edge: .top)), removal: .opacity))
         .blur(radius: vm.notchState == .closed ? 30 : 0)
+    }
+}
+
+/// A static vector decoration: crisp at every display scale, with no animation timer.
+private struct ChristmasHomeTree: View {
+    var body: some View {
+        Canvas { context, size in
+            let scale = min(size.width / 81, size.height / 130)
+            context.scaleBy(x: scale, y: scale)
+            let gold = Color(red: 1, green: 0.78, blue: 0.30)
+            let trunk = Path(roundedRect: CGRect(x: 35, y: 105, width: 12, height: 18), cornerRadius: 3)
+            context.fill(trunk, with: .color(Color(red: 0.48, green: 0.29, blue: 0.16)))
+
+            for (top, bottom, halfWidth) in [(18.0, 60.0, 23.0), (39.0, 85.0, 31.0), (65.0, 113.0, 39.0)] {
+                var branch = Path()
+                branch.move(to: CGPoint(x: 40.5, y: top))
+                branch.addQuadCurve(to: CGPoint(x: 40.5 - halfWidth, y: bottom - 5), control: CGPoint(x: 34, y: top + 22))
+                branch.addQuadCurve(to: CGPoint(x: 40.5 + halfWidth, y: bottom - 5), control: CGPoint(x: 40.5, y: bottom + 7))
+                branch.addQuadCurve(to: CGPoint(x: 40.5, y: top), control: CGPoint(x: 48, y: top + 22))
+                branch.closeSubpath()
+                context.fill(branch, with: .linearGradient(
+                    Gradient(colors: [Color(red: 0.27, green: 0.68, blue: 0.46), Color(red: 0.04, green: 0.29, blue: 0.19)]),
+                    startPoint: CGPoint(x: 12, y: top), endPoint: CGPoint(x: 64, y: bottom)))
+            }
+
+            var star = Path()
+            for index in 0..<10 {
+                let angle = Double(index) * .pi / 5 - .pi / 2
+                let radius = index.isMultiple(of: 2) ? 10.0 : 4.5
+                let point = CGPoint(x: 40.5 + cos(angle) * radius, y: 13 + sin(angle) * radius)
+                if index == 0 { star.move(to: point) } else { star.addLine(to: point) }
+            }
+            star.closeSubpath()
+            context.fill(star, with: .color(gold))
+
+            for (x, y, red) in [(33.0, 43.0, true), (49.0, 55.0, false), (24.0, 71.0, false), (48.0, 78.0, true), (32.0, 94.0, true), (61.0, 99.0, false), (18.0, 104.0, true)] {
+                let ornament = Path(ellipseIn: CGRect(x: x - 3.5, y: y - 3.5, width: 7, height: 7))
+                context.fill(ornament, with: .color(red ? Color(red: 0.91, green: 0.25, blue: 0.28) : gold))
+                context.fill(Path(ellipseIn: CGRect(x: x - 2, y: y - 2, width: 2, height: 2)), with: .color(.white.opacity(0.65)))
+            }
+
+            for (x, y, width, color) in [(10.0, 114.0, 21.0, Color(red: 0.76, green: 0.18, blue: 0.23)), (49.0, 117.0, 22.0, Color(red: 0.43, green: 0.36, blue: 0.72))] {
+                context.fill(Path(roundedRect: CGRect(x: x, y: y, width: width, height: 12), cornerRadius: 2), with: .color(color))
+                context.fill(Path(CGRect(x: x + width / 2 - 1.5, y: y, width: 3, height: 12)), with: .color(gold))
+            }
+        }
     }
 }
 
@@ -531,6 +585,14 @@ struct MusicSliderView: View {
         .onChange(of: currentDate) {
            guard !dragging, timestampDate.timeIntervalSince(lastDragged) > -1 else { return }
             sliderValue = MusicManager.shared.estimatedPlaybackPosition(at: currentDate)
+        }
+        .onAppear {
+            guard !dragging else { return }
+            sliderValue = min(max(elapsedTime, 0), duration)
+        }
+        .onChange(of: elapsedTime) {
+            guard !dragging, timestampDate.timeIntervalSince(lastDragged) > -1 else { return }
+            sliderValue = min(max(elapsedTime, 0), duration)
         }
     }
 

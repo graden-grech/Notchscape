@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Defaults
 
 extension Bundle {
     var releaseVersionNumber: String? {
@@ -29,10 +30,9 @@ extension Bundle {
 }
 
 struct BundleAppIcon: View {
+    @Default(.appIconVariant) private var appIconVariant
     var body: some View {
-        Bundle.main.iconFileName
-            .flatMap { NSImage(named: $0) }
-            .map { Image(nsImage: $0) }
+        Image(appIconVariant.assetName)
     }
 }
 

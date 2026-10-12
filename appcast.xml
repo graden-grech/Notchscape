@@ -3,6 +3,27 @@
     <channel>
         <title>Boring Notch</title>
         <item>
+            <title>2.8.1</title>
+            <pubDate>Sun, 11 Oct 2026 22:28:29 -0400</pubDate>
+            <link>https://github.com/graden-grech/boringNotch-custom/releases/tag/v2.8.1</link>
+            <sparkle:version>281</sparkle:version>
+            <sparkle:shortVersionString>2.8.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[# boringNotch Custom 2.8.1
+
+- Choose Dynamic Island or Notch for notchless displays.
+- Seasonal themes and matching icons, including a full-sized Christmas tree beside the Home calendar.
+- Sports favorites, compact scores, and score notifications.
+- Improved AI quota handling: low-usage warnings stay active and quota failures cannot turn into completion checks.
+- Native Liquid Glass on macOS 26 with lighter fallbacks on older macOS.
+- Fewer AI redraws and paused music timers for better efficiency.
+
+Physical-notch and DisplayLink hardware validation and the full HUD restart regression remain pending. Developer-signed; not notarized.
+]]></description>
+            <enclosure url="https://github.com/graden-grech/boringNotch-custom/releases/download/v2.8.1/boringNotch-custom.zip" length="15035356" type="application/octet-stream" sparkle:edSignature="3GvzbiZgN3+ymFZyIQ7+1eCbMLTRIAh7aHfvP2t6Sg4gHdHZEmdrylEgXHoth0/cWELHlbkCPDAF8rOJpDnMBQ=="/>
+        </item>
+        <item>
             <title>2.8.0</title>
             <pubDate>Sat, 10 Oct 2026 17:16:38 -0400</pubDate>
             <link>https://github.com/graden-grech/boringNotch-custom/releases/tag/v2.8.0</link>

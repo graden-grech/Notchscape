@@ -32,6 +32,7 @@ struct ContentView: View {
     @ObservedObject private var agentStatusManager = AgentStatusManager.shared
     @ObservedObject private var calendarManager = CalendarManager.shared
     @ObservedObject private var weatherManager = WeatherManager.shared
+    @ObservedObject private var sportsManager = SportsActivityManager.shared
     @ObservedObject private var downloadWatcher = DownloadWatcher.shared
     @ObservedObject private var notchTimer = NotchTimerManager.shared
     @ObservedObject private var privacyMonitor = PrivacyActivityMonitor.shared
@@ -60,6 +61,9 @@ struct ContentView: View {
     @Default(.privacyActivitiesEnabled) private var privacyActivitiesEnabled
     @Default(.weatherAlertsEnabled) private var weatherAlertsEnabled
     @Default(.timerActivitiesEnabled) private var timerActivitiesEnabled
+    @Default(.sportsActivitiesEnabled) private var sportsActivitiesEnabled
+    @Default(.nonNotchPresentation) private var nonNotchPresentation
+    @Default(.appTheme) private var appTheme
 
     // Shared interactive spring for movement/resizing to avoid conflicting animations
     private let animationSpring = Animation.interactiveSpring(response: 0.38, dampingFraction: 0.8, blendDuration: 0)
@@ -93,6 +97,67 @@ struct ContentView: View {
         )
     }
 
+    private var sportsUsesPhysicalNotchLayout: Bool {
+        let screen = vm.screenUUID.flatMap { NSScreen.screen(withUUID: $0) }
+        return (screen?.safeAreaInsets.top ?? 0) > 0
+    }
+
+    private var usesFloatingIslandLayout: Bool {
+        !sportsUsesPhysicalNotchLayout
+            && vm.notchState == .closed
+            && !vm.hideOnClosed
+    }
+
+    private var usesNotchlessIslandPresentation: Bool {
+        !sportsUsesPhysicalNotchLayout && nonNotchPresentation == .dynamicIsland
+    }
+
+    private var sportsUsesInlineLayout: Bool {
+        sportsUsesPhysicalNotchLayout || nonNotchPresentation == .notch
+    }
+
+    private var floatingIslandTopInset: CGFloat { 3 }
+
+    private var floatingIslandHeight: CGFloat {
+        let screen = vm.screenUUID.flatMap { NSScreen.screen(withUUID: $0) }
+        let menuBarHeight = screen.map { $0.frame.maxY - $0.visibleFrame.maxY }
+            ?? vm.closedNotchSize.height
+        return max(18, min(vm.closedNotchSize.height, menuBarHeight - 6))
+    }
+
+    private var sportsDropOffset: CGFloat {
+        if sportsUsesPhysicalNotchLayout {
+            // Clear the camera housing while visually joining its lower edge.
+            return max(0, vm.effectiveClosedNotchHeight - 2)
+        }
+
+        // Keep the floating island fully inside the macOS menu bar.
+        return floatingIslandTopInset
+    }
+
+    private var sportsActivityHeight: CGFloat {
+        sportsUsesPhysicalNotchLayout ? 42 : floatingIslandHeight
+    }
+
+    private var sportsActivityCornerRadius: CGFloat {
+        sportsUsesPhysicalNotchLayout ? 15 : floatingIslandHeight / 2
+    }
+
+    private var sportsActivityLogoSize: CGFloat {
+        sportsUsesPhysicalNotchLayout ? 25 : 18
+    }
+
+    private var sportsActivityScoreSize: CGFloat {
+        sportsUsesPhysicalNotchLayout ? 15 : 12
+    }
+
+    private var sportsUsesFloatingIsland: Bool {
+        usesNotchlessIslandPresentation
+            && vm.notchState == .closed
+            && !vm.hideOnClosed
+            && (activeSportsGame != nil || sportsManager.scoreBanner != nil)
+    }
+
     private var activeAgentActivity: AgentActivity? {
         guard liveActivitiesEnabled, agentStatusEnabled, activityProfile != .entertainment else { return nil }
         return agentStatusManager.activities.first
@@ -117,6 +182,13 @@ struct ContentView: View {
               let weather = weatherManager.weather,
               weather.isAlertWorthy else { return nil }
         return weather
+    }
+
+    private var activeSportsGame: SportsGame? {
+        guard liveActivitiesEnabled,
+              sportsActivitiesEnabled,
+              activityProfile == .everything || activityProfile == .entertainment else { return nil }
+        return sportsManager.currentGame
     }
 
     private var privacyActivityIsVisible: Bool {
@@ -195,10 +267,10 @@ struct ContentView: View {
                         : cornerRadiusInsets.closed.bottom
                     )
                     .padding([.horizontal, .bottom], vm.notchState == .open ? 12 : 0)
-                    .background(.black)
+                    .background(sportsUsesFloatingIsland ? Color.clear : Color.black)
                     .overlay(alignment: .top) {
                         Rectangle()
-                            .fill(.black)
+                            .fill(sportsUsesFloatingIsland ? Color.clear : Color.black)
                             .frame(height: 1)
                             .padding(.horizontal, topCornerRadius)
                     }
@@ -215,7 +287,25 @@ struct ContentView: View {
                     // Apply the mask after the final frame. Flexible Home/Live
                     // content can otherwise grow beyond the earlier mask and
                     // expose a rectangular outer edge.
-                    .clipShape(currentNotchShape)
+                    .conditionalModifier(usesNotchlessIslandPresentation) { view in
+                        view
+                            .frame(
+                                height: vm.notchState == .closed ? floatingIslandHeight : nil,
+                                alignment: .top
+                            )
+                            .clipShape(
+                                RoundedRectangle(
+                                    cornerRadius: vm.notchState == .closed
+                                        ? floatingIslandHeight / 2
+                                        : cornerRadiusInsets.opened.bottom,
+                                    style: .continuous
+                                )
+                            )
+                            .offset(y: floatingIslandTopInset)
+                    }
+                    .conditionalModifier(!usesNotchlessIslandPresentation) { view in
+                        view.clipShape(currentNotchShape)
+                    }
                     .shadow(
                         color: ((vm.notchState == .open || isHovering) && Defaults[.enableShadow])
                             ? .black.opacity(0.7) : .clear,
@@ -313,11 +403,23 @@ struct ContentView: View {
             anchor: .top
         )
         .animation(.smooth, value: gestureProgress)
-        .animation(.snappy(duration: 0.48, extraBounce: 0.04), value: activeAgentActivity)
+        .animation(.snappy(duration: 0.48, extraBounce: 0.04), value: activeAgentActivity?.state)
+        .animation(.snappy(duration: 0.5, extraBounce: 0.08), value: sportsManager.scoreBanner)
         .background(dragDetector)
         .preferredColorScheme(.dark)
         .environmentObject(vm)
+        .task {
+            if sportsActivitiesEnabled { sportsManager.start() }
+        }
+        .onChange(of: sportsActivitiesEnabled) { _, _ in
+            sportsManager.configurationChanged()
+        }
         .onChange(of: weatherOnLiveTab) { _, _ in
+            withAnimation(animationSpring) {
+                vm.refreshOpenNotchSize()
+            }
+        }
+        .onChange(of: appTheme) { _, _ in
             withAnimation(animationSpring) {
                 vm.refreshOpenNotchSize()
             }
@@ -415,6 +517,16 @@ struct ContentView: View {
                                 !vm.hideOnClosed {
                           PrivacyLiveActivity()
                               .transition(.scale(scale: 0.9).combined(with: .opacity))
+                      } else if let game = activeSportsGame,
+                                vm.notchState == .closed,
+                                !vm.hideOnClosed {
+                          if sportsUsesInlineLayout {
+                              SportsInlineNotchActivity(game: game)
+                                  .transition(.scale(scale: 0.9).combined(with: .opacity))
+                          } else {
+                              Color.clear
+                                  .frame(width: vm.closedNotchSize.width - 20, height: vm.effectiveClosedNotchHeight)
+                          }
                       } else if let activity = activeAgentActivity,
                                 vm.notchState == .closed,
                                 !vm.hideOnClosed,
@@ -499,6 +611,37 @@ struct ContentView: View {
                       .fixedSize()
               }
               .zIndex(2)
+            if vm.notchState == .closed,
+               !vm.hideOnClosed,
+               usesNotchlessIslandPresentation,
+               sportsManager.scoreBanner == nil,
+               let game = activeSportsGame {
+                SportsLiveActivity(game: game)
+                    .padding(.top, sportsDropOffset)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .zIndex(3)
+            }
+            if vm.notchState == .closed,
+               !vm.hideOnClosed,
+               usesNotchlessIslandPresentation,
+               sportsActivitiesEnabled,
+               let banner = sportsManager.scoreBanner {
+                SportsScorePopdown(banner: banner)
+                    .padding(.horizontal, 10)
+                    .padding(.bottom, 10)
+                    .padding(.top, sportsDropOffset)
+                    .transition(
+                        .asymmetric(
+                            insertion: .move(edge: .top)
+                                .combined(with: .scale(scale: 0.82, anchor: .top))
+                                .combined(with: .opacity),
+                            removal: .move(edge: .top)
+                                .combined(with: .scale(scale: 0.94, anchor: .top))
+                                .combined(with: .opacity)
+                        )
+                    )
+                    .zIndex(3)
+            }
             if vm.notchState == .open {
                 VStack {
                     switch coordinator.currentView {
@@ -513,9 +656,9 @@ struct ContentView: View {
                     }
                 }
                 .transition(
-                    .scale(scale: 0.8, anchor: .top)
-                    .combined(with: .opacity)
-                    .animation(.smooth(duration: 0.35))
+                    .move(edge: .top)
+                        .combined(with: .opacity)
+                        .animation(.smooth(duration: 0.28))
                 )
                 .zIndex(1)
                 .allowsHitTesting(vm.notchState == .open)
@@ -818,6 +961,179 @@ struct ContentView: View {
             .buttonStyle(.plain)
         }
         .frame(height: vm.effectiveClosedNotchHeight)
+    }
+
+    @ViewBuilder
+    func SportsLiveActivity(game: SportsGame) -> some View {
+        Button {
+            if let url = game.gameURL { NSWorkspace.shared.open(url) }
+        } label: {
+            HStack(spacing: 5) {
+                SportsTeamLane(team: game.away, game: game, leading: false)
+
+                VStack(spacing: 2) {
+                    if game.isLive {
+                        Circle().fill(.red).frame(width: 5, height: 5)
+                    }
+                    Text(game.statusText)
+                        .font(.system(size: sportsUsesPhysicalNotchLayout ? 8 : 7, weight: .semibold, design: .rounded))
+                        .foregroundStyle(game.isLive ? .white : .secondary)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: 42)
+
+                SportsTeamLane(team: game.home, game: game, leading: true)
+            }
+            .padding(.horizontal, 7)
+            .frame(width: 190, height: sportsActivityHeight)
+            .background(.black, in: RoundedRectangle(cornerRadius: sportsActivityCornerRadius, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: sportsActivityCornerRadius, style: .continuous)
+                    .strokeBorder(.white.opacity(0.1), lineWidth: 0.75)
+            }
+            .shadow(color: .black.opacity(0.28), radius: 10, y: 5)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(game.league.title), \(game.away.name) \(game.away.score), \(game.home.name) \(game.home.score), \(game.statusText)")
+        .help("Open game details")
+    }
+
+    @ViewBuilder
+    func SportsInlineNotchActivity(game: SportsGame) -> some View {
+        let side = max(18, vm.effectiveClosedNotchHeight - 12)
+
+        HStack(spacing: 8) {
+            HStack(spacing: 5) {
+                SportsTeamLogo(team: game.away, size: side)
+                Text(game.displayScore(for: game.away))
+                    .font(.system(size: 13, weight: .bold, design: .rounded).monospacedDigit())
+                    .foregroundStyle(.white)
+            }
+            .frame(width: 72, alignment: .trailing)
+
+            Rectangle()
+                .fill(.black)
+                .frame(width: vm.closedNotchSize.width - cornerRadiusInsets.closed.top)
+
+            HStack(spacing: 5) {
+                Text(game.displayScore(for: game.home))
+                    .font(.system(size: 13, weight: .bold, design: .rounded).monospacedDigit())
+                    .foregroundStyle(.white)
+                SportsTeamLogo(team: game.home, size: side)
+            }
+            .frame(width: 72, alignment: .leading)
+        }
+        .frame(height: vm.effectiveClosedNotchHeight, alignment: .center)
+        .accessibilityLabel("\(game.away.name) \(game.away.score), \(game.home.name) \(game.home.score)")
+    }
+
+    @ViewBuilder
+    func SportsTeamLane(team: SportsTeam, game: SportsGame, leading: Bool) -> some View {
+        let logo = SportsTeamLogo(team: team, size: sportsActivityLogoSize)
+        let score = Text(game.displayScore(for: team))
+            .font(.system(size: sportsActivityScoreSize, weight: .bold, design: .rounded).monospacedDigit())
+            .foregroundStyle(.white)
+            .contentTransition(.numericText())
+
+        HStack(spacing: 6) {
+            if !leading { logo }
+
+            if leading { score }
+            Text(team.abbreviation)
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.white.opacity(0.78))
+            if !leading { score }
+
+            if leading { logo }
+        }
+        .frame(minWidth: 78)
+        .frame(height: 34)
+    }
+
+    @ViewBuilder
+    func SportsTeamLogo(team: SportsTeam, size: CGFloat) -> some View {
+        AsyncImage(url: team.logoURL) { phase in
+            if case .success(let image) = phase {
+                image
+                    .resizable()
+                    .interpolation(.high)
+                    .antialiased(true)
+                    .scaledToFit()
+            } else {
+                ZStack {
+                    Circle().fill(.white.opacity(0.12))
+                    Text(String(team.abbreviation.prefix(1)))
+                        .font(.system(size: max(8, size * 0.42), weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                }
+            }
+        }
+        .frame(width: size, height: size)
+    }
+
+    @ViewBuilder
+    func SportsScorePopdown(banner: SportsScoreBanner) -> some View {
+        let game = banner.game
+
+        Button {
+            if let url = game.gameURL { NSWorkspace.shared.open(url) }
+        } label: {
+            HStack(spacing: 11) {
+                ZStack {
+                    SportsTeamLogo(team: game.away, size: 28)
+                        .offset(x: -8)
+                    SportsTeamLogo(team: game.home, size: 28)
+                        .offset(x: 8)
+                }
+                .frame(width: 46, height: 32)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        if game.isLive {
+                            Circle()
+                                .fill(.red)
+                                .frame(width: 6, height: 6)
+                                .shadow(color: .red.opacity(0.65), radius: 3)
+                        }
+                        Text(banner.title)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                    }
+
+                    Text("\(banner.detail)  •  \(game.statusText)")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: 8)
+
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 14)
+            .frame(width: 342, height: 62)
+            .background(.black, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .strokeBorder(.white.opacity(0.12), lineWidth: 0.75)
+            }
+            .shadow(color: .black.opacity(0.34), radius: 14, y: 7)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(banner.title), \(banner.detail), \(game.statusText)")
+    }
+
+    private func sportsColor(_ hex: String?) -> Color {
+        guard let hex else { return .blue }
+        let cleaned = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        guard cleaned.count == 6, let value = UInt64(cleaned, radix: 16) else { return .blue }
+        return Color(
+            red: Double((value >> 16) & 0xFF) / 255,
+            green: Double((value >> 8) & 0xFF) / 255,
+            blue: Double(value & 0xFF) / 255
+        )
     }
 
     @ViewBuilder

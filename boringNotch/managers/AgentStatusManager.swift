@@ -50,6 +50,9 @@ final class AgentStatusManager: ObservableObject {
 
     private var listener: NWListener?
     private var dismissalTasks: [String: Task<Void, Never>] = [:]
+    private var lastWorkingPublishAt: [String: Date] = [:]
+    private var limitedSessions: [String: Date] = [:]
+    private let minimumWorkingPublishInterval: TimeInterval = 0.65
 
     private init() {
         start()
@@ -132,6 +135,14 @@ final class AgentStatusManager: ObservableObject {
         let cwd = object["cwd"] as? String
         let project = cwd.map { URL(fileURLWithPath: $0).lastPathComponent } ?? "Codex task"
         let tool = object["tool_name"] as? String
+        let activityID = "\(resolvedProvider):\(sessionID)"
+        let now = Date()
+        limitedSessions = limitedSessions.filter { now.timeIntervalSince($0.value) < 3600 }
+        // A new user turn is the only event that clears a previous quota failure.
+        // A trailing Stop hook often arrives without the original error payload.
+        if event == "UserPromptSubmit" || event == "SessionStart" {
+            limitedSessions[activityID] = nil
+        }
 
         let searchablePayload = Self.flattenedStrings(in: object).joined(separator: " ").lowercased()
         let hitUsageLimit = Self.indicatesUsageLimitReached(
@@ -142,7 +153,9 @@ final class AgentStatusManager: ObservableObject {
         let state: AgentActivityState
         if hitUsageLimit {
             state = .usageLimited
+            limitedSessions[activityID] = now
         } else {
+            guard limitedSessions[activityID] == nil else { return }
             switch event {
             case "PermissionRequest": state = .needsInput
             case "Stop", "SessionEnd": state = .completed
@@ -168,13 +181,28 @@ final class AgentStatusManager: ObservableObject {
         }
         }
 
+        // Codex can emit PreToolUse/PostToolUse hooks in rapid bursts. Updating
+        // SwiftUI for every hook needlessly re-renders the notch and can compete
+        // with coding apps and DisplayLink-driven screens.
+        if state == .working,
+           let lastPublish = lastWorkingPublishAt[activityID],
+           now.timeIntervalSince(lastPublish) < minimumWorkingPublishInterval {
+            return
+        }
+
+        if state == .working {
+            lastWorkingPublishAt[activityID] = now
+        } else {
+            lastWorkingPublishAt[activityID] = nil
+        }
+
         let activity = AgentActivity(
-            id: "\(resolvedProvider):\(sessionID)",
+            id: activityID,
             provider: resolvedProvider,
             title: project,
             detail: detail,
             state: state,
-            updatedAt: .now
+            updatedAt: now
         )
 
         dismissalTasks[activity.id]?.cancel()
@@ -233,9 +261,13 @@ final class AgentStatusManager: ObservableObject {
             "usage limit reached", "rate limit reached", "limit reached",
             "reached your usage limit", "reached your rate limit",
             "rate_limit_exceeded", "rate_limit_error", "quota exceeded",
+            "insufficient_quota", "resource_exhausted", "usage exhausted",
             "too many requests", "limit has been reached", "limit was reached",
+            "weekly limit reached", "five hour limit reached", "5-hour limit reached",
             "you've hit your", "you have hit your", "you hit your",
+            "you've reached your limit", "you have reached your limit",
             "out of tokens", "tokens exhausted", "token budget exhausted",
+            "token limit reached", "zero tokens left", "0 tokens left",
             "usage has been exhausted", "no usage remaining", "no tokens remaining",
             "0% left", "0% remaining", "try again later"
         ]

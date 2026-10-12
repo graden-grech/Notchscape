@@ -17,14 +17,15 @@ let standardOpenNotchSize: CGSize = .init(width: 640, height: 190)
 let weatherHomeOpenNotchSize: CGSize = .init(width: 768, height: 190)
 // The transparent NSWindow stays at the maximum size; the visible notch is
 // sized independently so it can animate back to the original width.
-let openNotchSize: CGSize = weatherHomeOpenNotchSize
+let openNotchSize: CGSize = .init(width: weatherHomeOpenNotchSize.width + 96, height: weatherHomeOpenNotchSize.height)
 let windowSize: CGSize = .init(width: openNotchSize.width, height: openNotchSize.height + shadowPadding)
 let cornerRadiusInsets: (opened: (top: CGFloat, bottom: CGFloat), closed: (top: CGFloat, bottom: CGFloat)) = (opened: (top: 19, bottom: 24), closed: (top: 6, bottom: 14))
 
 @MainActor func getOpenNotchSize() -> CGSize {
-    Defaults[.weatherEnabled] && !Defaults[.weatherOnLiveTab]
+    let base = Defaults[.weatherEnabled] && !Defaults[.weatherOnLiveTab]
         ? weatherHomeOpenNotchSize
         : standardOpenNotchSize
+    return CGSize(width: base.width + (Defaults[.appTheme] == .christmas ? 96 : 0), height: base.height)
 }
 
 enum MusicPlayerImageSizes {

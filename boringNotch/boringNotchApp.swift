@@ -344,6 +344,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
 
+        Defaults[.appIconVariant].apply()
+
         // Start the HUD after AppKit has finished launching. Starting it only
         // from `App.init()` can race the application run loop, which leaves a
         // successfully-created event tap without a reliable run-loop owner (or

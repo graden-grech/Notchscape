@@ -13,6 +13,7 @@ struct BoringHeader: View {
     @ObservedObject var batteryModel = BatteryStatusViewModel.shared
     @ObservedObject var coordinator = BoringViewCoordinator.shared
     @StateObject var tvm = ShelfStateViewModel.shared
+    @Default(.appTheme) private var appTheme
     var body: some View {
         HStack(spacing: 0) {
             HStack {
@@ -20,6 +21,15 @@ struct BoringHeader: View {
                     TabSelectionView()
                 } else if vm.notchState == .open {
                     EmptyView()
+                }
+                if coordinator.currentView == .home,
+                   appTheme != .christmas,
+                   let decoration = appTheme.homeDecoration,
+                   (vm.screenUUID.flatMap { NSScreen.screen(withUUID: $0) }?.safeAreaInsets.top ?? 0) > 0 {
+                    Text(decoration)
+                        .font(.system(size: 20))
+                        .accessibilityHidden(true)
+                        .allowsHitTesting(false)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -33,6 +43,17 @@ struct BoringHeader: View {
                     .frame(width: vm.closedNotchSize.width)
                     .mask {
                         NotchShape()
+                    }
+                    .overlay {
+                        if coordinator.currentView == .home,
+                           appTheme != .christmas,
+                           let decoration = appTheme.homeDecoration,
+                           (vm.screenUUID.flatMap { NSScreen.screen(withUUID: $0) }?.safeAreaInsets.top ?? 0) == 0 {
+                            Text(decoration)
+                                .font(.system(size: 23))
+                                .accessibilityHidden(true)
+                                .allowsHitTesting(false)
+                        }
                     }
             }
 

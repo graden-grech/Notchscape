@@ -22,7 +22,11 @@ struct LiveDashboardView: View {
     }
 
     private var agentCard: some View {
-        dashboardCard(title: "AI Agents", symbol: "apple.intelligence", tint: .purple) {
+        dashboardCard(
+            title: "AI Agents",
+            symbol: AgentProviderStyle.symbol(for: "Codex"),
+            tint: AgentProviderStyle.accent(for: "Codex")
+        ) {
             if let activity = agents.activities.first {
                 VStack(alignment: .leading, spacing: 7) {
                     HStack(spacing: 8) {
