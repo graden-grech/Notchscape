@@ -29,6 +29,10 @@ env:
 jobs:
   prepare:
     name: Prepare nightly metadata
+    # The custom fork ships signed releases locally and has no dev branch or
+    # hosted signing credentials. Do not run the upstream publishing pipeline
+    # there unless its prerequisites have been deliberately configured.
+    if: ${{ github.repository == 'TheBoredTeam/boring.notch' || vars.ENABLE_NIGHTLY_BUILDS == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
