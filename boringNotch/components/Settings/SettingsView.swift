@@ -233,7 +233,7 @@ struct GeneralSettings: View {
                 Defaults.Toggle(key: .showDockIcon) {
                     Text("Show Dock icon")
                 }
-                Text("When hidden, open Settings from the notch or menu bar. Hiding the Dock icon also removes the app from Command-Tab.")
+                Text("Hides the running app from the Dock and Command-Tab. Settings remain available from the notch or menu bar. A pinned or recent Dock shortcut may remain; right-click it and choose Options → Remove from Dock once.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 LaunchAtLogin.Toggle("Launch at login")

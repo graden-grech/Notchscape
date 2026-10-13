@@ -25,8 +25,9 @@ final class AppPresentationManager {
         let keyWindow = NSApp.keyWindow
         let wasActive = NSApp.isActive
         guard NSApp.setActivationPolicy(policy) else { return }
-        // A regular/accessory transition can reset the Dock representation.
-        Defaults[.appIconVariant].apply()
+        // Only customize a visible Dock tile. Updating artwork after hiding
+        // can leave/recreate a tile even though AppKit reports accessory mode.
+        if policy == .regular { Defaults[.appIconVariant].apply() }
         if wasActive {
             NSApp.activate(ignoringOtherApps: true)
             keyWindow?.makeKeyAndOrderFront(nil)

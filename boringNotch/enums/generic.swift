@@ -113,6 +113,9 @@ enum AppIconVariant: String, CaseIterable, Defaults.Serializable, Identifiable {
 
     @MainActor
     func apply() {
+        // Theme changes and startup must not touch a hidden Dock tile. The
+        // saved icon choice is applied when Dock visibility is re-enabled.
+        guard Defaults[.showDockIcon], NSApp.activationPolicy() == .regular else { return }
         guard let image = NSImage(named: assetName) else { return }
         if self == .autumn || self == .halloween {
             // Legacy seasonal artwork has a square backdrop. Apply a rounded
