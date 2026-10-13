@@ -1,137 +1,91 @@
 import Cocoa
+import Combine
 import Defaults
-import Foundation
-import IOKit.ps
 import SwiftUI
 
-/// A view model that manages and monitors the battery status of the device
-class BatteryStatusViewModel: ObservableObject {
-
-    private var wasCharging: Bool = false
-    private var powerSourceChangedCallback: IOPowerSourceCallbackType?
-    private var runLoopSource: Unmanaged<CFRunLoopSource>?
-
-    @ObservedObject var coordinator = BoringViewCoordinator.shared
-
-    @Published private(set) var levelBattery: Float = 0.0
-    @Published private(set) var maxCapacity: Float = 0.0
-    @Published private(set) var isPluggedIn: Bool = false
-    @Published private(set) var isCharging: Bool = false
-    @Published private(set) var isInLowPowerMode: Bool = false
-    @Published private(set) var isInitial: Bool = false
-    @Published private(set) var timeToFullCharge: Int = 0
-    @Published private(set) var statusText: String = ""
-
-    private let managerBattery = BatteryActivityManager.shared
-    private var managerBatteryId: Int?
-
+@MainActor
+final class BatteryStatusViewModel: ObservableObject {
     static let shared = BatteryStatusViewModel()
+    @Published private(set) var levelBattery: Float = 0
+    @Published private(set) var maxCapacity: Float = 0
+    @Published private(set) var isPluggedIn = false
+    @Published private(set) var isCharging = false
+    @Published private(set) var isInLowPowerMode = false
+    @Published private(set) var timeToFullCharge = 0
+    @Published private(set) var hasBattery = true
+    @Published private(set) var dataAvailable = false
+    @Published private(set) var isFullyCharged = false
+    @Published private(set) var statusText = ""
+    @Published private(set) var history: [BatteryHistorySample] = []
+    private let managerBattery = BatteryActivityManager.shared
+    private var observerID: Int?
+    private var previous: BatteryReading?
+    private var previousLowPower = false
+    private var subscriptions = Set<AnyCancellable>()
 
-    /// Initializes the view model with a given BoringViewModel instance
-    /// - Parameter vm: The BoringViewModel instance
     private init() {
-        setupPowerStatus()
-        setupMonitor()
+        history = BatteryHistoryPolicy.retained(Defaults[.batteryHistory], now: Date())
+        update(managerBattery.initializeBatteryInfo())
+        observerID = managerBattery.addObserver { [weak self] snapshot in
+            Task { @MainActor in self?.update(snapshot) }
+        }
+        Defaults.publisher(.batteryHistoryEnabled).receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.recordHistory() }.store(in: &subscriptions)
+        Defaults.publisher(.batteryPresentation).receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.recordHistory() }.store(in: &subscriptions)
     }
 
-    /// Sets up the initial power status by fetching battery information
-    private func setupPowerStatus() {
-        let batteryInfo = managerBattery.initializeBatteryInfo()
-        updateBatteryInfo(batteryInfo)
-    }
+    private func update(_ snapshot: BatteryInfo) {
+        hasBattery = snapshot.hasBattery
+        dataAvailable = snapshot.isAvailable && snapshot.hasBattery
+        guard dataAvailable else {
+            previous = nil
+            statusText = hasBattery ? "Battery unavailable" : "No built-in battery"
+            return
+        }
+        let reading = BatteryReading(level: Double(snapshot.currentCapacity), pluggedIn: snapshot.isPluggedIn,
+            charging: snapshot.isCharging, fullyCharged: snapshot.isFullyCharged)
+        let old = previous
+        levelBattery = snapshot.currentCapacity
+        maxCapacity = snapshot.maxCapacity
+        isPluggedIn = snapshot.isPluggedIn
+        isCharging = snapshot.isCharging
+        isFullyCharged = snapshot.isFullyCharged
+        isInLowPowerMode = snapshot.isInLowPowerMode
+        timeToFullCharge = snapshot.timeToFullCharge
+        statusText = reading.status
+        previous = reading
+        recordHistory()
 
-    /// Sets up the monitor to observe battery events
-    private func setupMonitor() {
-        managerBatteryId = managerBattery.addObserver { [weak self] event in
-            guard let self = self else { return }
-            self.handleBatteryEvent(event)
+        let threshold = BatteryPolicy.alert(from: old, to: reading, low20: Defaults[.batteryAlert20],
+            low10: Defaults[.batteryAlert10], full: Defaults[.batteryAlertFull])
+        let powerChanged = old != nil && (old?.pluggedIn != reading.pluggedIn
+            || old?.charging != reading.charging || previousLowPower != isInLowPowerMode)
+        previousLowPower = isInLowPowerMode
+        guard Defaults[.showPowerStatusNotifications], old != nil else { return }
+        if Defaults[.batteryPresentation] == .enhanced, let threshold {
+            statusText = threshold.title
+            BoringViewCoordinator.shared.toggleExpandingView(status: true, type: .battery)
+        } else if powerChanged {
+            BoringViewCoordinator.shared.toggleExpandingView(status: true, type: .battery)
         }
     }
 
-    /// Handles battery events and updates the corresponding properties
-    /// - Parameter event: The battery event to handle
-    private func handleBatteryEvent(_ event: BatteryActivityManager.BatteryEvent) {
-        switch event {
-        case .powerSourceChanged(let isPluggedIn):
-            print("🔌 Power source: \(isPluggedIn ? "Connected" : "Disconnected")")
-            withAnimation {
-                self.isPluggedIn = isPluggedIn
-                self.statusText = isPluggedIn ? "Plugged In" : "Unplugged"
-                self.notifyImportanChangeStatus()
-            }
-
-        case .batteryLevelChanged(let level):
-            print("🔋 Battery level: \(Int(level))%")
-            withAnimation {
-                self.levelBattery = level
-            }
-
-        case .lowPowerModeChanged(let isEnabled):
-            print("⚡ Low power mode: \(isEnabled ? "Enabled" : "Disabled")")
-            self.notifyImportanChangeStatus()
-            withAnimation {
-                self.isInLowPowerMode = isEnabled
-                self.statusText = "Low Power: \(self.isInLowPowerMode ? "On" : "Off")"
-            }
-
-        case .isChargingChanged(let isCharging):
-            print("🔌 Charging: \(isCharging ? "Yes" : "No")")
-            print("maxCapacity: \(self.maxCapacity)")
-            print("levelBattery: \(self.levelBattery)")
-            self.notifyImportanChangeStatus()
-            withAnimation {
-                self.isCharging = isCharging
-                self.statusText =
-                    isCharging
-                    ? "Charging battery"
-                    : (self.levelBattery < self.maxCapacity ? "Not charging" : "Full charge")
-            }
-
-        case .timeToFullChargeChanged(let time):
-            print("🕒 Time to full charge: \(time) minutes")
-            withAnimation {
-                self.timeToFullCharge = time
-            }
-
-        case .maxCapacityChanged(let capacity):
-            print("🔋 Max capacity: \(capacity)")
-            withAnimation {
-                self.maxCapacity = capacity
-            }
-
-        case .error(let description):
-            print("⚠️ Error: \(description)")
+    private func recordHistory() {
+        guard Defaults[.batteryHistoryEnabled], dataAvailable,
+              Defaults[.batteryPresentation] == .enhanced else { return }
+        let updated = BatteryHistoryPolicy.adding(.init(date: Date(), level: Double(levelBattery),
+            pluggedIn: isPluggedIn), to: history)
+        if updated != history {
+            history = updated
+            Defaults[.batteryHistory] = updated
         }
     }
 
-    /// Updates the battery information with the given BatteryInfo instance
-    /// - Parameter batteryInfo: The BatteryInfo instance containing the battery data
-    private func updateBatteryInfo(_ batteryInfo: BatteryInfo) {
-        withAnimation {
-            self.levelBattery = batteryInfo.currentCapacity
-            self.isPluggedIn = batteryInfo.isPluggedIn
-            self.isCharging = batteryInfo.isCharging
-            self.isInLowPowerMode = batteryInfo.isInLowPowerMode
-            self.timeToFullCharge = batteryInfo.timeToFullCharge
-            self.maxCapacity = batteryInfo.maxCapacity
-            self.statusText = batteryInfo.isPluggedIn ? "Plugged In" : "Unplugged"
-        }
+    func clearHistory() {
+        history = []
+        Defaults[.batteryHistory] = []
     }
 
-    /// Notifies important changes in the battery status with an optional delay
-    /// - Parameter delay: The delay before notifying the change, default is 0.0
-    private func notifyImportanChangeStatus(delay: Double = 0.0) {
-        Task {
-            try? await Task.sleep(for: .seconds(delay))
-            self.coordinator.toggleExpandingView(status: true, type: .battery)
-        }
-    }
-
-    deinit {
-        print("🔌 Cleaning up battery monitoring...")
-        if let managerBatteryId: Int = managerBatteryId {
-            managerBattery.removeObserver(byId: managerBatteryId)
-        }
-    }
-
+    deinit { if let observerID { managerBattery.removeObserver(byId: observerID) } }
 }

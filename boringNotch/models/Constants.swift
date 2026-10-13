@@ -13,6 +13,9 @@ extension SeasonHemisphere: Defaults.Serializable {}
 extension AppPerformanceMode: Defaults.Serializable {}
 extension NotchQuickAction: Defaults.Serializable {}
 extension AgentHistoryEntry: Defaults.Serializable {}
+extension BatteryPresentationStyle: Defaults.Serializable {}
+extension BatteryIndicatorDisplay: Defaults.Serializable {}
+extension BatteryHistorySample: Defaults.Serializable {}
 
 private let availableDirectories = FileManager
     .default
@@ -168,6 +171,14 @@ extension Defaults.Keys {
     static let showBatteryIndicator = Key<Bool>("showBatteryIndicator", default: true)
     static let showBatteryPercentage = Key<Bool>("showBatteryPercentage", default: true)
     static let showPowerStatusIcons = Key<Bool>("showPowerStatusIcons", default: true)
+    static let batteryPresentation = Key<BatteryPresentationStyle>("batteryPresentation", default: .original)
+    static let batteryIndicatorDisplay = Key<BatteryIndicatorDisplay>("batteryIndicatorDisplay", default: .both)
+    static let hideBatteryWhenAbsent = Key<Bool>("hideBatteryWhenAbsent", default: true)
+    static let batteryAlert20 = Key<Bool>("batteryAlert20", default: false)
+    static let batteryAlert10 = Key<Bool>("batteryAlert10", default: false)
+    static let batteryAlertFull = Key<Bool>("batteryAlertFull", default: false)
+    static let batteryHistoryEnabled = Key<Bool>("batteryHistoryEnabled", default: true)
+    static let batteryHistory = Key<[BatteryHistorySample]>("batteryHistory", default: [])
     
     // MARK: Downloads
     static let enableDownloadListener = Key<Bool>("enableDownloadListener", default: true)

@@ -1,5 +1,6 @@
 import SwiftUI
 import Defaults
+import Charts
 
 /// A view that displays the battery status with an icon and charging indicator.
 struct BatteryView: View {
@@ -111,9 +112,10 @@ struct BatteryMenuView: View {
             }
             
             VStack(alignment: .leading, spacing: 8) {
-                Text("Max Capacity: \(Int(maxCapacity))%")
-                    .font(.subheadline)
-                    .fontWeight(.regular)
+                if !isPluggedIn && !isCharging {
+                    Label("On battery", systemImage: "battery.100percent")
+                        .font(.subheadline)
+                }
                 if isInLowPowerMode {
                     Label("Low Power Mode", systemImage: "bolt.circle")
                         .font(.subheadline)
@@ -129,13 +131,13 @@ struct BatteryMenuView: View {
                         .font(.subheadline)
                         .fontWeight(.regular)
                 }
-                if timeToFullCharge > 0 {
+                if isCharging && timeToFullCharge > 0 {
                     Label("Time to Full Charge: \(timeToFullCharge) min", systemImage: "clock")
                         .font(.subheadline)
                         .fontWeight(.regular)
                 }
                 if !isCharging && isPluggedIn && levelBattery >= 80 {
-                    Label("Charging on Hold: Desktop Mode", systemImage: "desktopcomputer")
+                    Label("Connected to power · Not charging", systemImage: "powerplug.fill")
                         .font(.subheadline)
                         .fontWeight(.regular)
                 }
@@ -168,6 +170,10 @@ struct BatteryMenuView: View {
 
 /// A view that displays the battery status and allows interaction to show detailed information.
 struct BoringBatteryView: View {
+    @Default(.batteryPresentation) private var presentation
+    @Default(.batteryIndicatorDisplay) private var display
+    @Default(.showBatteryPercentage) private var showPercentage
+    @ObservedObject private var batteryModel = BatteryStatusViewModel.shared
     
     @State var batteryWidth: CGFloat = 26
     var isCharging: Bool = false
@@ -192,27 +198,27 @@ struct BoringBatteryView: View {
                 showPopupMenu.toggle()
             }
         }) {
-            HStack {
-                if Defaults[.showBatteryPercentage] {
-                    Text("\(Int32(levelBattery))%")
-                        .font(.callout)
-                        .foregroundStyle(.white)
-                }
-                BatteryView(
-                    levelBattery: levelBattery,
-                    isPluggedIn: isPluggedIn,
-                    isCharging: isCharging,
-                    isInLowPowerMode: isInLowPowerMode,
-                    batteryWidth: batteryWidth,
-                    isForNotification: isForNotification
-                )
+            if presentation == .enhanced && !isForNotification {
+                indicator.padding(.horizontal, 8).padding(.vertical, 5)
+                    .liquidGlassCapsule()
+            } else {
+                indicator
             }
         }
         .buttonStyle(ScaleButtonStyle())
+        .accessibilityLabel("Battery")
+        .accessibilityValue(batteryModel.dataAvailable ? "\(Int(levelBattery)) percent" : batteryModel.statusText)
+        .help("Battery status")
         .popover(
             isPresented: $showPopupMenu,
             arrowEdge: .bottom) {
-            BatteryMenuView(
+            Group {
+            if presentation == .enhanced {
+                EnhancedBatteryMenuView(onDismiss: { showPopupMenu = false })
+            } else if !batteryModel.dataAvailable {
+                Text(batteryModel.statusText).padding()
+            } else {
+              BatteryMenuView(
                 isPluggedIn: isPluggedIn,
                 isCharging: isCharging,
                 levelBattery: levelBattery,
@@ -223,6 +229,8 @@ struct BoringBatteryView: View {
                     showPopupMenu = false
                 }
             )
+            }
+            }
             .onHover { hovering in
                 isHoveringPopover = hovering
                 if hovering {
@@ -239,6 +247,23 @@ struct BoringBatteryView: View {
         .onDisappear {
             hideTask?.cancel()
             hideTask = nil
+            vm.isBatteryPopoverActive = false
+        }
+    }
+
+    private var indicator: some View {
+        HStack(spacing: 5) {
+            if presentation == .original ? showPercentage : display != .iconOnly {
+                Text(batteryModel.dataAvailable ? "\(Int(levelBattery))%" : "—")
+                    .font(.callout).monospacedDigit().foregroundStyle(.white)
+            }
+            if presentation == .original || display != .percentageOnly {
+                BatteryView(levelBattery: batteryModel.dataAvailable ? levelBattery : 0,
+                    isPluggedIn: batteryModel.dataAvailable && isPluggedIn,
+                    isCharging: batteryModel.dataAvailable && isCharging,
+                    isInLowPowerMode: isInLowPowerMode, batteryWidth: batteryWidth,
+                    isForNotification: isForNotification)
+            }
         }
     }
 
@@ -249,6 +274,113 @@ struct BoringBatteryView: View {
             try? await Task.sleep(for: .milliseconds(350))
             guard !Task.isCancelled else { return }
             await MainActor.run { withAnimation { showPopupMenu = false } }
+        }
+    }
+}
+
+struct EnhancedBatteryMenuView: View {
+    @ObservedObject private var battery = BatteryStatusViewModel.shared
+    @Default(.batteryHistoryEnabled) private var historyEnabled
+    @Environment(\.openURL) private var openURL
+    var onDismiss: () -> Void
+
+    private var status: String {
+        guard battery.dataAvailable else { return battery.statusText }
+        return BatteryReading(level: Double(battery.levelBattery), pluggedIn: battery.isPluggedIn,
+            charging: battery.isCharging, fullyCharged: battery.isFullyCharged).status
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Battery").font(.headline)
+                    Text(battery.dataAvailable ? "\(Int(battery.levelBattery))%" : "—")
+                        .font(.system(size: 34, weight: .semibold, design: .rounded)).monospacedDigit()
+                }
+                Spacer()
+                BatteryView(levelBattery: battery.dataAvailable ? battery.levelBattery : 0,
+                    isPluggedIn: battery.dataAvailable && battery.isPluggedIn,
+                    isCharging: battery.dataAvailable && battery.isCharging,
+                    isInLowPowerMode: battery.isInLowPowerMode, batteryWidth: 38,
+                    isForNotification: true).accessibilityHidden(true)
+            }
+            Text(status).font(.subheadline).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if battery.dataAvailable {
+                if battery.isCharging && battery.timeToFullCharge > 0 {
+                    Label("About \(battery.timeToFullCharge) min until full", systemImage: "clock")
+                        .font(.subheadline)
+                }
+                if battery.isInLowPowerMode {
+                    Label("Low Power Mode", systemImage: "leaf.fill").font(.subheadline)
+                        .foregroundStyle(.yellow)
+                }
+                if historyEnabled {
+                    BatteryHistoryChart(samples: BatteryHistoryPolicy.retained(battery.history, now: Date()))
+                }
+            }
+            Divider()
+            Button {
+                if let url = URL(string: "x-apple.systempreferences:com.apple.preference.battery") {
+                    openURL(url)
+                    onDismiss()
+                }
+            } label: { Label("Battery Settings…", systemImage: "gearshape") }
+                .buttonStyle(.bordered)
+        }
+        .padding(20)
+        .frame(width: 300)
+        .foregroundStyle(.white)
+        .background(.regularMaterial)
+        .preferredColorScheme(.dark)
+    }
+}
+
+private struct BatteryHistoryChart: View {
+    var samples: [BatteryHistorySample]
+    private struct Point: Identifiable {
+        var sample: BatteryHistorySample
+        var segment: Int
+        var id: Date { sample.date }
+    }
+    private var points: [Point] {
+        var segment = 0
+        return samples.enumerated().map { index, sample in
+            if index > 0, sample.date.timeIntervalSince(samples[index - 1].date) > 1800 { segment += 1 }
+            return Point(sample: sample, segment: segment)
+        }
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Battery history").font(.subheadline.weight(.medium))
+            if samples.isEmpty {
+                Text("History will appear as your battery changes.")
+                    .font(.caption).foregroundStyle(.secondary).frame(height: 90)
+            } else {
+                Chart(points) { point in
+                    LineMark(x: .value("Time", point.sample.date), y: .value("Battery", point.sample.level),
+                        series: .value("Segment", point.segment))
+                        .foregroundStyle(Color.effectiveAccent).lineStyle(StrokeStyle(lineWidth: 2))
+                    PointMark(x: .value("Time", point.sample.date), y: .value("Battery", point.sample.level))
+                        .foregroundStyle(point.sample.pluggedIn ? Color.green : Color.effectiveAccent)
+                        .symbolSize(12)
+                }
+                .chartYScale(domain: 0...100)
+                .chartXScale(domain: Date().addingTimeInterval(-86400)...Date())
+                .chartYAxis { AxisMarks(values: [0, 50, 100]) { value in
+                    AxisGridLine()
+                    AxisValueLabel { if let level = value.as(Int.self) { Text("\(level)%") } }
+                } }
+                .chartXAxis { AxisMarks(values: .automatic(desiredCount: 3)) { _ in
+                    AxisValueLabel(format: .dateTime.hour())
+                } }
+                .frame(height: 90)
+                .accessibilityLabel("Battery level over the last 24 hours")
+            }
+            Text("Last 24 hours · Recorded locally while Enhanced is active")
+                .font(.caption2).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 }

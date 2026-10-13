@@ -97,3 +97,84 @@ struct AgentHistoryEntry: Codable, Identifiable, Equatable {
     var startedAt: Date
     var endedAt: Date
 }
+
+enum BatteryPresentationStyle: String, Codable, CaseIterable, Identifiable {
+    case original, enhanced
+    var id: Self { self }
+    var title: String { self == .original ? "Original" : "Enhanced" }
+}
+
+enum BatteryIndicatorDisplay: String, Codable, CaseIterable, Identifiable {
+    case iconOnly, percentageOnly, both
+    var id: Self { self }
+    var title: String {
+        switch self {
+        case .iconOnly: "Icon only"
+        case .percentageOnly: "Percentage only"
+        case .both: "Icon and percentage"
+        }
+    }
+}
+
+struct BatteryReading: Equatable {
+    var level: Double
+    var pluggedIn: Bool
+    var charging: Bool
+    var fullyCharged: Bool
+    var status: String {
+        if charging { return "Charging" }
+        if pluggedIn { return fullyCharged ? "Fully charged" : "Connected to power · Not charging" }
+        return "On battery"
+    }
+}
+
+enum BatteryAlertKind: String {
+    case low20, low10, full
+    var title: String {
+        switch self {
+        case .low20: "Battery at 20% or lower"
+        case .low10: "Battery at 10% or lower"
+        case .full: "Battery fully charged"
+        }
+    }
+}
+
+enum BatteryPolicy {
+    static func shouldShow(enabled: Bool, hasBattery: Bool, hideWhenAbsent: Bool) -> Bool {
+        enabled && (hasBattery || !hideWhenAbsent)
+    }
+    static func percentage(current: Double, maximum: Double) -> Double? {
+        guard current.isFinite, maximum.isFinite, current >= 0, maximum > 0 else { return nil }
+        return min(100, max(0, current / maximum * 100))
+    }
+    static func alert(from old: BatteryReading?, to new: BatteryReading,
+                      low20: Bool, low10: Bool, full: Bool) -> BatteryAlertKind? {
+        guard let old else { return nil }
+        if full && new.pluggedIn && new.fullyCharged && !old.fullyCharged { return .full }
+        guard !new.pluggedIn, !new.charging else { return nil }
+        if low10 && old.level > 10 && new.level <= 10 { return .low10 }
+        if low20 && old.level > 20 && new.level <= 20 { return .low20 }
+        return nil
+    }
+}
+
+struct BatteryHistorySample: Codable, Equatable, Identifiable {
+    var date: Date
+    var level: Double
+    var pluggedIn: Bool
+    var id: Date { date }
+}
+
+enum BatteryHistoryPolicy {
+    static func retained(_ samples: [BatteryHistorySample], now: Date) -> [BatteryHistorySample] {
+        Array(samples.filter { $0.date <= now && now.timeIntervalSince($0.date) <= 86400
+            && $0.level.isFinite && (0...100).contains($0.level) }.sorted { $0.date < $1.date }.suffix(512))
+    }
+    static func adding(_ sample: BatteryHistorySample, to samples: [BatteryHistorySample]) -> [BatteryHistorySample] {
+        var result = retained(samples, now: sample.date)
+        if let last = result.last, last.level == sample.level, last.pluggedIn == sample.pluggedIn,
+           sample.date.timeIntervalSince(last.date) < 300 { return result }
+        result.append(sample)
+        return Array(result.suffix(512))
+    }
+}

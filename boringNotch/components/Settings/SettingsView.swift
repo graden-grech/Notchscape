@@ -433,8 +433,21 @@ struct GeneralSettings: View {
 }
 
 struct Charge: View {
+    @Default(.batteryPresentation) private var presentation
+    @Default(.batteryIndicatorDisplay) private var display
+    @Default(.batteryHistoryEnabled) private var historyEnabled
+    @Default(.showPowerStatusNotifications) private var notifications
+    @ObservedObject private var battery = BatteryStatusViewModel.shared
+    @State private var confirmClearHistory = false
     var body: some View {
         Form {
+            Section {
+                Picker("Battery style", selection: $presentation) {
+                    ForEach(BatteryPresentationStyle.allCases) { style in Text(style.title).tag(style) }
+                }.pickerStyle(.segmented)
+                Text("Original keeps the familiar indicator and popover. Enhanced adds a cleaner popover, local history and optional battery alerts. Your Original display preferences are saved separately.")
+                    .font(.caption).foregroundStyle(.secondary)
+            } header: { Text("Appearance") }
             Section {
                 Defaults.Toggle(key: .showBatteryIndicator) {
                     Text("Show battery indicator")
@@ -442,18 +455,45 @@ struct Charge: View {
                 Defaults.Toggle(key: .showPowerStatusNotifications) {
                     Text("Show power status notifications")
                 }
+                Defaults.Toggle(key: .hideBatteryWhenAbsent) { Text("Hide on Macs without a battery") }
             } header: {
                 Text("General")
             }
             Section {
-                Defaults.Toggle(key: .showBatteryPercentage) {
-                    Text("Show battery percentage")
+                if presentation == .enhanced {
+                    Picker("Home indicator", selection: $display) {
+                        ForEach(BatteryIndicatorDisplay.allCases) { option in Text(option.title).tag(option) }
+                    }
+                } else {
+                    Defaults.Toggle(key: .showBatteryPercentage) {
+                        Text("Show battery percentage")
+                    }
                 }
                 Defaults.Toggle(key: .showPowerStatusIcons) {
                     Text("Show power status icons")
                 }
             } header: {
                 Text("Battery Information")
+            }
+            if presentation == .enhanced {
+                Section {
+                    Defaults.Toggle(key: .batteryAlert20) { Text("Alert at 20%") }
+                    Defaults.Toggle(key: .batteryAlert10) { Text("Alert at 10%") }
+                    Defaults.Toggle(key: .batteryAlertFull) { Text("Alert when fully charged") }
+                    Text("Alerts appear briefly in the notch for about 3 seconds. Low-battery alerts only appear while using battery power, once when crossing a threshold—not at every update or app launch.")
+                        .font(.caption).foregroundStyle(.secondary)
+                } header: { Text("Optional alerts") }
+                    .disabled(!notifications)
+                Section {
+                    Defaults.Toggle(key: .batteryHistoryEnabled) { Text("Show battery history") }
+                    Text("Keeps up to 24 hours of readings on this Mac. No background polling, cloud uploads, or made-up readings while the app is closed. Turning this off stops recording; Clear History removes existing readings.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Button("Clear History…", role: .destructive) { confirmClearHistory = true }
+                        .disabled(battery.history.isEmpty)
+                        .confirmationDialog("Clear battery history?", isPresented: $confirmClearHistory) {
+                            Button("Clear History", role: .destructive) { battery.clearHistory() }
+                        }
+                } header: { Text("History") }
             }
         }
         .onAppear {

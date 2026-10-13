@@ -14,6 +14,8 @@ struct BoringHeader: View {
     @ObservedObject var coordinator = BoringViewCoordinator.shared
     @StateObject var tvm = ShelfStateViewModel.shared
     @Default(.appTheme) private var appTheme
+    @Default(.hideBatteryWhenAbsent) private var hideBatteryWhenAbsent
+    @Default(.showBatteryIndicator) private var showBatteryIndicator
     var body: some View {
         HStack(spacing: 0) {
             HStack {
@@ -92,7 +94,8 @@ struct BoringHeader: View {
                             .help("Settings")
                             .accessibilityLabel("Settings")
                         }
-                        if Defaults[.showBatteryIndicator] {
+                        if BatteryPolicy.shouldShow(enabled: showBatteryIndicator,
+                            hasBattery: batteryModel.hasBattery, hideWhenAbsent: hideBatteryWhenAbsent) {
                             BoringBatteryView(
                                 batteryWidth: 30,
                                 isCharging: batteryModel.isCharging,
