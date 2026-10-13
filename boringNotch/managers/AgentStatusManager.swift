@@ -1,6 +1,7 @@
 import Combine
 import Foundation
 import Network
+import Defaults
 
 enum AgentActivityState: String, Codable {
     case working
@@ -47,15 +48,51 @@ final class AgentStatusManager: ObservableObject {
     @Published private(set) var activities: [AgentActivity] = []
     @Published private(set) var isListening = false
     @Published private(set) var lastError: String?
+    @Published private(set) var history: [AgentHistoryEntry] = []
 
     private var listener: NWListener?
     private var dismissalTasks: [String: Task<Void, Never>] = [:]
     private var lastWorkingPublishAt: [String: Date] = [:]
     private var limitedSessions: [String: Date] = [:]
-    private let minimumWorkingPublishInterval: TimeInterval = 0.65
+    private var interruptedSessions: [String: Date] = [:]
+    private struct HistoryRun {
+        let id: UUID
+        let startedAt: Date
+        var finished = false
+    }
+    private var historyRuns: [String: HistoryRun] = [:]
 
     private init() {
+        history = Array(Defaults[.agentHistory].prefix(50))
         start()
+    }
+
+    func clearHistory() {
+        history = []
+        Defaults[.agentHistory] = []
+        historyRuns = [:]
+    }
+
+    private func recordOutcome(activityID: String, provider: String, title: String, event: String, state: AgentActivityState, now: Date) {
+        guard Defaults[.agentHistoryEnabled] else { return }
+        if event == "UserPromptSubmit" || historyRuns[activityID] == nil
+            || (state == .working && historyRuns[activityID]?.finished == true) {
+            historyRuns[activityID] = HistoryRun(id: UUID(), startedAt: now)
+        }
+        if historyRuns.count > 64,
+           let oldest = historyRuns.min(by: { $0.value.startedAt < $1.value.startedAt })?.key {
+            historyRuns[oldest] = nil
+        }
+        guard state == .completed || state == .interrupted || state == .usageLimited,
+              var run = historyRuns[activityID] else { return }
+        // Stop + SessionEnd for the same turn update one row, not two.
+        history.removeAll { $0.id == run.id }
+        history.insert(AgentHistoryEntry(id: run.id, provider: provider, title: title,
+            state: state, startedAt: run.startedAt, endedAt: now), at: 0)
+        history = Array(history.prefix(50))
+        Defaults[.agentHistory] = history
+        run.finished = true
+        historyRuns[activityID] = run
     }
 
     func start() {
@@ -138,11 +175,16 @@ final class AgentStatusManager: ObservableObject {
         let activityID = "\(resolvedProvider):\(sessionID)"
         let now = Date()
         limitedSessions = limitedSessions.filter { now.timeIntervalSince($0.value) < 3600 }
+        interruptedSessions = interruptedSessions.filter { now.timeIntervalSince($0.value) < 3600 }
         // A new user turn is the only event that clears a previous quota failure.
         // A trailing Stop hook often arrives without the original error payload.
         if event == "UserPromptSubmit" || event == "SessionStart" {
             limitedSessions[activityID] = nil
+            interruptedSessions[activityID] = nil
         }
+        // A trailing SessionEnd is not evidence of success after an explicit
+        // interrupt. Keep the interrupted outcome until a new user turn starts.
+        if (event == "Stop" || event == "SessionEnd") && interruptedSessions[activityID] != nil { return }
 
         let searchablePayload = Self.flattenedStrings(in: object).joined(separator: " ").lowercased()
         let hitUsageLimit = Self.indicatesUsageLimitReached(
@@ -165,6 +207,7 @@ final class AgentStatusManager: ObservableObject {
         }
 
         let detail: String
+        if state == .interrupted { interruptedSessions[activityID] = now }
         switch state {
         case .usageLimited: detail = "Usage limit reached"
         default: switch event {
@@ -184,9 +227,10 @@ final class AgentStatusManager: ObservableObject {
         // Codex can emit PreToolUse/PostToolUse hooks in rapid bursts. Updating
         // SwiftUI for every hook needlessly re-renders the notch and can compete
         // with coding apps and DisplayLink-driven screens.
+        recordOutcome(activityID: activityID, provider: resolvedProvider, title: project, event: event, state: state, now: now)
         if state == .working,
            let lastPublish = lastWorkingPublishAt[activityID],
-           now.timeIntervalSince(lastPublish) < minimumWorkingPublishInterval {
+           now.timeIntervalSince(lastPublish) < AppPerformanceManager.shared.hookInterval {
             return
         }
 

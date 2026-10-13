@@ -22,8 +22,12 @@ let standardTabs = [
 ]
 
 struct TabSelectionView: View {
+    @ObservedObject private var performance = AppPerformanceManager.shared
     @ObservedObject var coordinator = BoringViewCoordinator.shared
     @Default(.systemDashboardEnabled) private var systemDashboardEnabled
+    @Default(.appTheme) private var appTheme
+    @Default(.useCustomAccentColor) private var useCustomAccentColor
+    @Default(.customAccentColorData) private var customAccentColorData
     @Namespace private var selectionAnimation
 
     private var tabs: [TabModel] {
@@ -34,7 +38,7 @@ struct TabSelectionView: View {
 
     var body: some View {
         Group {
-            if #available(macOS 26.0, *) {
+            if #available(macOS 26.0, *), !performance.lowImpact {
                 nativeGlassTabs
             } else {
                 fallbackTabs
@@ -79,7 +83,7 @@ struct TabSelectionView: View {
         .background {
             if selected {
                 Capsule()
-                    .fill(Color.effectiveAccent.opacity(0.42))
+                    .fill(Color(nsColor: NSColor.resolvedAccent(theme: appTheme, customEnabled: useCustomAccentColor, customData: customAccentColorData)).opacity(0.42))
                     .matchedGeometryEffect(id: "selected-notch-tab", in: selectionAnimation)
             }
         }

@@ -4,6 +4,8 @@ import SwiftUI
 struct LiveDashboardView: View {
     @ObservedObject private var agents = AgentStatusManager.shared
     @Default(.weatherOnLiveTab) private var weatherOnLiveTab
+    @Default(.agentHistoryEnabled) private var historyEnabled
+    @State private var showingHistory = false
 
     var body: some View {
         HStack(spacing: 12) {
@@ -27,7 +29,22 @@ struct LiveDashboardView: View {
             symbol: AgentProviderStyle.symbol(for: "Codex"),
             tint: AgentProviderStyle.accent(for: "Codex")
         ) {
-            if let activity = agents.activities.first {
+            HStack {
+                Spacer(minLength: 0)
+                Button(showingHistory ? "Current" : "History") { showingHistory.toggle() }
+                    .buttonStyle(.plain)
+                    .font(.caption2)
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .liquidGlassCapsule()
+            }
+            if showingHistory {
+                if agents.history.isEmpty {
+                    Text(historyEnabled ? "No finished tasks yet." : "Enable local history in AI Agents settings.")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else {
+                    ScrollView { AgentHistoryRows(entries: Array(agents.history.prefix(20))) }
+                }
+            } else if let activity = agents.activities.first {
                 VStack(alignment: .leading, spacing: 7) {
                     HStack(spacing: 8) {
                         AgentProviderMark(

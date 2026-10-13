@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C0D3A0080000000000000008 /* CustomizationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F0080000000000000008; };
+		C0D3A0090000000000000009 /* CustomizationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F0090000000000000009; };
+		C0D3A0100000000000000010 /* CustomizationSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F0100000000000000010; };
 		C0D3A0010000000000000001 /* AgentStatusManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F0010000000000000001 /* AgentStatusManager.swift */; };
 		C0D3A0020000000000000002 /* WeatherManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F0020000000000000002 /* WeatherManager.swift */; };
 		C0D3A0030000000000000003 /* LiveDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F0030000000000000003 /* LiveDashboardView.swift */; };
@@ -188,6 +191,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		C0D3F0080000000000000008 /* CustomizationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomizationModels.swift; sourceTree = "<group>"; };
+		C0D3F0090000000000000009 /* CustomizationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomizationManager.swift; sourceTree = "<group>"; };
+		C0D3F0100000000000000010 /* CustomizationSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomizationSettings.swift; sourceTree = "<group>"; };
 		C0D3F0010000000000000001 /* AgentStatusManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentStatusManager.swift; sourceTree = "<group>"; };
 		C0D3F0020000000000000002 /* WeatherManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherManager.swift; sourceTree = "<group>"; };
 		C0D3F0030000000000000003 /* LiveDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveDashboardView.swift; sourceTree = "<group>"; };
@@ -525,6 +531,7 @@
 		147163B52C5D804B0068B555 /* managers */ = {
 			isa = PBXGroup;
 			children = (
+				C0D3F0090000000000000009 /* CustomizationManager.swift */,
 				C0D3F0010000000000000001 /* AgentStatusManager.swift */,
 				C0D3F0020000000000000002 /* WeatherManager.swift */,
 				C0D3F0050000000000000005 /* SystemPerformanceManager.swift */,
@@ -645,6 +652,7 @@
 		14D570C72C5F38760011E668 /* models */ = {
 			isa = PBXGroup;
 			children = (
+				C0D3F0080000000000000008 /* CustomizationModels.swift */,
 				11F748812ECB07A400F841DB /* MusicControlButton.swift */,
 				118D1FD02E98FF5F00A2FF63 /* SharingStateManager.swift */,
 				1163988E2DF5CC870052E6AF /* CalendarModel.swift */,
@@ -738,6 +746,7 @@
 		B18654302C6F4590000B926A /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				C0D3F0100000000000000010 /* CustomizationSettings.swift */,
 				11F748832ECB27DC00F841DB /* MusicSlotConfigurationView.swift */,
 				11C5E3152DFE88510065821E /* SettingsView.swift */,
 				11C5E3112DFE85970065821E /* SettingsWindowController.swift */,
@@ -933,6 +942,9 @@
 				C0D3A0050000000000000005 /* SystemPerformanceManager.swift in Sources */,
 				C0D3A0060000000000000006 /* SystemDashboardView.swift in Sources */,
 				C0D3A0070000000000000007 /* SportsActivityManager.swift in Sources */,
+				C0D3A0080000000000000008 /* CustomizationModels.swift in Sources */,
+				C0D3A0090000000000000009 /* CustomizationManager.swift in Sources */,
+				C0D3A0100000000000000010 /* CustomizationSettings.swift in Sources */,
 				115C12EC2ED3D003009754CA /* OpenNotchHUD.swift in Sources */,
 				14C08BB92C8DE4B1000F8AA0 /* BoringCalendar.swift in Sources */,
 				5955950D2E900ED800C66711 /* ApplicationRelauncher.swift in Sources */,

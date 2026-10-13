@@ -87,15 +87,17 @@ enum AppIconVariant: String, CaseIterable, Defaults.Serializable, Identifiable {
     case autumn
     case halloween
     case christmas
+    case winter
 
     var id: Self { self }
 
     var title: String {
         switch self {
         case .standard: "Standard"
-        case .autumn: "Autumn"
+        case .autumn: "Fall"
         case .halloween: "Halloween"
         case .christmas: "Christmas"
+        case .winter: "Winter"
         }
     }
 
@@ -105,13 +107,25 @@ enum AppIconVariant: String, CaseIterable, Defaults.Serializable, Identifiable {
         case .autumn: "AppIconAutumn"
         case .halloween: "AppIconHalloween"
         case .christmas: "AppIconChristmas"
+        case .winter: "AppIconWinter"
         }
     }
 
     @MainActor
     func apply() {
         guard let image = NSImage(named: assetName) else { return }
-        NSApp.applicationIconImage = image
+        if self == .autumn || self == .halloween {
+            // Legacy seasonal artwork has a square backdrop. Apply a rounded
+            // silhouette when drawing the Dock representation, preserving alpha.
+            let icon = NSImage(size: NSSize(width: 1024, height: 1024))
+            icon.lockFocus()
+            NSBezierPath(roundedRect: NSRect(x: 80, y: 80, width: 864, height: 864), xRadius: 190, yRadius: 190).addClip()
+            image.draw(in: NSRect(x: 0, y: 0, width: 1024, height: 1024))
+            icon.unlockFocus()
+            NSApp.applicationIconImage = icon
+        } else {
+            NSApp.applicationIconImage = image
+        }
     }
 }
 
@@ -120,15 +134,17 @@ enum AppTheme: String, CaseIterable, Defaults.Serializable, Identifiable {
     case autumn
     case halloween
     case christmas
+    case winter
 
     var id: Self { self }
 
     var title: String {
         switch self {
         case .system: "System"
-        case .autumn: "Autumn"
+        case .autumn: "Fall"
         case .halloween: "Halloween"
         case .christmas: "Christmas"
+        case .winter: "Winter"
         }
     }
 
@@ -137,7 +153,8 @@ enum AppTheme: String, CaseIterable, Defaults.Serializable, Identifiable {
         case .system: "apple.logo"
         case .autumn: "leaf.fill"
         case .halloween: "moon.stars.fill"
-        case .christmas: "snowflake"
+        case .christmas: "tree.fill"
+        case .winter: "snowflake"
         }
     }
 
@@ -147,6 +164,7 @@ enum AppTheme: String, CaseIterable, Defaults.Serializable, Identifiable {
         case .autumn: NSColor(red: 0.82, green: 0.32, blue: 0.12, alpha: 1)
         case .halloween: NSColor(red: 0.62, green: 0.32, blue: 0.92, alpha: 1)
         case .christmas: NSColor(red: 0.14, green: 0.62, blue: 0.38, alpha: 1)
+        case .winter: NSColor(red: 0.35, green: 0.64, blue: 0.84, alpha: 1)
         }
     }
 
@@ -156,6 +174,7 @@ enum AppTheme: String, CaseIterable, Defaults.Serializable, Identifiable {
         case .autumn: .autumn
         case .halloween: .halloween
         case .christmas: .christmas
+        case .winter: .winter
         }
     }
 
@@ -165,6 +184,29 @@ enum AppTheme: String, CaseIterable, Defaults.Serializable, Identifiable {
         case .autumn: "🍁"
         case .halloween: "🎃"
         case .christmas: "🎄"
+        case .winter: nil
+        }
+    }
+
+    var homeBackdrop: String? {
+        switch self {
+        case .autumn: "AutumnBackdrop"
+        case .christmas: "ChristmasBackdrop"
+        case .halloween: "HalloweenBackdrop"
+        case .winter: "WinterBackdrop"
+        default: nil
+        }
+    }
+
+    var hasHomeScene: Bool { homeBackdrop != nil }
+
+    var subtitle: String {
+        switch self {
+        case .system: "Classic Mac appearance"
+        case .autumn: "Golden leaves and a warm cabin"
+        case .halloween: "Pumpkin glow and candlelight"
+        case .christmas: "Tree lights and a cozy fireplace"
+        case .winter: "Snowy pines, without holiday decorations"
         }
     }
 }

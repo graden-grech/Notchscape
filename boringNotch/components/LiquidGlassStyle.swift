@@ -23,6 +23,7 @@ enum AgentProviderStyle {
 }
 
 struct AgentProviderMark: View {
+    @ObservedObject private var performance = AppPerformanceManager.shared
     let provider: String
     let state: AgentActivityState
     let size: CGFloat
@@ -56,6 +57,19 @@ struct AgentProviderMark: View {
     }
 
     var body: some View {
+        Group {
+            if performance.lowImpact {
+                Image(systemName: symbol)
+                    .font(.system(size: max(9, size * 0.4), weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: size, height: size)
+                    .background(accent, in: Circle())
+            } else { richMark }
+        }
+        .accessibilityHidden(true)
+    }
+
+    private var richMark: some View {
         ZStack {
             Circle().fill(.ultraThinMaterial)
 
@@ -116,13 +130,14 @@ struct LiquidGlassSettingsBackground: View {
 }
 
 private struct LiquidGlassPanelModifier: ViewModifier {
+    @ObservedObject private var performance = AppPerformanceManager.shared
     let tint: Color
     let cornerRadius: CGFloat
 
     @ViewBuilder
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-        if #available(macOS 26.0, *) {
+        if #available(macOS 26.0, *), !performance.lowImpact {
             content
                 .glassEffect(.regular.tint(tint.opacity(0.18)), in: shape)
         } else {
@@ -131,17 +146,18 @@ private struct LiquidGlassPanelModifier: ViewModifier {
                 .overlay {
                     shape.strokeBorder(.white.opacity(0.16), lineWidth: 0.75)
                 }
-                .shadow(color: .black.opacity(0.16), radius: 7, y: 3)
+                .shadow(color: .black.opacity(performance.lowImpact ? 0 : 0.16), radius: 7, y: 3)
         }
     }
 }
 
 private struct LiquidGlassCapsuleModifier: ViewModifier {
+    @ObservedObject private var performance = AppPerformanceManager.shared
     let tint: Color
 
     @ViewBuilder
     func body(content: Content) -> some View {
-        if #available(macOS 26.0, *) {
+        if #available(macOS 26.0, *), !performance.lowImpact {
             content
                 .glassEffect(.regular.tint(tint.opacity(0.2)).interactive(), in: Capsule())
         } else {
@@ -150,7 +166,7 @@ private struct LiquidGlassCapsuleModifier: ViewModifier {
                 .overlay {
                     Capsule().strokeBorder(.white.opacity(0.18), lineWidth: 0.75)
                 }
-                .shadow(color: .black.opacity(0.14), radius: 5, y: 2)
+                .shadow(color: .black.opacity(performance.lowImpact ? 0 : 0.14), radius: 5, y: 2)
         }
     }
 }

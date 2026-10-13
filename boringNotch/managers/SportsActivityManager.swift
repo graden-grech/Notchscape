@@ -90,7 +90,9 @@ final class SportsActivityManager: ObservableObject {
             while !Task.isCancelled {
                 guard let self else { return }
                 await self.refresh()
-                let interval: TimeInterval = self.currentGame?.isLive == true ? 15 : 60
+                let interval: TimeInterval = self.currentGame?.isLive == true
+                    ? (AppPerformanceManager.shared.lowImpact ? 30 : 15)
+                    : (AppPerformanceManager.shared.lowImpact ? 120 : 60)
                 do {
                     try await Task.sleep(for: .seconds(interval))
                 } catch {

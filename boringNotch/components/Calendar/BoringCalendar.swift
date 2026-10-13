@@ -25,6 +25,9 @@ struct WheelPicker: View {
     @State private var haptics: Bool = false
     @State private var byClick: Bool = false
     let config: Config
+    @Default(.appTheme) private var appTheme
+    @Default(.useCustomAccentColor) private var useCustomAccentColor
+    @Default(.customAccentColorData) private var customAccentColorData
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
@@ -105,7 +108,8 @@ struct WheelPicker: View {
     private func dayText(date: String, isToday: Bool, isSelected: Bool) -> some View {
         Text(date)
             .font(.caption)
-            .foregroundColor(isSelected ? .white : Color(white: 0.65))
+            .foregroundColor(isSelected ? .white : Color(white: appTheme.hasHomeScene ? 0.92 : 0.65))
+            .shadow(color: .black.opacity(appTheme.hasHomeScene ? 0.95 : 0), radius: 1.5)
     }
 
     private func dateCircle(date: Date, isToday: Bool, isSelected: Bool) -> some View {
@@ -120,7 +124,8 @@ struct WheelPicker: View {
             Text("\(date.date)")
                 .font(.body)
                 .fontWeight(.medium)
-                .foregroundColor(isSelected ? .white : Color(white: isToday ? 0.9 : 0.65))
+                .foregroundColor(isSelected ? .white : Color(white: isToday || appTheme.hasHomeScene ? 0.92 : 0.65))
+                .shadow(color: .black.opacity(appTheme.hasHomeScene ? 0.95 : 0), radius: 1.5)
         }
     }
 
@@ -182,6 +187,7 @@ struct CalendarView: View {
     @EnvironmentObject var vm: BoringViewModel
     @ObservedObject private var calendarManager = CalendarManager.shared
     @State private var selectedDate = Date()
+    @Default(.appTheme) private var appTheme
 
     var body: some View {
         VStack(spacing: 0) {
@@ -197,20 +203,20 @@ struct CalendarView: View {
                         .foregroundColor(Color(white: 0.65))
                 }
 
-                ZStack(alignment: .top) {
-                    WheelPicker(selectedDate: $selectedDate, config: Config())
-                    HStack(alignment: .top) {
-                        LinearGradient(
-                            colors: [Color.black, .clear], startPoint: .leading, endPoint: .trailing
-                        )
-                        .frame(width: 20)
-                        Spacer()
-                        LinearGradient(
-                            colors: [.clear, Color.black], startPoint: .leading, endPoint: .trailing
-                        )
-                        .frame(width: 20)
+                WheelPicker(selectedDate: $selectedDate, config: Config())
+                    .mask {
+                        // Fade the dates themselves, not the scene behind them.
+                        if appTheme.hasHomeScene {
+                            Rectangle().fill(.black)
+                        } else {
+                            LinearGradient(stops: [
+                                .init(color: .clear, location: 0),
+                                .init(color: .black, location: 0.12),
+                                .init(color: .black, location: 0.88),
+                                .init(color: .clear, location: 1)
+                            ], startPoint: .leading, endPoint: .trailing)
+                        }
                     }
-                }
             }
 
             let filteredEvents = EventListView.filteredEvents(

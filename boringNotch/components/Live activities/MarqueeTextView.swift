@@ -23,6 +23,7 @@ struct MeasureSizeModifier: ViewModifier {
 }
 
 struct MarqueeText: View {
+    @ObservedObject private var performance = AppPerformanceManager.shared
     @Binding var text: String
     let font: Font
     let nsFont: NSFont.TextStyle
@@ -61,9 +62,9 @@ struct MarqueeText: View {
                 .font(font)
                 .foregroundColor(textColor)
                 .fixedSize(horizontal: true, vertical: false)
-                .offset(x: self.animate ? offset : 0)
+                .offset(x: self.animate && !performance.suppressAnimations ? offset : 0)
                 .animation(
-                    self.animate ?
+                    self.animate && !performance.suppressAnimations ?
                         .linear(duration: Double(textSize.width / 30))
                         .delay(minDuration)
                         .repeatForever(autoreverses: false) : .none,
@@ -76,7 +77,7 @@ struct MarqueeText: View {
                     self.animate = false
                     self.offset = 0
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.01){
-                        if needsScrolling {
+                        if needsScrolling && !performance.suppressAnimations {
                             self.animate = true
                             self.offset = -(textSize.width + 10)
                             

@@ -8,6 +8,12 @@
 import SwiftUI
 import Defaults
 
+extension HomeWidget: Defaults.Serializable {}
+extension SeasonHemisphere: Defaults.Serializable {}
+extension AppPerformanceMode: Defaults.Serializable {}
+extension NotchQuickAction: Defaults.Serializable {}
+extension AgentHistoryEntry: Defaults.Serializable {}
+
 private let availableDirectories = FileManager
     .default
     .urls(for: .documentDirectory, in: .userDomainMask)
@@ -71,6 +77,7 @@ enum OptionKeyAction: String, CaseIterable, Identifiable, Defaults.Serializable 
 extension Defaults.Keys {
     // MARK: General
     static let menubarIcon = Key<Bool>("menubarIcon", default: true)
+    static let showDockIcon = Key<Bool>("showDockIcon", default: true)
     static let showOnAllDisplays = Key<Bool>("showOnAllDisplays", default: false)
     static let automaticallySwitchDisplay = Key<Bool>("automaticallySwitchDisplay", default: true)
     static let releaseName = Key<String>("releaseName", default: "Flying Rabbit 🐇🪽")
@@ -109,7 +116,18 @@ extension Defaults.Keys {
     static let enableShadow = Key<Bool>("enableShadow", default: true)
     static let cornerRadiusScaling = Key<Bool>("cornerRadiusScaling", default: true)
     static let appIconVariant = Key<AppIconVariant>("appIconVariant", default: .standard)
+    static let appIconFollowsTheme = Key<Bool>("appIconFollowsTheme", default: true)
     static let appTheme = Key<AppTheme>("appTheme", default: .system)
+    static let homeWidgetOrder = Key<[HomeWidget]>("homeWidgetOrder", default: [])
+    static let hiddenHomeWidgets = Key<Set<HomeWidget>>("hiddenHomeWidgets", default: [])
+    static let quickActions = Key<[NotchQuickAction]>("quickActions", default: [])
+    static let automaticSeasonalThemes = Key<Bool>("automaticSeasonalThemes", default: false)
+    static let seasonHemisphere = Key<SeasonHemisphere>("seasonHemisphere", default: .northern)
+    static let seasonalHalloween = Key<Bool>("seasonalHalloween", default: false)
+    static let seasonalChristmas = Key<Bool>("seasonalChristmas", default: false)
+    static let performanceMode = Key<AppPerformanceMode>("performanceMode", default: .balanced)
+    static let agentHistoryEnabled = Key<Bool>("agentHistoryEnabled", default: false)
+    static let agentHistory = Key<[AgentHistoryEntry]>("agentHistory", default: [])
 
     static let showNotHumanFace = Key<Bool>("showNotHumanFace", default: false)
     static let tileShowLabels = Key<Bool>("tileShowLabels", default: false)

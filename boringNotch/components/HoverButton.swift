@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct HoverButton: View {
+    @ObservedObject private var performance = AppPerformanceManager.shared
     var icon: String
     var iconColor: Color = .primary
     var scale: Image.Scale = .medium
@@ -19,7 +20,7 @@ struct HoverButton: View {
         let size = CGFloat(scale == .large ? 40 : 30)
 
         Group {
-            if #available(macOS 26.0, *) {
+            if #available(macOS 26.0, *), !performance.lowImpact {
                 button(size: size)
                     .buttonStyle(.plain)
                     .glassEffect(.regular, in: Circle())

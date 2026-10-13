@@ -344,6 +344,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
 
+        AppPresentationManager.shared.start()
+        _ = AppPerformanceManager.shared
+        SeasonalThemeManager.shared.start()
+
+        if Defaults[.appIconFollowsTheme] {
+            Defaults[.appIconVariant] = Defaults[.appTheme].matchingIcon
+        }
         Defaults[.appIconVariant].apply()
 
         // Start the HUD after AppKit has finished launching. Starting it only

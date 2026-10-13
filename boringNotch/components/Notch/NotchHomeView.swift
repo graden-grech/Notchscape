@@ -25,13 +25,14 @@ struct MusicPlayerView: View {
 }
 
 struct AlbumArtView: View {
+    @ObservedObject private var performance = AppPerformanceManager.shared
     @ObservedObject var musicManager = MusicManager.shared
     @ObservedObject var vm: BoringViewModel
     let albumArtNamespace: Namespace.ID
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            if Defaults[.lightingEffect] {
+            if Defaults[.lightingEffect] && !performance.lowImpact {
                 albumArtBackground
             }
             albumArtButton
@@ -76,8 +77,9 @@ struct AlbumArtView: View {
         Rectangle()
             .aspectRatio(1, contentMode: .fit)
             .foregroundColor(Color.black)
-            .opacity(musicManager.isPlaying ? 0 : 0.8)
-            .blur(radius: 50)
+            .opacity(musicManager.isPlaying ? 0 : performance.lowImpact ? 0.25 : 0.8)
+            .blur(radius: performance.lowImpact ? 0 : 50)
+            .clipShape(RoundedRectangle(cornerRadius: MusicPlayerImageSizes.cornerRadiusInset.opened))
     }
                 
 
@@ -110,6 +112,7 @@ struct AlbumArtView: View {
 }
 
 struct MusicControlsView: View {
+    @ObservedObject private var performance = AppPerformanceManager.shared
     @ObservedObject var musicManager = MusicManager.shared
         @EnvironmentObject var vm: BoringViewModel
         @ObservedObject var webcamManager = WebcamManager.shared
@@ -154,7 +157,7 @@ struct MusicControlsView: View {
             )
             .fontWeight(.medium)
             if Defaults[.enableLyrics] {
-                TimelineView(.animation(minimumInterval: 0.25, paused: !musicManager.isPlaying)) { timeline in
+                TimelineView(.animation(minimumInterval: performance.mediaInterval, paused: !musicManager.isPlaying)) { timeline in
                     let currentElapsed: Double = {
                         guard musicManager.isPlaying else { return musicManager.elapsedTime }
                         let delta = timeline.date.timeIntervalSince(musicManager.timestampDate)
@@ -190,7 +193,7 @@ struct MusicControlsView: View {
     }
 
     private var musicSlider: some View {
-        TimelineView(.animation(minimumInterval: 0.25, paused: !musicManager.isPlaying || musicManager.playbackRate <= 0)) { timeline in
+        TimelineView(.animation(minimumInterval: performance.mediaInterval, paused: !musicManager.isPlaying || musicManager.playbackRate <= 0)) { timeline in
             MusicSliderView(
                 sliderValue: $sliderValue,
                 duration: $musicManager.songDuration,
@@ -432,6 +435,12 @@ struct NotchHomeView: View {
     @Default(.weatherOnLiveTab) private var weatherOnLiveTab
     @Default(.appTheme) private var appTheme
 
+    @Default(.homeWidgetOrder) private var widgetOrder
+    @Default(.hiddenHomeWidgets) private var hiddenWidgets
+    @Default(.weatherEnabled) private var weatherEnabled
+    @Default(.showCalendar) private var showCalendar
+    @Default(.quickActions) private var quickActions
+
     var body: some View {
         Group {
             if !coordinator.firstLaunch {
@@ -446,22 +455,25 @@ struct NotchHomeView: View {
         Defaults[.showMirror] && webcamManager.cameraAvailable && vm.isCameraExpanded
     }
 
+    private var visibleWidgets: [HomeWidget] {
+        HomeLayoutPolicy.normalized(widgetOrder, legacyWeatherPosition: weatherTilePosition.rawValue).filter { widget in
+            !hiddenWidgets.contains(widget)
+                && (widget != .calendar || showCalendar)
+                && (widget != .weather || (weatherEnabled && !weatherOnLiveTab))
+                && (widget != .quickActions || !quickActions.isEmpty)
+        }
+    }
+
     private var mainContent: some View {
         HStack(alignment: .top, spacing: (shouldShowCamera && Defaults[.showCalendar]) ? 10 : 15) {
-            if !weatherOnLiveTab && weatherTilePosition == .front {
-                HomeWeatherTile()
-            }
-
-            MusicPlayerView(albumArtNamespace: albumArtNamespace)
-
-            if !weatherOnLiveTab && weatherTilePosition == .afterMusic {
-                HomeWeatherTile()
-            }
-
-            if Defaults[.showCalendar] {
-                CalendarView()
+            ForEach(visibleWidgets) { widget in
+                switch widget {
+                case .music:
+                    MusicPlayerView(albumArtNamespace: albumArtNamespace)
+                case .calendar:
+                    CalendarView()
                     .frame(
-                        width: (shouldShowCamera || (Defaults[.weatherEnabled] && !weatherOnLiveTab))
+                        width: (shouldShowCamera || visibleWidgets.contains(.weather))
                             ? 170
                             : 215
                     )
@@ -470,13 +482,19 @@ struct NotchHomeView: View {
                     }
                     .environmentObject(vm)
                     .transition(.opacity)
+                case .weather:
+                    HomeWeatherTile()
+                case .quickActions:
+                    QuickActionsHomeTile()
+                }
             }
 
-            if appTheme == .christmas {
-                ChristmasHomeTree()
-                    .frame(width: 81, height: 130)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
+            if visibleWidgets.isEmpty && !shouldShowCamera {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Make Home yours").font(.headline)
+                    Text("Choose your tiles in Appearance → Home layout.").font(.caption).foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, minHeight: 130, alignment: .leading)
             }
 
             if shouldShowCamera {
@@ -487,10 +505,17 @@ struct NotchHomeView: View {
                     .animation(.interactiveSpring(response: 0.32, dampingFraction: 0.76, blendDuration: 0), value: shouldShowCamera)
             }
 
-            if !weatherOnLiveTab && weatherTilePosition == .end {
-                HomeWeatherTile()
+
+            if appTheme.hasHomeScene {
+                // Seasonal scenery belongs to the single shared background.
+                // Keep content to its left without placing a second photo here.
+                Color.clear
+                    .frame(width: 128, height: 130)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .transition(.asymmetric(insertion: .opacity.combined(with: .move(edge: .top)), removal: .opacity))
         .blur(radius: vm.notchState == .closed ? 30 : 0)
     }
@@ -543,6 +568,9 @@ private struct ChristmasHomeTree: View {
 }
 
 struct MusicSliderView: View {
+    @Default(.appTheme) private var appTheme
+    @Default(.useCustomAccentColor) private var useCustomAccentColor
+    @Default(.customAccentColorData) private var customAccentColorData
     @Binding var sliderValue: Double
     @Binding var duration: Double
     @Binding var lastDragged: Date

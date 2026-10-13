@@ -23,7 +23,7 @@ struct BoringHeader: View {
                     EmptyView()
                 }
                 if coordinator.currentView == .home,
-                   appTheme != .christmas,
+                   !appTheme.hasHomeScene,
                    let decoration = appTheme.homeDecoration,
                    (vm.screenUUID.flatMap { NSScreen.screen(withUUID: $0) }?.safeAreaInsets.top ?? 0) > 0 {
                     Text(decoration)
@@ -46,7 +46,7 @@ struct BoringHeader: View {
                     }
                     .overlay {
                         if coordinator.currentView == .home,
-                           appTheme != .christmas,
+                           !appTheme.hasHomeScene,
                            let decoration = appTheme.homeDecoration,
                            (vm.screenUUID.flatMap { NSScreen.screen(withUUID: $0) }?.safeAreaInsets.top ?? 0) == 0 {
                             Text(decoration)
@@ -67,17 +67,14 @@ struct BoringHeader: View {
                             Button(action: {
                                 vm.toggleCameraPreview()
                             }) {
-                                Capsule()
-                                    .fill(.black)
+                                Image(systemName: "web.camera")
+                                    .foregroundStyle(.white)
                                     .frame(width: 30, height: 30)
-                                    .overlay {
-                                        Image(systemName: "web.camera")
-                                            .foregroundColor(.white)
-                                            .padding()
-                                            .imageScale(.medium)
-                                    }
+                                    .liquidGlassCapsule()
                             }
                             .buttonStyle(PlainButtonStyle())
+                            .help("Mirror")
+                            .accessibilityLabel("Mirror")
                         }
                         if Defaults[.settingsIconInNotch] {
                             Button(action: {
@@ -86,17 +83,14 @@ struct BoringHeader: View {
                                 }
                                 
                             }) {
-                                Capsule()
-                                    .fill(.black)
+                                Image(systemName: "gear")
+                                    .foregroundStyle(.white)
                                     .frame(width: 30, height: 30)
-                                    .overlay {
-                                        Image(systemName: "gear")
-                                            .foregroundColor(.white)
-                                            .padding()
-                                            .imageScale(.medium)
-                                    }
+                                    .liquidGlassCapsule()
                             }
                             .buttonStyle(PlainButtonStyle())
+                            .help("Settings")
+                            .accessibilityLabel("Settings")
                         }
                         if Defaults[.showBatteryIndicator] {
                             BoringBatteryView(

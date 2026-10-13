@@ -145,7 +145,6 @@ class BoringViewModel: NSObject, ObservableObject {
 
         case .denied, .restricted:
             DispatchQueue.main.async {
-                NSApp.setActivationPolicy(.regular)
                 NSApp.activate(ignoringOtherApps: true)
 
                 let alert = NSAlert()
@@ -160,7 +159,7 @@ class BoringViewModel: NSObject, ObservableObject {
                     }
                 }
 
-                NSApp.setActivationPolicy(.accessory)
+                AppPresentationManager.shared.apply()
                 NSApp.deactivate()
             }
 

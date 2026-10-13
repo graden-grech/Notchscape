@@ -25,7 +25,7 @@ final class SystemPerformanceManager: ObservableObject {
         refresh()
         samplingTask = Task { [weak self] in
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(1.5))
+                try? await Task.sleep(for: .seconds(AppPerformanceManager.shared.samplingInterval))
                 guard !Task.isCancelled else { break }
                 self?.refresh()
             }

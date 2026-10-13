@@ -101,8 +101,7 @@ class SettingsWindowController: NSWindowController {
     private func relinquishFocus() {
         window?.orderOut(nil)
         
-        // Keeping the app's accessory activation policy avoids a costly Dock and
-        // menu-bar rebuild every time Settings opens or closes.
+        // Dock visibility is owned by AppPresentationManager, not window focus.
     }
 }
 
@@ -113,11 +112,6 @@ extension SettingsWindowController: NSWindowDelegate {
     
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         return true
-    }
-    
-    func windowDidBecomeKey(_ notification: Notification) {
-        // Ensure app is in regular mode when window becomes key
-        NSApp.setActivationPolicy(.regular)
     }
     
     func windowDidResignKey(_ notification: Notification) {

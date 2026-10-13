@@ -17,7 +17,14 @@ import SwiftUIIntrospect
 
 struct SettingsView: View {
     @State private var selectedTab = "General"
-    @State private var accentColorUpdateTrigger = UUID()
+    @Default(.appTheme) private var appTheme
+    @Default(.useCustomAccentColor) private var useCustomAccentColor
+    @Default(.customAccentColorData) private var customAccentColorData
+    @ObservedObject private var performance = AppPerformanceManager.shared
+
+    private var currentAccent: Color {
+        Color(nsColor: NSColor.resolvedAccent(theme: appTheme, customEnabled: useCustomAccentColor, customData: customAccentColorData))
+    }
 
     let updaterController: SPUStandardUpdaterController?
 
@@ -83,7 +90,7 @@ struct SettingsView: View {
             .listStyle(SidebarListStyle())
             .scrollContentBackground(.hidden)
             .background(.ultraThinMaterial)
-            .tint(.effectiveAccent)
+            .tint(currentAccent)
             .toolbar(removing: .sidebarToggle)
             .navigationSplitViewColumnWidth(200)
         } detail: {
@@ -149,15 +156,13 @@ struct SettingsView: View {
         .formStyle(.grouped)
         .frame(width: 700)
         .background(LiquidGlassSettingsBackground())
-        .tint(.effectiveAccent)
-        .id(accentColorUpdateTrigger)
-        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name("AccentColorChanged"))) { _ in
-            accentColorUpdateTrigger = UUID()
-        }
+        .tint(currentAccent)
+        .transaction { if performance.suppressAnimations { $0.animation = nil; $0.disablesAnimations = true } }
     }
 }
 
 struct SystemSettings: View {
+    @ObservedObject private var performance = AppPerformanceManager.shared
     @Default(.systemDashboardEnabled) private var systemDashboardEnabled
 
     var body: some View {
@@ -165,7 +170,7 @@ struct SystemSettings: View {
             Section {
                 Toggle("Show System tab in the notch", isOn: $systemDashboardEnabled)
                 LabeledContent("Sampling", value: "Only while the tab is visible")
-                LabeledContent("Refresh rate", value: "Every 1.5 seconds")
+                LabeledContent("Refresh rate", value: performance.lowImpact ? "Every 3 seconds" : "Every 1.5 seconds")
             } header: {
                 Text("System Dashboard")
             } footer: {
@@ -216,6 +221,7 @@ struct GeneralSettings: View {
 
     var body: some View {
         Form {
+            PerformanceSettingsSection()
             Section {
                 Toggle(isOn: Binding(
                     get: { Defaults[.menubarIcon] },
@@ -224,6 +230,12 @@ struct GeneralSettings: View {
                     Text("Show menu bar icon")
                 }
                 .tint(.effectiveAccent)
+                Defaults.Toggle(key: .showDockIcon) {
+                    Text("Show Dock icon")
+                }
+                Text("When hidden, open Settings from the notch or menu bar. Hiding the Dock icon also removes the app from Command-Tab.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 LaunchAtLogin.Toggle("Launch at login")
                 Defaults.Toggle(key: .showOnAllDisplays) {
                     Text("Show on all displays")
@@ -1044,6 +1056,7 @@ struct AgentSettings: View {
 
     var body: some View {
         Form {
+            AgentHistorySettings()
             Section {
                 Defaults.Toggle(key: .agentStatusEnabled) {
                     Text("Show AI agent status")
@@ -1337,7 +1350,6 @@ struct WeatherSettings: View {
     @Default(.weatherLocation) private var location
     @Default(.weatherUseCelsius) private var useCelsius
     @Default(.weatherOnLiveTab) private var weatherOnLiveTab
-    @Default(.weatherTilePosition) private var tilePosition
 
     var body: some View {
         Form {
@@ -1351,11 +1363,8 @@ struct WeatherSettings: View {
                 Toggle("Show on Live tab", isOn: $weatherOnLiveTab)
 
                 if !weatherOnLiveTab {
-                    Picker("Home tile position", selection: $tilePosition) {
-                        ForEach(WeatherTilePosition.allCases) { position in
-                            Text(position.title).tag(position)
-                        }
-                    }
+                    Text("Reorder or hide the Weather tile in Appearance → Home layout.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
 
                 if !useCurrentLocation {
@@ -1753,6 +1762,174 @@ struct Shelf: View {
 //    }
 //}
 
+private struct ThemePreviewCard: View {
+    let theme: AppTheme
+    let selected: Bool
+    @Default(.useCustomAccentColor) private var useCustomAccentColor
+    @Default(.customAccentColorData) private var customAccentColorData
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            ZStack {
+                GeometryReader { geometry in
+                    if let backdrop = theme.homeBackdrop {
+                        Image(backdrop).resizable().scaledToFill()
+                            .frame(width: geometry.size.width, height: geometry.size.height)
+                            .clipped()
+                    } else {
+                        LinearGradient(colors: [theme == .autumn ? Color.brown.opacity(0.75) : .black, .black], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    }
+                }
+                .overlay(.black.opacity(0.3))
+                HStack(spacing: 10) {
+                    Image(theme.matchingIcon.assetName).resizable().scaledToFit()
+                        .frame(width: 30, height: 30)
+                    VStack(alignment: .leading, spacing: 5) {
+                        Capsule().fill(.white.opacity(0.85)).frame(width: 46, height: 3)
+                        Capsule().fill(.white.opacity(0.35)).frame(width: 31, height: 3)
+                        HStack(spacing: 8) {
+                            Image(systemName: "backward.fill")
+                            Image(systemName: "play.fill")
+                            Image(systemName: "forward.fill")
+                        }.font(.system(size: 8))
+                    }
+                    Image(systemName: "calendar").font(.system(size: 22, weight: .light))
+                    Spacer(minLength: 0)
+                }
+                .foregroundStyle(.white)
+                .padding(12)
+            }
+            .frame(height: 82)
+            .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+
+            HStack {
+                Text(theme.title).font(.callout.weight(.semibold))
+                Spacer()
+                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                    .foregroundStyle(selected ? Color.effectiveAccent : .secondary.opacity(0.45))
+            }
+            Text(theme.subtitle).font(.caption).foregroundStyle(.secondary)
+                .lineLimit(2).frame(height: 28, alignment: .topLeading)
+        }
+        .padding(10)
+        .background(.white.opacity(selected ? 0.085 : 0.035), in: RoundedRectangle(cornerRadius: 16))
+        .overlay {
+            RoundedRectangle(cornerRadius: 16).strokeBorder(selected ? Color.effectiveAccent : .white.opacity(0.1), lineWidth: selected ? 2 : 1)
+        }
+    }
+}
+
+private struct SeasonalIconPicker: View {
+    @Default(.appIconFollowsTheme) private var followsTheme
+    @Default(.appIconVariant) private var selectedIcon
+    @Default(.appTheme) private var theme
+    @Default(.useCustomAccentColor) private var useCustomAccentColor
+    @Default(.customAccentColorData) private var customAccentColorData
+
+    var body: some View {
+        Toggle("Match icon to theme", isOn: $followsTheme)
+            .onChange(of: followsTheme) { _, enabled in
+                if enabled {
+                    selectedIcon = theme.matchingIcon
+                    selectedIcon.apply()
+                }
+            }
+        HStack(spacing: 10) {
+            ForEach(AppIconVariant.allCases) { icon in
+                Button {
+                    followsTheme = false
+                    selectedIcon = icon
+                    icon.apply()
+                } label: {
+                    VStack(spacing: 6) {
+                        Image(icon.assetName).resizable().scaledToFit()
+                            .frame(width: 64, height: 64)
+                        Text(icon.title).font(.caption)
+                        Image(systemName: selectedIcon == icon ? "checkmark.circle.fill" : "circle")
+                            .foregroundStyle(selectedIcon == icon ? Color.effectiveAccent : .secondary.opacity(0.4))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(.white.opacity(selectedIcon == icon ? 0.08 : 0), in: RoundedRectangle(cornerRadius: 12))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(icon.title + " app icon")
+            }
+        }
+        Text("Choose any icon yourself, or let the theme choose it. Manual choices turn off matching.")
+            .font(.caption).foregroundStyle(.secondary)
+    }
+}
+
+private struct ThemeAccentPicker: View {
+    @Default(.useCustomAccentColor) private var useCustomAccentColor
+    @Default(.customAccentColorData) private var customAccentColorData
+    @Default(.appTheme) private var theme
+
+    private var savedColor: NSColor? {
+        guard let data = customAccentColorData else { return nil }
+        return try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSColor.self, from: data)
+    }
+
+    private var followsTheme: Binding<Bool> {
+        Binding(get: { !useCustomAccentColor }, set: { automatic in
+            if automatic {
+                useCustomAccentColor = false
+            } else if savedColor == nil {
+                saveColor(Color(nsColor: .effectiveAccent))
+            } else {
+                useCustomAccentColor = true
+            }
+        })
+    }
+
+    private var customColor: Binding<Color> {
+        Binding(get: { Color(nsColor: savedColor ?? .effectiveAccent) }, set: saveColor)
+    }
+
+    var body: some View {
+        Toggle("Match theme", isOn: followsTheme)
+        LabeledContent("Current accent") {
+            HStack(spacing: 8) {
+                Circle().fill(Color.effectiveAccent).frame(width: 16, height: 16)
+                Text(useCustomAccentColor ? "Custom" : theme == .system ? "macOS system" : theme.title)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        HStack(spacing: 12) {
+            ForEach(PresetAccentColor.allCases) { preset in
+                AccentCircleButton(isSelected: isSelected(preset.color), color: preset.color) {
+                    saveColor(preset.color)
+                }
+                .help(preset.rawValue + " accent")
+                .accessibilityLabel(preset.rawValue + " accent")
+                .accessibilityAddTraits(isSelected(preset.color) ? [.isSelected] : [])
+            }
+        }
+        .padding(.vertical, 4)
+        ColorPicker("Choose your own color", selection: customColor, supportsOpacity: false)
+        Text("Themes choose the accent automatically. Picking a color turns off matching and keeps your choice when you switch themes. Turn matching back on to restore automatic colors.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+    }
+
+    private func saveColor(_ color: Color) {
+        let nsColor = (NSColor(color).usingColorSpace(.sRGB) ?? NSColor(color)).withAlphaComponent(1)
+        guard let data = try? NSKeyedArchiver.archivedData(withRootObject: nsColor, requiringSecureCoding: true) else { return }
+        customAccentColorData = data
+        useCustomAccentColor = true
+    }
+
+    private func isSelected(_ color: Color) -> Bool {
+        guard useCustomAccentColor,
+              let saved = savedColor?.usingColorSpace(.sRGB),
+              let candidate = NSColor(color).usingColorSpace(.sRGB) else { return false }
+        return abs(saved.redComponent - candidate.redComponent) < 0.01
+            && abs(saved.greenComponent - candidate.greenComponent) < 0.01
+            && abs(saved.blueComponent - candidate.blueComponent) < 0.01
+    }
+}
+
 struct Appearance: View {
     @ObservedObject var coordinator = BoringViewCoordinator.shared
     @Default(.mirrorShape) var mirrorShape
@@ -1762,6 +1939,9 @@ struct Appearance: View {
     @Default(.selectedVisualizer) var selectedVisualizer
     @Default(.appTheme) var appTheme
     @Default(.appIconVariant) var appIconVariant
+    @Default(.appIconFollowsTheme) private var appIconFollowsTheme
+    @Default(.useCustomAccentColor) private var useCustomAccentColor
+    @Default(.customAccentColorData) private var customAccentColorData
 
     @State private var selectedListVisualizer: CustomVisualizer? = nil
     @State private var isPresented: Bool = false
@@ -1781,43 +1961,49 @@ struct Appearance: View {
             }
 
             Section {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 10)], spacing: 10) {
+                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 14) {
                     ForEach(AppTheme.allCases) { theme in
                         Button {
                             withAnimation(.smooth(duration: 0.22)) {
+                                Defaults[.automaticSeasonalThemes] = false
                                 appTheme = theme
-                                appIconVariant = theme.matchingIcon
+                                if appIconFollowsTheme {
+                                    appIconVariant = theme.matchingIcon
+                                }
                             }
-                            theme.matchingIcon.apply()
+                            if appIconFollowsTheme { theme.matchingIcon.apply() }
                         } label: {
-                            VStack(spacing: 6) {
-                                Image(systemName: theme.symbol)
-                                    .font(.system(size: 18, weight: .semibold))
-                                    .frame(width: 36, height: 30)
-                                Text(theme.title)
-                                    .font(.caption.weight(appTheme == theme ? .semibold : .regular))
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 9)
-                            .background(
-                                appTheme == theme ? Color.effectiveAccent.opacity(0.24) : Color.white.opacity(0.045),
-                                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            )
-                            .overlay {
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .strokeBorder(
-                                        appTheme == theme ? Color.effectiveAccent.opacity(0.8) : .white.opacity(0.1),
-                                        lineWidth: appTheme == theme ? 1.5 : 0.75
-                                    )
-                            }
+                            ThemePreviewCard(theme: theme, selected: appTheme == theme)
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel(theme.title)
+                        .accessibilityAddTraits(appTheme == theme ? [.isSelected] : [])
                     }
                 }
             } header: {
                 Text("Menu theme")
             } footer: {
-                Text("Seasonal themes tint controls and navigation while keeping music, calendar, and content tiles readable. Choosing a theme also selects its matching app icon.")
+                Text("Preview Home's seasonal scenes. Winter has no Christmas or holiday decorations.")
+            }
+
+            Section("App icon") {
+                SeasonalIconPicker()
+            }
+
+            Section("Seasonal switching") {
+                SeasonalThemeSettings()
+            }
+
+            Section("Accent color") {
+                ThemeAccentPicker()
+            }
+
+            Section("Home layout") {
+                HomeLayoutSettings()
+            }
+
+            Section("Quick Actions") {
+                QuickActionsSettings()
             }
 
             Section {
@@ -2048,270 +2234,23 @@ struct Appearance: View {
 }
 
 struct Advanced: View {
-    @Default(.useCustomAccentColor) var useCustomAccentColor
-    @Default(.customAccentColorData) var customAccentColorData
-    @Default(.extendHoverArea) var extendHoverArea
-    @Default(.showOnLockScreen) var showOnLockScreen
-    @Default(.hideFromScreenRecording) var hideFromScreenRecording
-    @Default(.appIconVariant) var appIconVariant
-    
-    @State private var customAccentColor: Color = .accentColor
-    @State private var selectedPresetColor: PresetAccentColor? = nil
-    // macOS accent colors
-    enum PresetAccentColor: String, CaseIterable, Identifiable {
-        case blue = "Blue"
-        case purple = "Purple"
-        case pink = "Pink"
-        case red = "Red"
-        case orange = "Orange"
-        case yellow = "Yellow"
-        case green = "Green"
-        case graphite = "Graphite"
-        
-        var id: String { self.rawValue }
-        
-        var color: Color {
-            switch self {
-            case .blue: return Color(red: 0.0, green: 0.478, blue: 1.0)
-            case .purple: return Color(red: 0.686, green: 0.322, blue: 0.871)
-            case .pink: return Color(red: 1.0, green: 0.176, blue: 0.333)
-            case .red: return Color(red: 1.0, green: 0.271, blue: 0.227)
-            case .orange: return Color(red: 1.0, green: 0.584, blue: 0.0)
-            case .yellow: return Color(red: 1.0, green: 0.8, blue: 0.0)
-            case .green: return Color(red: 0.4, green: 0.824, blue: 0.176)
-            case .graphite: return Color(red: 0.557, green: 0.557, blue: 0.576)
-            }
-        }
-    }
-    
     var body: some View {
         Form {
-            Section {
-                VStack(alignment: .leading, spacing: 16) {
-                    // Toggle between system and custom
-                    Picker("Accent color", selection: $useCustomAccentColor) {
-                        Text("System").tag(false)
-                        Text("Custom").tag(true)
-                    }
-                    .pickerStyle(.segmented)
-                    
-                    if !useCustomAccentColor {
-                        // System accent info
-                        VStack(alignment: .leading, spacing: 8) {
-                            HStack(spacing: 12) {
-                                AccentCircleButton(
-                                    isSelected: true,
-                                    color: .accentColor,
-                                    isSystemDefault: true
-                                ) {}
-                                
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Using System Accent")
-                                        .font(.body)
-                                    Text("Your macOS system accent color")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                            }
-                        }
-                    } else {
-                        // Custom color options
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Color Presets")
-                                .font(.caption)
-                                .fontWeight(.semibold)
-                                .foregroundStyle(.secondary)
-                            
-                            HStack(spacing: 12) {
-                                ForEach(PresetAccentColor.allCases) { preset in
-                                    AccentCircleButton(
-                                        isSelected: selectedPresetColor == preset,
-                                        color: preset.color,
-                                        isMulticolor: false
-                                    ) {
-                                        selectedPresetColor = preset
-                                        customAccentColor = preset.color
-                                        saveCustomColor(preset.color)
-                                        forceUiUpdate()
-                                    }
-                                }
-                                Spacer()
-                            }
-                            
-                            Divider()
-                                .padding(.vertical, 4)
-                            
-                            // Custom color picker
-                            HStack(spacing: 12) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Pick a Color")
-                                        .font(.body)
-                                    Text("Choose any color")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                
-                                Spacer()
-                                
-                                ColorPicker(selection: Binding(
-                                    get: { customAccentColor },
-                                    set: { newColor in
-                                        customAccentColor = newColor
-                                        selectedPresetColor = nil
-                                        saveCustomColor(newColor)
-                                        forceUiUpdate()
-                                    }
-                                ), supportsOpacity: false) {
-                                    ZStack {
-                                        Circle()
-                                            .fill(customAccentColor)
-                                            .frame(width: 32, height: 32)
-                                        
-                                        if selectedPresetColor == nil {
-                                            Circle()
-                                                .strokeBorder(.primary.opacity(0.3), lineWidth: 2)
-                                                .frame(width: 32, height: 32)
-                                        }
-                                    }
-                                }
-                                .labelsHidden()
-                            }
-                        }
-                    }
-                }
-                .padding(.vertical, 4)
-            } header: {
-                Text("Accent color")
-            } footer: {
-                Text("Choose between your system accent color or customize it with your own selection.")
-                    .multilineTextAlignment(.trailing)
-                    .foregroundStyle(.secondary)
-                    .font(.caption)
+            Section("Window Appearance") {
+                Defaults.Toggle(key: .enableShadow) { Text("Enable window shadow") }
+                Defaults.Toggle(key: .cornerRadiusScaling) { Text("Corner radius scaling") }
             }
-            .onAppear {
-                initializeAccentColorState()
+            Section("Window Behavior") {
+                Defaults.Toggle(key: .extendHoverArea) { Text("Extend hover area") }
+                Defaults.Toggle(key: .hideTitleBar) { Text("Hide title bar") }
+                Defaults.Toggle(key: .showOnLockScreen) { Text("Show notch on lock screen") }
+                Defaults.Toggle(key: .hideFromScreenRecording) { Text("Hide from screen recording") }
             }
-            
-            Section {
-                Defaults.Toggle(key: .enableShadow) {
-                    Text("Enable window shadow")
-                }
-                Defaults.Toggle(key: .cornerRadiusScaling) {
-                    Text("Corner radius scaling")
-                }
-            } header: {
-                Text("Window Appearance")
-            }
-            
-            Section {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 12)], spacing: 12) {
-                    ForEach(AppIconVariant.allCases) { variant in
-                        Button {
-                            withAnimation(.smooth(duration: 0.2)) {
-                                appIconVariant = variant
-                            }
-                            variant.apply()
-                        } label: {
-                            VStack(spacing: 7) {
-                                Image(variant.assetName)
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 72, height: 72)
-                                    .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
-                                    .overlay {
-                                        RoundedRectangle(cornerRadius: 17, style: .continuous)
-                                            .strokeBorder(
-                                                variant == appIconVariant ? Color.effectiveAccent : .white.opacity(0.12),
-                                                lineWidth: variant == appIconVariant ? 2.5 : 0.75
-                                            )
-                                    }
-
-                                Text(variant.title)
-                                    .font(.caption.weight(variant == appIconVariant ? .semibold : .regular))
-                                    .foregroundStyle(variant == appIconVariant ? .primary : .secondary)
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-            } header: {
-                Text("App icon")
-            } footer: {
-                Text("Changes the running app and Dock icon. Finder may keep the installed bundle icon until the app is updated or relaunched.")
-            }
-            
-            Section {
-                Defaults.Toggle(key: .extendHoverArea) {
-                    Text("Extend hover area")
-                }
-                Defaults.Toggle(key: .hideTitleBar) {
-                    Text("Hide title bar")
-                }
-                Defaults.Toggle(key: .showOnLockScreen) {
-                    Text("Show notch on lock screen")
-                }
-                Defaults.Toggle(key: .hideFromScreenRecording) {
-                    Text("Hide from screen recording")
-                }
-            } header: {
-                Text("Window Behavior")
-            }
+            Text("App icons, themes, accent colors and Home layout are in Appearance. Performance options are in General.")
+                .font(.caption).foregroundStyle(.secondary)
         }
         .accentColor(.effectiveAccent)
         .navigationTitle("Advanced")
-        .onAppear {
-            loadCustomColor()
-        }
-    }
-    
-    private func forceUiUpdate() {
-        // Force refresh the UI
-        DispatchQueue.main.async {
-            NotificationCenter.default.post(name: Notification.Name("AccentColorChanged"), object: nil)
-        }
-    }
-    
-    private func saveCustomColor(_ color: Color) {
-        let nsColor = NSColor(color)
-        if let colorData = try? NSKeyedArchiver.archivedData(withRootObject: nsColor, requiringSecureCoding: false) {
-            Defaults[.customAccentColorData] = colorData
-            forceUiUpdate()
-        }
-    }
-    
-    private func loadCustomColor() {
-        if let colorData = Defaults[.customAccentColorData],
-           let nsColor = try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSColor.self, from: colorData) {
-            customAccentColor = Color(nsColor: nsColor)
-            
-            // Check if loaded color matches a preset
-            selectedPresetColor = nil
-            for preset in PresetAccentColor.allCases {
-                if colorsAreEqual(Color(nsColor: nsColor), preset.color) {
-                    selectedPresetColor = preset
-                    break
-                }
-            }
-        }
-    }
-    
-    private func colorsAreEqual(_ color1: Color, _ color2: Color) -> Bool {
-        let nsColor1 = NSColor(color1).usingColorSpace(.sRGB) ?? NSColor(color1)
-        let nsColor2 = NSColor(color2).usingColorSpace(.sRGB) ?? NSColor(color2)
-        
-        return abs(nsColor1.redComponent - nsColor2.redComponent) < 0.01 &&
-               abs(nsColor1.greenComponent - nsColor2.greenComponent) < 0.01 &&
-               abs(nsColor1.blueComponent - nsColor2.blueComponent) < 0.01
-    }
-    
-    private func initializeAccentColorState() {
-        if !useCustomAccentColor {
-            selectedPresetColor = nil // Multicolor is selected when useCustomAccentColor is false
-        } else {
-            loadCustomColor()
-        }
     }
 }
 

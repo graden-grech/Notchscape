@@ -64,6 +64,11 @@ struct ContentView: View {
     @Default(.sportsActivitiesEnabled) private var sportsActivitiesEnabled
     @Default(.nonNotchPresentation) private var nonNotchPresentation
     @Default(.appTheme) private var appTheme
+    @Default(.useCustomAccentColor) private var useCustomAccentColor
+    @Default(.customAccentColorData) private var customAccentColorData
+    @Default(.hiddenHomeWidgets) private var hiddenHomeWidgets
+    @Default(.quickActions) private var quickActions
+    @ObservedObject private var performance = AppPerformanceManager.shared
 
     // Shared interactive spring for movement/resizing to avoid conflicting animations
     private let animationSpring = Animation.interactiveSpring(response: 0.38, dampingFraction: 0.8, blendDuration: 0)
@@ -267,10 +272,35 @@ struct ContentView: View {
                         : cornerRadiusInsets.closed.bottom
                     )
                     .padding([.horizontal, .bottom], vm.notchState == .open ? 12 : 0)
-                    .background(sportsUsesFloatingIsland ? Color.clear : Color.black)
+                    .background {
+                        ZStack(alignment: .top) {
+                            sportsUsesFloatingIsland ? Color.clear : Color.black
+                            if let backdrop = appTheme.homeBackdrop {
+                                // Keep the photo at its expanded dimensions while
+                                // the outer mask contracts. Replacing/remapping the
+                                // background on close caused a flash and image jump.
+                                Image(backdrop)
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: getOpenNotchSize().width, height: getOpenNotchSize().height, alignment: .top)
+                                    .clipped()
+                                    .overlay {
+                                        LinearGradient(stops: [
+                                            .init(color: .black.opacity(0.76), location: 0),
+                                            .init(color: .black.opacity(0.54), location: 0.78),
+                                            .init(color: .black.opacity(0.03), location: 0.86)
+                                        ], startPoint: .leading, endPoint: .trailing)
+                                    }
+                                    .opacity(vm.notchState == .open && coordinator.currentView == .home ? 1 : 0)
+                                    .animation(.easeOut(duration: 0.24), value: vm.notchState)
+                                    .animation(.easeOut(duration: 0.2), value: coordinator.currentView)
+                            }
+                        }
+                        .allowsHitTesting(false)
+                    }
                     .overlay(alignment: .top) {
                         Rectangle()
-                            .fill(sportsUsesFloatingIsland ? Color.clear : Color.black)
+                            .fill(sportsUsesPhysicalNotchLayout ? Color.black : Color.clear)
                             .frame(height: 1)
                             .padding(.horizontal, topCornerRadius)
                     }
@@ -282,7 +312,8 @@ struct ContentView: View {
                 mainLayout
                     .frame(
                         width: vm.notchState == .open ? vm.notchSize.width : nil,
-                        height: vm.notchState == .open ? vm.notchSize.height : nil
+                        height: vm.notchState == .open ? vm.notchSize.height : nil,
+                        alignment: sportsUsesPhysicalNotchLayout ? .center : .top
                     )
                     // Apply the mask after the final frame. Flexible Home/Live
                     // content can otherwise grow beyond the earlier mask and
@@ -407,6 +438,8 @@ struct ContentView: View {
         .animation(.snappy(duration: 0.5, extraBounce: 0.08), value: sportsManager.scoreBanner)
         .background(dragDetector)
         .preferredColorScheme(.dark)
+        .tint(Color(nsColor: NSColor.resolvedAccent(theme: appTheme, customEnabled: useCustomAccentColor, customData: customAccentColorData)))
+        .transaction { if performance.suppressAnimations { $0.animation = nil; $0.disablesAnimations = true } }
         .environmentObject(vm)
         .task {
             if sportsActivitiesEnabled { sportsManager.start() }
@@ -424,6 +457,8 @@ struct ContentView: View {
                 vm.refreshOpenNotchSize()
             }
         }
+        .onChange(of: hiddenHomeWidgets) { _, _ in vm.refreshOpenNotchSize() }
+        .onChange(of: quickActions) { _, _ in vm.refreshOpenNotchSize() }
         .onChange(of: weatherEnabled) { _, _ in
             withAnimation(animationSpring) {
                 vm.refreshOpenNotchSize()
@@ -563,7 +598,12 @@ struct ContentView: View {
                           BoringFaceAnimation()
                        } else if vm.notchState == .open {
                            BoringHeader()
-                               .frame(height: max(24, vm.effectiveClosedNotchHeight))
+                               // A menu-bar-height closed island is too short
+                               // for expanded controls. Keep them below the top
+                               // clip on notchless screens without changing the
+                               // closed island or hardware-notch geometry.
+                               .frame(height: sportsUsesPhysicalNotchLayout ? max(24, vm.effectiveClosedNotchHeight) : 32)
+                               .padding(.top, sportsUsesPhysicalNotchLayout ? 0 : 8)
                                .opacity(gestureProgress != 0 ? 1.0 - min(abs(gestureProgress) * 0.1, 0.3) : 1.0)
                        } else {
                            Rectangle().fill(.clear).frame(width: vm.closedNotchSize.width - 20, height: vm.effectiveClosedNotchHeight)
@@ -1248,7 +1288,10 @@ struct ContentView: View {
                 )
 
             HStack {
-                if useMusicVisualizer {
+                if performance.suppressAnimations {
+                    Image(systemName: "waveform").font(.system(size: 13, weight: .medium)).foregroundStyle(.secondary)
+                        .frame(width: 50)
+                } else if useMusicVisualizer {
                     Rectangle()
                         .fill(
                             Defaults[.coloredSpectrogram]
