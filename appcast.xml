@@ -3,6 +3,26 @@
     <channel>
         <title>Boring Notch</title>
         <item>
+            <title>2.8.3</title>
+            <pubDate>Wed, 14 Oct 2026 12:01:56 -0400</pubDate>
+            <link>https://github.com/graden-grech/boringNotch-custom/releases/tag/v2.8.3</link>
+            <sparkle:version>284</sparkle:version>
+            <sparkle:shortVersionString>2.8.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[# boringNotch Custom 2.8.3
+
+- Bounded HUD recovery after launch, activation, and wake, with no permanent watchdog.
+- Accurate interceptor status, a Restart HUD control, and permission monitoring that survives closing Settings.
+- Stale event-tap cleanup and recovery that respects the user's HUD on/off choice.
+- Matching 30-point native glass capsules for the Home battery, Mirror, and Settings controls. Small native switches stay unchanged.
+- Signed-build identity checks and a live HUD smoke test to catch future regressions.
+
+Uses the same signing identity and update key. Development-signed; not notarized. Requires Apple silicon and macOS 14 or later; native Liquid Glass requires macOS 26. Full sleep/wake, permission-revocation, VoiceOver, and external-display/DisplayLink testing remain pending.
+]]></description>
+            <enclosure url="https://github.com/graden-grech/boringNotch-custom/releases/download/v2.8.3/boringNotch-custom.zip" length="21114719" type="application/octet-stream" sparkle:edSignature="jAydkGwSzmevjgMVcvmOlcNh3Fq3fu88WjAFK5yrq54lL/VxYcvT2yeyu43rsDtCxHqiv9+n6o7Rf8kf2OauDg=="/>
+        </item>
+        <item>
             <title>2.8.2</title>
             <pubDate>Tue, 13 Oct 2026 22:20:13 -0400</pubDate>
             <link>https://github.com/graden-grech/boringNotch-custom/releases/tag/v2.8.2</link>
