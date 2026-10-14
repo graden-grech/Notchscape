@@ -140,6 +140,16 @@ enum BatteryAlertKind: String {
 }
 
 enum BatteryPolicy {
+    static func symbol(level: Double, charging: Bool) -> String {
+        if charging { return "battery.100percent.bolt" }
+        switch level {
+        case ..<12.5: return "battery.0percent"
+        case ..<37.5: return "battery.25percent"
+        case ..<62.5: return "battery.50percent"
+        case ..<87.5: return "battery.75percent"
+        default: return "battery.100percent"
+        }
+    }
     static func shouldShow(enabled: Bool, hasBattery: Bool, hideWhenAbsent: Bool) -> Bool {
         enabled && (hasBattery || !hideWhenAbsent)
     }

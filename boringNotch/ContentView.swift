@@ -351,6 +351,11 @@ struct ContentView: View {
                             .animation(.smooth, value: gestureProgress)
                     }
                     .contentShape(Rectangle())
+                    .accessibilityElement(children: .contain)
+                    .accessibilityLabel("Notch menu")
+                    .accessibilityAction(named: "Open menu") {
+                        doOpen()
+                    }
                     .onHover { hovering in
                         handleHover(hovering)
                     }

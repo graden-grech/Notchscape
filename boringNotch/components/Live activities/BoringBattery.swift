@@ -173,6 +173,7 @@ struct BoringBatteryView: View {
     @Default(.batteryPresentation) private var presentation
     @Default(.batteryIndicatorDisplay) private var display
     @Default(.showBatteryPercentage) private var showPercentage
+    @Default(.showPowerStatusIcons) private var showPowerIcons
     @ObservedObject private var batteryModel = BatteryStatusViewModel.shared
     
     @State var batteryWidth: CGFloat = 26
@@ -199,8 +200,9 @@ struct BoringBatteryView: View {
             }
         }) {
             if presentation == .enhanced && !isForNotification {
-                indicator.padding(.horizontal, 8).padding(.vertical, 5)
+                indicator.padding(.horizontal, 8).frame(height: 28)
                     .liquidGlassCapsule()
+                    .frame(height: 30)
             } else {
                 indicator
             }
@@ -258,11 +260,20 @@ struct BoringBatteryView: View {
                     .font(.callout).monospacedDigit().foregroundStyle(.white)
             }
             if presentation == .original || display != .percentageOnly {
-                BatteryView(levelBattery: batteryModel.dataAvailable ? levelBattery : 0,
+                if presentation == .enhanced && !isForNotification {
+                    Image(systemName: BatteryPolicy.symbol(level: Double(levelBattery),
+                        charging: batteryModel.dataAvailable && isCharging && showPowerIcons))
+                        .font(.system(size: 17))
+                        .foregroundStyle(isInLowPowerMode ? Color.yellow : isCharging ? Color.green : Color.white)
+                        .frame(width: 26, height: 18)
+                        .accessibilityHidden(true)
+                } else {
+                  BatteryView(levelBattery: batteryModel.dataAvailable ? levelBattery : 0,
                     isPluggedIn: batteryModel.dataAvailable && isPluggedIn,
                     isCharging: batteryModel.dataAvailable && isCharging,
                     isInLowPowerMode: isInLowPowerMode, batteryWidth: batteryWidth,
                     isForNotification: isForNotification)
+                }
             }
         }
     }

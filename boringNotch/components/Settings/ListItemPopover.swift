@@ -19,6 +19,8 @@ struct ListItemPopover<Content: View>: View {
                 .foregroundStyle(.secondary)
         }
         .controlSize(.regular)
+        .help("More information")
+        .accessibilityLabel("More information")
         .popover(isPresented: $isPresented, attachmentAnchor: .rect(.bounds), arrowEdge: .trailing, content: {
             content()
                 .padding()

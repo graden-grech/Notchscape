@@ -10,6 +10,10 @@ import AppKit
 
 class SparkleNSView: NSView {
     private var emitterLayer: CAEmitterLayer?
+    func setAnimationEnabled(_ enabled: Bool) {
+        emitterLayer?.birthRate = enabled ? 1 : 0
+        emitterLayer?.isHidden = !enabled
+    }
     
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
@@ -68,9 +72,14 @@ class SparkleNSView: NSView {
 }
 
 struct SparkleView: NSViewRepresentable {
+    @ObservedObject private var performance = AppPerformanceManager.shared
     func makeNSView(context: Context) -> SparkleNSView {
-        return SparkleNSView()
+        let view = SparkleNSView()
+        view.setAnimationEnabled(!performance.suppressAnimations)
+        return view
     }
     
-    func updateNSView(_ nsView: SparkleNSView, context: Context) {}
+    func updateNSView(_ nsView: SparkleNSView, context: Context) {
+        nsView.setAnimationEnabled(!performance.suppressAnimations)
+    }
 }

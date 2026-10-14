@@ -40,6 +40,7 @@ final class AppPerformanceManager: ObservableObject {
     static let shared = AppPerformanceManager()
     @Published private(set) var lowImpact = false
     @Published private(set) var reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+    @Published private(set) var reduceTransparency = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
     var suppressAnimations: Bool { lowImpact || reduceMotion }
     var mediaInterval: TimeInterval { lowImpact ? 1 : 0.25 }
     var samplingInterval: TimeInterval { lowImpact ? 3 : 1.5 }
@@ -64,6 +65,8 @@ final class AppPerformanceManager: ObservableObject {
         if lowImpact != newLowImpact { lowImpact = newLowImpact }
         let newReduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         if reduceMotion != newReduceMotion { reduceMotion = newReduceMotion }
+        let newReduceTransparency = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
+        if reduceTransparency != newReduceTransparency { reduceTransparency = newReduceTransparency }
     }
 }
 

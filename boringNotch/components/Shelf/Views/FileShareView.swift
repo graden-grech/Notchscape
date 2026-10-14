@@ -24,7 +24,14 @@ struct FileShareView: View {
     }
 
     var body: some View {
-        dropArea
+        Button {
+            Task { await handleClick() }
+        } label: {
+            dropArea
+        }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Choose files to share using \(selectedProvider.id)")
+            .help("Choose files to share using \(selectedProvider.id)")
             .background(NSViewHost(view: $hostView))
             .onDrop(of: [.fileURL, .url, .utf8PlainText, .plainText, .data, .image], isTargeted: $vm.dropZoneTargeting) { providers in
                 interactionNonce = .init()
@@ -32,29 +39,21 @@ struct FileShareView: View {
                 Task { await handleDrop(providers) }
                 return true
             }
-            .onTapGesture {
-                Task {
-                    await handleClick()
-                }
-            }
     }
 
     private var dropArea: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 12)
-                .fill(
-                    LinearGradient(colors: [Color.black.opacity(0.35), Color.black.opacity(0.20)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                )
+                .fill(.thinMaterial)
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
                         .stroke(
                             vm.dropZoneTargeting
                                 ? Color.accentColor.opacity(0.9)
                                 : Color.white.opacity(0.1),
-                            style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [10])
+                            style: StrokeStyle(lineWidth: 1, lineCap: .round, dash: [6])
                         )
                 )
-                .shadow(color: Color.black.opacity(0.6), radius: 6, x: 0, y: 2)
 
             // Content
             VStack(spacing: 5) {
@@ -64,7 +63,6 @@ struct FileShareView: View {
                             vm.dropZoneTargeting ? 0.11 : 0.09
                         ))
                         .frame(width: 55, height: 55)
-                    Image(systemName: "square.and.arrow.up")
                     Group {
                         if let imgData = selectedProvider.imageData, let nsImg = NSImage(data: imgData) {
                             Image(nsImage: nsImg)

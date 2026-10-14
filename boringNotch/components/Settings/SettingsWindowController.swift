@@ -41,9 +41,10 @@ class SettingsWindowController: NSWindowController {
         guard let window = window else { return }
         
         window.title = "Boring Notch Settings"
-        window.titlebarAppearsTransparent = true
+        window.titlebarAppearsTransparent = false
         window.titleVisibility = .visible
         window.toolbarStyle = .unifiedCompact
+        window.minSize = NSSize(width: 620, height: 500)
         window.titlebarSeparatorStyle = .none
         window.backgroundColor = .clear
         window.isOpaque = false

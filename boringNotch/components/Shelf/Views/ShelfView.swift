@@ -62,7 +62,7 @@ struct ShelfView: View {
         content
             .padding()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .liquidGlassPanel(tint: vm.dragDetectorTargeting ? .accentColor : .white, cornerRadius: 18)
+            .standardMaterialPanel(tint: vm.dragDetectorTargeting ? .accentColor : .white, cornerRadius: 18)
             .overlay {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
                     .stroke(

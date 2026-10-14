@@ -48,8 +48,10 @@ struct PermissionRequestView: View {
             HStack {
                 Button("Not Now") { onSkip() }
                     .buttonStyle(.bordered)
+                    .keyboardShortcut(.cancelAction)
                 Button("Allow Access") { onAllow() }
                     .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
             }
             .padding(.top, 10)
         }

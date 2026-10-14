@@ -56,7 +56,7 @@ struct SystemDashboardView: View {
         }
         .padding(11)
         .frame(maxWidth: .infinity)
-        .liquidGlassPanel(tint: color, cornerRadius: 16)
+        .standardMaterialPanel(tint: color, cornerRadius: 16)
     }
 
     private func controlButton(_ title: String, icon: String, action: @escaping () -> Void) -> some View {

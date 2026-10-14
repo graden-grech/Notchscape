@@ -20,7 +20,7 @@ struct HoverButton: View {
         let size = CGFloat(scale == .large ? 40 : 30)
 
         Group {
-            if #available(macOS 26.0, *), !performance.lowImpact {
+            if #available(macOS 26.0, *), !performance.lowImpact, !performance.reduceTransparency {
                 button(size: size)
                     .buttonStyle(.plain)
                     .glassEffect(.regular, in: Circle())
@@ -33,6 +33,23 @@ struct HoverButton: View {
             withAnimation(.smooth(duration: 0.3)) {
                 isHovering = hovering
             }
+        }
+        .help(controlLabel)
+        .accessibilityLabel(controlLabel)
+    }
+
+    private var controlLabel: String {
+        switch icon {
+        case "shuffle": "Shuffle"
+        case "backward.fill": "Previous track"
+        case "forward.fill": "Next track"
+        case "play.fill": "Play"
+        case "pause.fill": "Pause"
+        case "repeat": "Repeat"
+        case "repeat.1": "Repeat one track"
+        case "gobackward.15": "Back 15 seconds"
+        case "goforward.15": "Forward 15 seconds"
+        default: icon
         }
     }
 

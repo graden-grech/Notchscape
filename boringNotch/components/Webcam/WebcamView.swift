@@ -73,6 +73,12 @@ struct CameraPreviewView: View {
             .onTapGesture {
                 handleCameraTap()
             }
+            .focusable()
+            .onKeyPress(.space) { handleCameraTap(); return .handled }
+            .onKeyPress(.return) { handleCameraTap(); return .handled }
+            .accessibilityRepresentation {
+                Button(webcamManager.isSessionRunning ? "Stop mirror" : "Start mirror") { handleCameraTap() }
+            }
             .onDisappear {
                 webcamManager.stopSession()
             }

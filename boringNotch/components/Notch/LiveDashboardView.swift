@@ -97,7 +97,7 @@ struct LiveDashboardView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .liquidGlassPanel(tint: tint, cornerRadius: 16)
+        .standardMaterialPanel(tint: tint, cornerRadius: 16)
     }
 }
 
@@ -155,7 +155,7 @@ struct HomeWeatherTile: View {
             .padding(12)
             .frame(width: 132)
             .frame(maxHeight: .infinity, alignment: .topLeading)
-            .liquidGlassPanel(tint: weatherTint, cornerRadius: 18)
+            .standardMaterialPanel(tint: weatherTint, cornerRadius: 18)
             .task { weather.refresh() }
         }
     }

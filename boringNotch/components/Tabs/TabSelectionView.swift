@@ -38,7 +38,7 @@ struct TabSelectionView: View {
 
     var body: some View {
         Group {
-            if #available(macOS 26.0, *), !performance.lowImpact {
+            if #available(macOS 26.0, *), !performance.lowImpact, !performance.reduceTransparency {
                 nativeGlassTabs
             } else {
                 fallbackTabs
@@ -70,7 +70,10 @@ struct TabSelectionView: View {
             }
         }
         .padding(3)
-        .background(.ultraThinMaterial, in: Capsule())
+        .background {
+            if performance.reduceTransparency { Capsule().fill(Color(white: 0.18)) }
+            else { Capsule().fill(.ultraThinMaterial) }
+        }
     }
 
     private func tabControl(_ tab: TabModel) -> some View {

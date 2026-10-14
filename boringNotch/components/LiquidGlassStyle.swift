@@ -1,5 +1,64 @@
 import SwiftUI
 
+/// Glass only on the switch track, with native Toggle accessibility semantics.
+struct LiquidGlassToggleStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        GlassSwitch(configuration: configuration)
+    }
+
+    private struct GlassSwitch: View {
+        var configuration: ToggleStyleConfiguration
+        @ObservedObject private var performance = AppPerformanceManager.shared
+        @Environment(\.isEnabled) private var isEnabled
+        @FocusState private var focused: Bool
+        private var accent: Color { .effectiveAccent }
+
+        var body: some View {
+            Button {
+                withAnimation(performance.suppressAnimations ? nil : .smooth(duration: 0.18)) {
+                    configuration.isOn.toggle()
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    configuration.label.foregroundStyle(.primary)
+                    Spacer(minLength: 8)
+                    track
+                        .overlay {
+                            Circle().fill(.white.opacity(0.95)).frame(width: 22, height: 22)
+                                .offset(x: configuration.isOn ? 10 : -10)
+                        }
+                        .overlay {
+                            Capsule().strokeBorder(focused ? accent : .clear, lineWidth: 2)
+                                .padding(-3)
+                        }
+                        .opacity(isEnabled ? 1 : 0.5)
+                        .accessibilityHidden(true)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .focused($focused)
+            .accessibilityRepresentation {
+                Toggle(isOn: configuration.$isOn) { configuration.label }
+                    .toggleStyle(.switch)
+            }
+        }
+
+        @ViewBuilder private var track: some View {
+            if performance.reduceTransparency || performance.lowImpact {
+                Capsule().fill(configuration.isOn ? accent : Color(white: 0.28))
+                    .frame(width: 50, height: 28)
+            } else if #available(macOS 26.0, *) {
+                Capsule().fill(.clear).frame(width: 50, height: 28)
+                    .glassEffect(.regular.tint(configuration.isOn ? accent.opacity(0.55) : .white.opacity(0.08)).interactive(), in: Capsule())
+            } else {
+                Capsule().fill(.thinMaterial).frame(width: 50, height: 28)
+                    .overlay { Capsule().fill(configuration.isOn ? accent.opacity(0.65) : .clear) }
+            }
+        }
+    }
+}
+
 enum AgentProviderStyle {
     static func isClaude(_ provider: String) -> Bool {
         provider.localizedCaseInsensitiveContains("claude")
@@ -129,7 +188,7 @@ struct LiquidGlassSettingsBackground: View {
     }
 }
 
-private struct LiquidGlassPanelModifier: ViewModifier {
+private struct ContentPanelModifier: ViewModifier {
     @ObservedObject private var performance = AppPerformanceManager.shared
     let tint: Color
     let cornerRadius: CGFloat
@@ -137,16 +196,15 @@ private struct LiquidGlassPanelModifier: ViewModifier {
     @ViewBuilder
     func body(content: Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-        if #available(macOS 26.0, *), !performance.lowImpact {
-            content
-                .glassEffect(.regular.tint(tint.opacity(0.18)), in: shape)
+        // Keep information cards on the content plane, not the glass control plane.
+        if performance.reduceTransparency {
+            content.background(Color(white: 0.15), in: shape)
         } else {
             content
-                .background(.thinMaterial, in: shape)
+                .background(.regularMaterial, in: shape)
                 .overlay {
-                    shape.strokeBorder(.white.opacity(0.16), lineWidth: 0.75)
+                    shape.strokeBorder(tint.opacity(0.12), lineWidth: 0.5)
                 }
-                .shadow(color: .black.opacity(performance.lowImpact ? 0 : 0.16), radius: 7, y: 3)
         }
     }
 }
@@ -157,7 +215,9 @@ private struct LiquidGlassCapsuleModifier: ViewModifier {
 
     @ViewBuilder
     func body(content: Content) -> some View {
-        if #available(macOS 26.0, *), !performance.lowImpact {
+        if performance.reduceTransparency {
+            content.background(Color(white: 0.18), in: Capsule())
+        } else if #available(macOS 26.0, *), !performance.lowImpact {
             content
                 .glassEffect(.regular.tint(tint.opacity(0.2)).interactive(), in: Capsule())
         } else {
@@ -172,8 +232,8 @@ private struct LiquidGlassCapsuleModifier: ViewModifier {
 }
 
 extension View {
-    func liquidGlassPanel(tint: Color = .white, cornerRadius: CGFloat = 18) -> some View {
-        modifier(LiquidGlassPanelModifier(tint: tint, cornerRadius: cornerRadius))
+    func standardMaterialPanel(tint: Color = .white, cornerRadius: CGFloat = 18) -> some View {
+        modifier(ContentPanelModifier(tint: tint, cornerRadius: cornerRadius))
     }
 
     func liquidGlassCapsule(tint: Color = .white) -> some View {

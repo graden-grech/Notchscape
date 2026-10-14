@@ -145,6 +145,7 @@ struct SettingsView: View {
             .background(Color.clear)
         }
         .navigationSplitViewStyle(.balanced)
+        .toolbarBackground(.visible, for: .windowToolbar)
         .toolbar(removing: .sidebarToggle)
         .toolbar {
             ToolbarItem(placement: .principal) {
@@ -154,7 +155,8 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 700)
+        .toggleStyle(LiquidGlassToggleStyle())
+        .frame(minWidth: 620, idealWidth: 700, maxWidth: .infinity, minHeight: 500, maxHeight: .infinity)
         .background(LiquidGlassSettingsBackground())
         .tint(currentAccent)
         .transaction { if performance.suppressAnimations { $0.animation = nil; $0.disablesAnimations = true } }
@@ -611,7 +613,7 @@ struct HUD: View {
                     Spacer(minLength: 40)
                     Defaults.Toggle("", key: .hudReplacement)
                     .labelsHidden()
-                    .toggleStyle(.switch)
+                    .toggleStyle(LiquidGlassToggleStyle())
                     .controlSize(.large)
                     .disabled(!accessibilityAuthorized)
                 }
@@ -1108,7 +1110,7 @@ struct AgentSettings: View {
                 }
                 LabeledContent("Local bridge") {
                     Label(
-                        manager.isListening ? "Listening on 127.0.0.1:\(AgentStatusManager.port)" : "Not connected",
+                        manager.isListening ? "Listening on 127.0.0.1:\(String(AgentStatusManager.port))" : "Not connected",
                         systemImage: manager.isListening ? "checkmark.circle.fill" : "exclamationmark.circle"
                     )
                     .foregroundStyle(manager.isListening ? .green : .orange)

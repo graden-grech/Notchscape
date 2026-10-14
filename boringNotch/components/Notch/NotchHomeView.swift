@@ -358,6 +358,8 @@ struct VolumeControlView: View {
             .buttonStyle(PlainButtonStyle())
             .disabled(!musicManager.volumeControlSupported)
             .frame(width: 24)
+            .help("Volume controls")
+            .accessibilityLabel("Volume controls")
 
             if showVolumeSlider && musicManager.volumeControlSupported {
                 CustomSlider(
@@ -378,6 +380,8 @@ struct VolumeControlView: View {
                     }
                 )
                 .frame(width: 48, height: 8)
+                .accessibilityLabel("Volume")
+                .accessibilityValue("\(Int(volumeSliderValue * 100)) percent")
                 .transition(.scale.combined(with: .opacity))
             }
         }
@@ -597,6 +601,8 @@ struct MusicSliderView: View {
                 onValueChange: onValueChange
             )
             .frame(height: 10, alignment: .center)
+            .accessibilityLabel("Playback position")
+            .accessibilityValue("\(timeString(from: sliderValue)) of \(timeString(from: duration))")
 
             HStack {
                 Text(timeString(from: sliderValue))
@@ -685,6 +691,17 @@ struct CustomSlider: View {
                     }
             )
             .animation(.spring(response: 0.35, dampingFraction: 0.7), value: dragging)
+            .accessibilityElement(children: .ignore)
+            .accessibilityAdjustableAction { direction in
+                let step = rangeSpan <= 1 ? 0.05 : 5.0
+                switch direction {
+                case .increment: value = min(range.upperBound, value + step)
+                case .decrement: value = max(range.lowerBound, value - step)
+                @unknown default: return
+                }
+                lastDragged = Date()
+                onValueChange?(value)
+            }
         }
     }
 }

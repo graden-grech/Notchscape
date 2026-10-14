@@ -21,6 +21,7 @@ enum OnboardingStep {
 private let calendarService = CalendarService()
 
 struct OnboardingView: View {
+    @ObservedObject private var performance = AppPerformanceManager.shared
     @State var step: OnboardingStep = .welcome
     let onFinish: () -> Void
     let onOpenSettings: () -> Void
@@ -140,6 +141,8 @@ struct OnboardingView: View {
             }
         }
         .frame(width: 400, height: 600)
+        .toggleStyle(LiquidGlassToggleStyle())
+        .transaction { if performance.suppressAnimations { $0.animation = nil; $0.disablesAnimations = true } }
     }
 
     // MARK: - Permission Request Logic
