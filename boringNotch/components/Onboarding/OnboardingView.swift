@@ -141,7 +141,8 @@ struct OnboardingView: View {
             }
         }
         .frame(width: 400, height: 600)
-        .toggleStyle(LiquidGlassToggleStyle())
+        .toggleStyle(CompactSwitchToggleStyle())
+        .controlSize(.regular)
         .transaction { if performance.suppressAnimations { $0.animation = nil; $0.disablesAnimations = true } }
     }
 

@@ -1,61 +1,11 @@
 import SwiftUI
 
-/// Glass only on the switch track, with native Toggle accessibility semantics.
-struct LiquidGlassToggleStyle: ToggleStyle {
+/// Only chooses Apple's small size; drawing, drag tracking and glass remain native.
+struct CompactSwitchToggleStyle: ToggleStyle {
     func makeBody(configuration: Configuration) -> some View {
-        GlassSwitch(configuration: configuration)
-    }
-
-    private struct GlassSwitch: View {
-        var configuration: ToggleStyleConfiguration
-        @ObservedObject private var performance = AppPerformanceManager.shared
-        @Environment(\.isEnabled) private var isEnabled
-        @FocusState private var focused: Bool
-        private var accent: Color { .effectiveAccent }
-
-        var body: some View {
-            Button {
-                withAnimation(performance.suppressAnimations ? nil : .smooth(duration: 0.18)) {
-                    configuration.isOn.toggle()
-                }
-            } label: {
-                HStack(spacing: 12) {
-                    configuration.label.foregroundStyle(.primary)
-                    Spacer(minLength: 8)
-                    track
-                        .overlay {
-                            Circle().fill(.white.opacity(0.95)).frame(width: 22, height: 22)
-                                .offset(x: configuration.isOn ? 10 : -10)
-                        }
-                        .overlay {
-                            Capsule().strokeBorder(focused ? accent : .clear, lineWidth: 2)
-                                .padding(-3)
-                        }
-                        .opacity(isEnabled ? 1 : 0.5)
-                        .accessibilityHidden(true)
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .focused($focused)
-            .accessibilityRepresentation {
-                Toggle(isOn: configuration.$isOn) { configuration.label }
-                    .toggleStyle(.switch)
-            }
-        }
-
-        @ViewBuilder private var track: some View {
-            if performance.reduceTransparency || performance.lowImpact {
-                Capsule().fill(configuration.isOn ? accent : Color(white: 0.28))
-                    .frame(width: 50, height: 28)
-            } else if #available(macOS 26.0, *) {
-                Capsule().fill(.clear).frame(width: 50, height: 28)
-                    .glassEffect(.regular.tint(configuration.isOn ? accent.opacity(0.55) : .white.opacity(0.08)).interactive(), in: Capsule())
-            } else {
-                Capsule().fill(.thinMaterial).frame(width: 50, height: 28)
-                    .overlay { Capsule().fill(configuration.isOn ? accent.opacity(0.65) : .clear) }
-            }
-        }
+        Toggle(isOn: configuration.$isOn) { configuration.label }
+            .toggleStyle(.switch)
+            .controlSize(.small)
     }
 }
 

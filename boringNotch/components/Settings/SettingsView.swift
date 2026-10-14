@@ -155,7 +155,8 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .toggleStyle(LiquidGlassToggleStyle())
+        .toggleStyle(CompactSwitchToggleStyle())
+        .controlSize(.regular)
         .frame(minWidth: 620, idealWidth: 700, maxWidth: .infinity, minHeight: 500, maxHeight: .infinity)
         .background(LiquidGlassSettingsBackground())
         .tint(currentAccent)
@@ -613,8 +614,8 @@ struct HUD: View {
                     Spacer(minLength: 40)
                     Defaults.Toggle("", key: .hudReplacement)
                     .labelsHidden()
-                    .toggleStyle(LiquidGlassToggleStyle())
-                    .controlSize(.large)
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
                     .disabled(!accessibilityAuthorized)
                 }
                 
