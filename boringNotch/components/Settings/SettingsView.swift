@@ -658,10 +658,21 @@ struct HUD: View {
 
                 if accessibilityAuthorized {
                     Label(
-                        hudInterceptorActive ? "HUD interceptor is active" : "Turn on Replace system HUD to start the interceptor",
+                        hudInterceptorActive ? "HUD interceptor is active" :
+                            (hudReplacement ? "HUD is enabled but its interceptor is not running" : "Turn on Replace system HUD to start the interceptor"),
                         systemImage: hudInterceptorActive ? "checkmark.circle.fill" : "info.circle"
                     )
                     .foregroundStyle(hudInterceptorActive ? .green : .secondary)
+
+                    if hudReplacement {
+                        Button("Restart HUD") {
+                            Task {
+                                MediaKeyInterceptor.shared.stop()
+                                hudInterceptorActive = await MediaKeyInterceptor.shared.start(promptIfNeeded: false)
+                                if !hudInterceptorActive { MediaKeyInterceptor.shared.recoverIfNeeded() }
+                            }
+                        }
+                    }
                 }
             }
             
@@ -733,13 +744,17 @@ struct HUD: View {
         .navigationTitle("HUDs")
         .task {
             accessibilityAuthorized = await XPCHelperClient.shared.isAccessibilityAuthorized()
-            hudInterceptorActive = MediaKeyInterceptor.shared.isActive
+            if accessibilityAuthorized && hudReplacement {
+                hudInterceptorActive = await MediaKeyInterceptor.shared.start(promptIfNeeded: false)
+            } else {
+                hudInterceptorActive = MediaKeyInterceptor.shared.isActive
+            }
         }
         .onAppear {
             XPCHelperClient.shared.startMonitoringAccessibilityAuthorization()
         }
         .onDisappear {
-            XPCHelperClient.shared.stopMonitoringAccessibilityAuthorization()
+            if !hudReplacement { XPCHelperClient.shared.stopMonitoringAccessibilityAuthorization() }
         }
         .onReceive(NotificationCenter.default.publisher(for: .accessibilityAuthorizationChanged)) { notification in
             if let granted = notification.userInfo?["granted"] as? Bool {

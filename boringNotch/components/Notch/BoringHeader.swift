@@ -71,7 +71,7 @@ struct BoringHeader: View {
                             }) {
                                 Image(systemName: "web.camera")
                                     .foregroundStyle(.white)
-                                    .frame(width: 30, height: 30)
+                                    .frame(width: NotchHeaderMetrics.controlHeight, height: NotchHeaderMetrics.controlHeight)
                                     .liquidGlassCapsule()
                             }
                             .buttonStyle(PlainButtonStyle())
@@ -87,7 +87,7 @@ struct BoringHeader: View {
                             }) {
                                 Image(systemName: "gear")
                                     .foregroundStyle(.white)
-                                    .frame(width: 30, height: 30)
+                                    .frame(width: NotchHeaderMetrics.controlHeight, height: NotchHeaderMetrics.controlHeight)
                                     .liquidGlassCapsule()
                             }
                             .buttonStyle(PlainButtonStyle())

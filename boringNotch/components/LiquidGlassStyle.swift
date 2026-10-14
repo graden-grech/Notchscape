@@ -1,5 +1,9 @@
 import SwiftUI
 
+enum NotchHeaderMetrics {
+    static let controlHeight: CGFloat = 30
+}
+
 /// Only chooses Apple's small size; drawing, drag tracking and glass remain native.
 struct CompactSwitchToggleStyle: ToggleStyle {
     func makeBody(configuration: Configuration) -> some View {

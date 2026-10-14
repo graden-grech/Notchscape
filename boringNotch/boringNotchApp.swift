@@ -368,9 +368,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
             if hudEnabled {
                 XPCHelperClient.shared.startMonitoringAccessibilityAuthorization()
-                _ = await MediaKeyInterceptor.shared.start(
+                let started = await MediaKeyInterceptor.shared.start(
                     promptIfNeeded: !accessibilityGranted
                 )
+                if !started { MediaKeyInterceptor.shared.recoverIfNeeded() }
             }
         }
 
@@ -380,6 +381,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             name: .accessibilityAuthorizationChanged,
             object: nil
         )
+
+        NotificationCenter.default.addObserver(self,
+            selector: #selector(recoverHUDIfNeeded(_:)),
+            name: NSApplication.didBecomeActiveNotification, object: NSApp)
+        NSWorkspace.shared.notificationCenter.addObserver(self,
+            selector: #selector(recoverHUDIfNeeded(_:)),
+            name: NSWorkspace.didWakeNotification, object: nil)
 
         NotificationCenter.default.addObserver(
             self,
@@ -536,6 +544,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         previousScreens = NSScreen.screens
+    }
+
+    @objc private func recoverHUDIfNeeded(_ notification: Notification) {
+        Task { @MainActor in MediaKeyInterceptor.shared.recoverIfNeeded() }
     }
 
     @objc private func accessibilityAuthorizationDidChange(_ notification: Notification) {

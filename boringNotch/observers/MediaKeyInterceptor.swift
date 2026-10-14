@@ -28,6 +28,8 @@ final class MediaKeyInterceptor {
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
     private var isStarting = false
+    private var recoveryTask: Task<Void, Never>?
+    private var recoveryGeneration = UUID()
     private let step: Float = 1.0 / 16.0
     private var audioPlayer: AVAudioPlayer?
     
@@ -48,16 +50,20 @@ final class MediaKeyInterceptor {
     @discardableResult
     @MainActor
     func start(promptIfNeeded: Bool = false) async -> Bool {
-        guard eventTap == nil else { return true }
-        guard !isStarting else { return false }
-        isStarting = true
-        defer { isStarting = false }
-        
-        // Ensure HUD replacement is enabled
         guard Defaults[.hudReplacement] else {
             stop()
             return false
         }
+        if let existing = eventTap {
+            if CFMachPortIsValid(existing) {
+                CGEvent.tapEnable(tap: existing, enable: true)
+                if CGEvent.tapIsEnabled(tap: existing) { return true }
+            }
+            tearDownEventTap()
+        }
+        guard !isStarting else { return false }
+        isStarting = true
+        defer { isStarting = false }
         
         // Check accessibility authorization
         let authorized = await XPCHelperClient.shared.isAccessibilityAuthorized()
@@ -70,6 +76,9 @@ final class MediaKeyInterceptor {
                 return false
             }
         }
+
+        // A preference change or stop can happen while permission is checked.
+        guard !Task.isCancelled, Defaults[.hudReplacement] else { return false }
         
         let mask = CGEventMask(1 << kSystemDefinedEventType.rawValue)
         eventTap = CGEvent.tapCreate(
@@ -93,21 +102,52 @@ final class MediaKeyInterceptor {
         
         if let eventTap {
             runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, eventTap, 0)
-            if let runLoopSource {
-                CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
+            guard let runLoopSource else {
+                tearDownEventTap()
+                return false
             }
+            CFRunLoopAddSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
             CGEvent.tapEnable(tap: eventTap, enable: true)
             NSLog("Boring Notch HUD: media-key event tap is active")
-            return true
+            return CGEvent.tapIsEnabled(tap: eventTap)
         }
 
         NSLog("Boring Notch HUD: failed to create the media-key event tap")
         return false
     }
 
-    var isActive: Bool { eventTap != nil }
+    var isActive: Bool {
+        guard runLoopSource != nil, let eventTap, CFMachPortIsValid(eventTap) else { return false }
+        return CGEvent.tapIsEnabled(tap: eventTap)
+    }
+
+    /// Bounded retries after launch/wake; no permanent watchdog or idle polling.
+    @MainActor
+    func recoverIfNeeded() {
+        guard Defaults[.hudReplacement], !isActive, recoveryTask == nil else { return }
+        let generation = UUID()
+        recoveryGeneration = generation
+        recoveryTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                if self.recoveryGeneration == generation { self.recoveryTask = nil }
+            }
+            for delay in [0.0, 0.4, 1.2] {
+                if delay > 0 { try? await Task.sleep(for: .seconds(delay)) }
+                guard !Task.isCancelled, Defaults[.hudReplacement] else { return }
+                if await self.start(promptIfNeeded: false) { return }
+            }
+        }
+    }
     
     func stop() {
+        recoveryGeneration = UUID()
+        recoveryTask?.cancel()
+        recoveryTask = nil
+        tearDownEventTap()
+    }
+
+    private func tearDownEventTap() {
         if let eventTap {
             CGEvent.tapEnable(tap: eventTap, enable: false)
         }
@@ -115,6 +155,7 @@ final class MediaKeyInterceptor {
             CFRunLoopRemoveSource(CFRunLoopGetMain(), runLoopSource, .commonModes)
         }
         runLoopSource = nil
+        if let eventTap { CFMachPortInvalidate(eventTap) }
         eventTap = nil
     }
     

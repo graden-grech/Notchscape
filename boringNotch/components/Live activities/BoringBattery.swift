@@ -200,9 +200,8 @@ struct BoringBatteryView: View {
             }
         }) {
             if presentation == .enhanced && !isForNotification {
-                indicator.padding(.horizontal, 8).frame(height: 28)
+                indicator.padding(.horizontal, 8).frame(height: NotchHeaderMetrics.controlHeight)
                     .liquidGlassCapsule()
-                    .frame(height: 30)
             } else {
                 indicator
             }
