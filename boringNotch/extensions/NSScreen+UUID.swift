@@ -9,6 +9,11 @@ import AppKit
 import CoreGraphics
 
 extension NSScreen {
+    var isBuiltInDisplay: Bool {
+        guard let number = deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else { return false }
+        return CGDisplayIsBuiltin(CGDirectDisplayID(number.uint32Value)) != 0
+    }
+
     /// Returns a persistent UUID for this display
     var displayUUID: String? {
         guard let number = deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else {

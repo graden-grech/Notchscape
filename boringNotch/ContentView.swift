@@ -495,6 +495,12 @@ struct ContentView: View {
                 }
             }
         }
+        .onDisappear {
+            // The lock-screen window replaces, rather than overlays, this tree.
+            // Cancel pending hover/drop work when private Home content detaches.
+            hoverTask?.cancel()
+            anyDropDebounceTask?.cancel()
+        }
     }
 
     @ViewBuilder
@@ -1508,6 +1514,82 @@ struct FullScreenDropDelegate: DropDelegate {
         return true
     }
 
+}
+
+/// Intentionally has no access to calendars, media metadata, Shelf, account,
+/// location or AI managers. Never insert the ordinary menu beneath this view.
+struct LockedNotchHomeView: View {
+    let closedSize: CGSize
+    let hasPhysicalNotch: Bool
+    let usesIsland: Bool
+    var endPreview: (() -> Void)? = nil
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var expanded = false
+    @State private var hoverTask: Task<Void, Never>?
+
+    private var height: CGFloat { max(22, closedSize.height) }
+    private var width: CGFloat { hasPhysicalNotch ? closedSize.width + 52 : max(92, closedSize.width) }
+
+    var body: some View {
+        VStack(spacing: 8) {
+            if expanded {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 24, weight: .medium))
+                    .padding(.top, hasPhysicalNotch ? height + 10 : 18)
+                Text("Mac Locked")
+                    .font(.headline)
+                Text("Unlock your Mac to see Home.")
+                    .font(.callout).foregroundStyle(.secondary)
+                if let endPreview {
+                    Button("End Preview", action: endPreview)
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                }
+                Spacer(minLength: 14)
+            } else if hasPhysicalNotch {
+                HStack(spacing: 0) {
+                    Image(systemName: "lock.fill").frame(width: 26)
+                    Color.clear.frame(width: closedSize.width)
+                    Color.clear.frame(width: 26)
+                }
+                .font(.system(size: 12, weight: .semibold))
+            } else {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 12, weight: .semibold))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        .foregroundStyle(.white)
+        .frame(width: expanded ? max(320, width) : width,
+               height: expanded ? (hasPhysicalNotch ? height + 156 : 176) : height)
+        .background(.black)
+        .conditionalModifier(usesIsland) { view in
+            view.clipShape(RoundedRectangle(cornerRadius: expanded ? 28 : height / 2, style: .continuous))
+                .offset(y: 3)
+        }
+        .conditionalModifier(!usesIsland) { view in
+            view.clipShape(NotchShape(topCornerRadius: 8, bottomCornerRadius: expanded ? 28 : 16))
+        }
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Locked Home menu")
+        .accessibilityAction(named: "Open menu") { expanded = true }
+        .onTapGesture { expanded.toggle() }
+        .onHover { hovering in
+            hoverTask?.cancel()
+            guard hovering else { expanded = false; return }
+            guard Defaults[.openNotchOnHover] else { return }
+            hoverTask = Task { @MainActor in
+                do { try await Task.sleep(for: .seconds(Defaults[.minimumHoverDuration])) }
+                catch { return }
+                expanded = true
+            }
+        }
+        .animation(reduceMotion ? nil : .spring(response: 0.38, dampingFraction: 0.88), value: expanded)
+        .frame(maxWidth: windowSize.width, maxHeight: windowSize.height, alignment: .top)
+        .preferredColorScheme(.dark)
+        .onDisappear { hoverTask?.cancel() }
+    }
 }
 
 struct GeneralDropTargetDelegate: DropDelegate {

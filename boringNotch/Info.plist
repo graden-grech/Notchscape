@@ -2,6 +2,27 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NotchAccountDomain</key>
+	<string>dev-f31y4vcdyhkcfqf0.us.auth0.com</string>
+	<key>NotchAccountClientID</key>
+	<string>iT6fqxlZSQANST8qrPs7wMEOgpLPDXFi</string>
+	<key>NotchAccountAudience</key>
+	<string>https://notsoboringnotch.app/settings</string>
+	<key>NotchAccountSettingsURL</key>
+	<string>https://notsoboringnotch-settings.notsoboringnotch-settings-service.workers.dev</string>
+	<key>NotchAppleSignInEnabled</key>
+	<false/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>theboringteam.boringnotch.account</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>theboringteam.boringnotch</string>
+			</array>
+		</dict>
+	</array>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Boring Notch uses your location to show local weather.</string>
 	<key>NSAppTransportSecurity</key>
@@ -21,5 +42,7 @@
 	<array>
 		<dict/>
 	</array>
+	<key>BNUpdateChannel</key>
+	<string>beta</string>
 </dict>
 </plist>

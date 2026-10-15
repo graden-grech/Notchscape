@@ -1,5 +1,38 @@
 import Foundation
 
+/// Locked windows must never reuse the normal Home/Shelf/Live view hierarchy.
+enum NotchLockScreenPresentation: Equatable {
+    case normal, hidden, lockedHome
+
+    static func resolve(isLocked: Bool, enabled: Bool, preview: Bool = false) -> Self {
+        if isLocked { return enabled ? .lockedHome : .hidden }
+        return preview ? .lockedHome : .normal
+    }
+}
+
+struct NotchDisplayDestination: Equatable {
+    let id: String
+    let isBuiltIn: Bool
+}
+
+/// Hardware visibility is local to each Mac; it is never restored from an account.
+enum NotchDisplayPolicy {
+    static func eligible(_ displays: [NotchDisplayDestination], showExternal: Bool) -> [NotchDisplayDestination] {
+        displays.filter { showExternal || $0.isBuiltIn }
+    }
+
+    static func selectedID(in displays: [NotchDisplayDestination], preferred: String?, main: String?,
+                           automaticallySwitch: Bool, showExternal: Bool) -> String? {
+        let available = eligible(displays, showExternal: showExternal)
+        if let preferred, available.contains(where: { $0.id == preferred }) { return preferred }
+        // An external preference is retained for later, but cannot defeat the
+        // explicit external-display off switch, even with automatic switching off.
+        if !showExternal { return available.first(where: \.isBuiltIn)?.id }
+        if automaticallySwitch, let main, available.contains(where: { $0.id == main }) { return main }
+        return nil
+    }
+}
+
 enum HomeWidget: String, Codable, CaseIterable, Identifiable {
     case music, calendar, weather, quickActions
     var id: Self { self }

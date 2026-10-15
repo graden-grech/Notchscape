@@ -7,6 +7,14 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		ACCA00080000000000000008 /* AccountSignInAttempt.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCF00080000000000000008; };
+		ACCA00060000000000000006 /* AccountCredentialStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCF00060000000000000006; };
+		ACCA00070000000000000007 /* SimpleKeychain in Frameworks */ = {isa = PBXBuildFile; productRef = ACCD00070000000000000007; };
+		ACCA00050000000000000005 /* AccountSDKNotices.txt in Resources */ = {isa = PBXBuildFile; fileRef = ACCF00050000000000000005; };
+		ACCA00010000000000000001 /* AccountSettingsPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCF00010000000000000001; };
+		ACCA00020000000000000002 /* AccountManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCF00020000000000000002; };
+		ACCA00030000000000000003 /* AccountSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCF00030000000000000003; };
+		ACCA00040000000000000004 /* Auth0 in Frameworks */ = {isa = PBXBuildFile; productRef = ACCD00040000000000000004; };
 		C0D3A0080000000000000008 /* CustomizationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F0080000000000000008; };
 		C0D3A0090000000000000009 /* CustomizationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F0090000000000000009; };
 		C0D3A0100000000000000010 /* CustomizationSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F0100000000000000010; };
@@ -191,6 +199,12 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		ACCF00080000000000000008 /* AccountSignInAttempt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountSignInAttempt.swift; sourceTree = "<group>"; };
+		ACCF00060000000000000006 /* AccountCredentialStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountCredentialStorage.swift; sourceTree = "<group>"; };
+		ACCF00050000000000000005 /* AccountSDKNotices.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = AccountSDKNotices.txt; sourceTree = "<group>"; };
+		ACCF00010000000000000001 /* AccountSettingsPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountSettingsPolicy.swift; sourceTree = "<group>"; };
+		ACCF00020000000000000002 /* AccountManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountManager.swift; sourceTree = "<group>"; };
+		ACCF00030000000000000003 /* AccountSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountSettingsView.swift; sourceTree = "<group>"; };
 		C0D3F0080000000000000008 /* CustomizationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomizationModels.swift; sourceTree = "<group>"; };
 		C0D3F0090000000000000009 /* CustomizationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomizationManager.swift; sourceTree = "<group>"; };
 		C0D3F0100000000000000010 /* CustomizationSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CustomizationSettings.swift; sourceTree = "<group>"; };
@@ -358,6 +372,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ACCA00070000000000000007 /* SimpleKeychain in Frameworks */,
+				ACCA00040000000000000004 /* Auth0 in Frameworks */,
 				111BEA5F2ED07A340079DD4E /* MacroVisionKit in Frameworks */,
 				9A987A102C73CA8D005CA465 /* Collections in Frameworks */,
 				1194E8852EA57D23009C82D6 /* SkyLightWindow in Frameworks */,
@@ -531,6 +547,9 @@
 		147163B52C5D804B0068B555 /* managers */ = {
 			isa = PBXGroup;
 			children = (
+				ACCF00060000000000000006 /* AccountCredentialStorage.swift */,
+				ACCF00080000000000000008 /* AccountSignInAttempt.swift */,
+				ACCF00020000000000000002 /* AccountManager.swift */,
 				C0D3F0090000000000000009 /* CustomizationManager.swift */,
 				C0D3F0010000000000000001 /* AgentStatusManager.swift */,
 				C0D3F0020000000000000002 /* WeatherManager.swift */,
@@ -606,6 +625,7 @@
 				14CEF4192C5CAED400855D72 /* Assets.xcassets */,
 				14A7E5962C65FD31008C1BE9 /* boring.m4a */,
 				1443E7F42C609E650027C1FC /* Info.plist */,
+				ACCF00050000000000000005 /* AccountSDKNotices.txt */,
 				14CEF41E2C5CAED400855D72 /* boringNotch.entitlements */,
 				14CEF41B2C5CAED400855D72 /* Preview Content */,
 				112FB72F2CCF12CC0015238C /* private */,
@@ -652,6 +672,7 @@
 		14D570C72C5F38760011E668 /* models */ = {
 			isa = PBXGroup;
 			children = (
+				ACCF00010000000000000001 /* AccountSettingsPolicy.swift */,
 				C0D3F0080000000000000008 /* CustomizationModels.swift */,
 				11F748812ECB07A400F841DB /* MusicControlButton.swift */,
 				118D1FD02E98FF5F00A2FF63 /* SharingStateManager.swift */,
@@ -746,6 +767,7 @@
 		B18654302C6F4590000B926A /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				ACCF00030000000000000003 /* AccountSettingsView.swift */,
 				C0D3F0100000000000000010 /* CustomizationSettings.swift */,
 				11F748832ECB27DC00F841DB /* MusicSlotConfigurationView.swift */,
 				11C5E3152DFE88510065821E /* SettingsView.swift */,
@@ -832,6 +854,8 @@
 			);
 			name = boringNotch;
 			packageProductDependencies = (
+				ACCD00070000000000000007 /* SimpleKeychain */,
+				ACCD00040000000000000004 /* Auth0 */,
 				14D032192C68F32E0096E6A1 /* LaunchAtLogin */,
 				14D0321C2C68F3350096E6A1 /* Sparkle */,
 				B18654382C6F4990000B926A /* KeyboardShortcuts */,
@@ -878,6 +902,8 @@
 			);
 			mainGroup = 14CEF4092C5CAED200855D72;
 			packageReferences = (
+				ACCE00070000000000000007 /* XCRemoteSwiftPackageReference "SimpleKeychain" */,
+				ACCE00040000000000000004 /* XCRemoteSwiftPackageReference "Auth0.swift" */,
 				14D032182C68F32E0096E6A1 /* XCRemoteSwiftPackageReference "LaunchAtLogin-Modern" */,
 				14D0321B2C68F3350096E6A1 /* XCRemoteSwiftPackageReference "Sparkle" */,
 				B18654372C6F4990000B926A /* XCRemoteSwiftPackageReference "KeyboardShortcuts" */,
@@ -912,6 +938,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ACCA00050000000000000005 /* AccountSDKNotices.txt in Resources */,
 				14CEF41D2C5CAED400855D72 /* Preview Assets.xcassets in Resources */,
 				14CEF41A2C5CAED400855D72 /* Assets.xcassets in Resources */,
 				112B0EB82E30DD0F00562D6C /* MediaRemoteAdapterTestClient in Resources */,
@@ -943,6 +970,11 @@
 				C0D3A0060000000000000006 /* SystemDashboardView.swift in Sources */,
 				C0D3A0070000000000000007 /* SportsActivityManager.swift in Sources */,
 				C0D3A0080000000000000008 /* CustomizationModels.swift in Sources */,
+				ACCA00010000000000000001 /* AccountSettingsPolicy.swift in Sources */,
+				ACCA00060000000000000006 /* AccountCredentialStorage.swift in Sources */,
+				ACCA00080000000000000008 /* AccountSignInAttempt.swift in Sources */,
+				ACCA00020000000000000002 /* AccountManager.swift in Sources */,
+				ACCA00030000000000000003 /* AccountSettingsView.swift in Sources */,
 				C0D3A0090000000000000009 /* CustomizationManager.swift in Sources */,
 				C0D3A0100000000000000010 /* CustomizationSettings.swift in Sources */,
 				115C12EC2ED3D003009754CA /* OpenNotchHUD.swift in Sources */,
@@ -1082,14 +1114,14 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 284;
+				CURRENT_PROJECT_VERSION = 285;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BoringNotchXPCHelper/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = BoringNotchXPCHelper;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 2.8.3;
+				MARKETING_VERSION = "2.9.0-beta.1";
 				PRODUCT_BUNDLE_IDENTIFIER = theboringteam.boringnotch.BoringNotchXPCHelper;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -1107,14 +1139,14 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 284;
+				CURRENT_PROJECT_VERSION = 285;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BoringNotchXPCHelper/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = BoringNotchXPCHelper;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 2.8.3;
+				MARKETING_VERSION = "2.9.0-beta.1";
 				PRODUCT_BUNDLE_IDENTIFIER = theboringteam.boringnotch.BoringNotchXPCHelper;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -1261,7 +1293,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 284;
+				CURRENT_PROJECT_VERSION = 285;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"boringNotch/Preview Content\"";
 				DEVELOPMENT_TEAM = "";
@@ -1289,7 +1321,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 2.8.3;
+				MARKETING_VERSION = "2.9.0-beta.1";
 				PRODUCT_BUNDLE_IDENTIFIER = theboringteam.boringnotch;
 				PRODUCT_NAME = "Boring Notch";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1316,7 +1348,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 284;
+				CURRENT_PROJECT_VERSION = 285;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"boringNotch/Preview Content\"";
 				DEVELOPMENT_TEAM = "";
@@ -1343,7 +1375,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 2.8.3;
+				MARKETING_VERSION = "2.9.0-beta.1";
 				PRODUCT_BUNDLE_IDENTIFIER = theboringteam.boringnotch;
 				PRODUCT_NAME = "Boring Notch";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -1390,6 +1422,16 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		ACCE00070000000000000007 /* XCRemoteSwiftPackageReference "SimpleKeychain" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/auth0/SimpleKeychain.git";
+			requirement = {kind = exactVersion; version = 1.3.0; };
+		};
+		ACCE00040000000000000004 /* XCRemoteSwiftPackageReference "Auth0.swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/auth0/Auth0.swift";
+			requirement = {kind = exactVersion; version = 3.1.0; };
+		};
 		111BE95B2ECD71E10079DD4E /* XCRemoteSwiftPackageReference "AsyncXPCConnection" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/ChimeHQ/AsyncXPCConnection";
@@ -1481,6 +1523,16 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		ACCD00070000000000000007 /* SimpleKeychain */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = ACCE00070000000000000007 /* XCRemoteSwiftPackageReference "SimpleKeychain" */;
+			productName = SimpleKeychain;
+		};
+		ACCD00040000000000000004 /* Auth0 */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = ACCE00040000000000000004 /* XCRemoteSwiftPackageReference "Auth0.swift" */;
+			productName = Auth0;
+		};
 		111BE95C2ECD71E10079DD4E /* AsyncXPCConnection */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 111BE95B2ECD71E10079DD4E /* XCRemoteSwiftPackageReference "AsyncXPCConnection" */;

@@ -10,6 +10,7 @@ import AVFoundation
 
 enum OnboardingStep {
     case welcome
+    case account
     case cameraPermission
     case calendarPermission
     case remindersPermission
@@ -32,8 +33,14 @@ struct OnboardingView: View {
             case .welcome:
                 WelcomeView {
                     withAnimation(.easeInOut(duration: 0.6)) {
-                        step = .cameraPermission
+                        step = .account
                     }
+                }
+                .transition(.opacity)
+
+            case .account:
+                AccountOnboardingView {
+                    withAnimation(.easeInOut(duration: 0.4)) { step = .cameraPermission }
                 }
                 .transition(.opacity)
 

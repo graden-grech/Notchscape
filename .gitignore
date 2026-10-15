@@ -53,3 +53,9 @@ build/
 *.xcarchive
 *.dSYM
 
+# Account service dependencies, credentials and local database state
+services/accounts/node_modules/
+services/accounts/.wrangler/
+services/accounts/.dev.vars*
+services/accounts/.env*
+

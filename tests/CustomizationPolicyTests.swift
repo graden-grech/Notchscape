@@ -16,6 +16,39 @@ struct CustomizationPolicyTests {
     }
 
     static func main() throws {
+        for preview in [false, true] {
+            check(NotchLockScreenPresentation.resolve(isLocked: true, enabled: false, preview: preview) == .hidden,
+                  "A preview cannot override lock-screen visibility being off")
+            check(NotchLockScreenPresentation.resolve(isLocked: true, enabled: true, preview: preview) == .lockedHome,
+                  "A locked Mac can only show the isolated lock view")
+        }
+        for enabled in [false, true] {
+            check(NotchLockScreenPresentation.resolve(isLocked: false, enabled: enabled) == .normal,
+                  "Unlock restores the normal menu without changing the preference")
+            check(NotchLockScreenPresentation.resolve(isLocked: false, enabled: enabled, preview: true) == .lockedHome,
+                  "Unlocked preview uses the same isolated view")
+        }
+        let builtIn = NotchDisplayDestination(id: "built-in", isBuiltIn: true)
+        let external = NotchDisplayDestination(id: "external", isBuiltIn: false)
+        let anotherExternal = NotchDisplayDestination(id: "external-two", isBuiltIn: false)
+        let displays = [external, builtIn, anotherExternal]
+        check(NotchDisplayPolicy.eligible(displays, showExternal: true) == displays, "External displays stay enabled by default")
+        check(NotchDisplayPolicy.eligible(displays, showExternal: false) == [builtIn], "All-display mode excludes every external display")
+        check(NotchDisplayPolicy.eligible([external], showExternal: false).isEmpty, "Desktop or clamshell does not secretly fall back to external")
+        for automatic in [false, true] {
+            check(NotchDisplayPolicy.selectedID(in: displays, preferred: external.id, main: external.id,
+                automaticallySwitch: automatic, showExternal: false) == builtIn.id, "Built-in fallback respects external off, automatic=\(automatic)")
+            check(NotchDisplayPolicy.selectedID(in: [external], preferred: external.id, main: external.id,
+                automaticallySwitch: automatic, showExternal: false) == nil, "No external window in clamshell, automatic=\(automatic)")
+            check(NotchDisplayPolicy.selectedID(in: displays, preferred: external.id, main: builtIn.id,
+                automaticallySwitch: automatic, showExternal: true) == external.id, "Restore the preferred external display without rewriting its ID")
+        }
+        check(NotchDisplayPolicy.selectedID(in: displays, preferred: "disconnected", main: external.id,
+            automaticallySwitch: true, showExternal: true) == external.id, "Automatic fallback still works")
+        check(NotchDisplayPolicy.selectedID(in: displays, preferred: "disconnected", main: external.id,
+            automaticallySwitch: false, showExternal: true) == nil, "Do not change original automatic-switch preference")
+        check(NotchDisplayPolicy.selectedID(in: [], preferred: nil, main: nil,
+            automaticallySwitch: true, showExternal: false) == nil, "No forced unwrap with no connected display")
         let all = HomeWidget.allCases
         check(HomeLayoutPolicy.normalized([], legacyWeatherPosition: "end") == all, "Default layout")
         check(HomeLayoutPolicy.normalized([], legacyWeatherPosition: "front") == [.weather, .music, .calendar, .quickActions], "Preserve front weather")

@@ -95,12 +95,15 @@ class BoringNotchSkyLightWindow: NSPanel {
     
     func enableSkyLight() {
         if !isSkyLightEnabled {
+            canBecomeVisibleWithoutLogin = true
+            acceptsMouseMovedEvents = true
             SkyLightOperator.shared.delegateWindow(self)
             isSkyLightEnabled = true
         }
     }
     
     func disableSkyLight() {
+        canBecomeVisibleWithoutLogin = false
         if isSkyLightEnabled {
             SkyLightOperator.shared.undelegateWindow(self)
             isSkyLightEnabled = false
@@ -108,6 +111,11 @@ class BoringNotchSkyLightWindow: NSPanel {
     }
     
     private var observers: Set<AnyCancellable> = []
+
+    override func close() {
+        disableSkyLight()
+        super.close()
+    }
     
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }

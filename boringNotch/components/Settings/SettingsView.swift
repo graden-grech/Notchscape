@@ -26,10 +26,11 @@ struct SettingsView: View {
         Color(nsColor: NSColor.resolvedAccent(theme: appTheme, customEnabled: useCustomAccentColor, customData: customAccentColorData))
     }
 
-    let updaterController: SPUStandardUpdaterController?
+    let updaterController: SPUStandardUpdaterController
 
     init(updaterController: SPUStandardUpdaterController? = nil) {
-        self.updaterController = updaterController
+        self.updaterController = updaterController ?? SPUStandardUpdaterController(
+            startingUpdater: false, updaterDelegate: nil, userDriverDelegate: nil)
     }
 
     var body: some View {
@@ -37,6 +38,9 @@ struct SettingsView: View {
             List(selection: $selectedTab) {
                 NavigationLink(value: "General") {
                     Label("General", systemImage: "gear")
+                }
+                NavigationLink(value: "Account") {
+                    Label("Account", systemImage: "person.crop.circle")
                 }
                 NavigationLink(value: "Appearance") {
                     Label("Appearance", systemImage: "eye")
@@ -88,8 +92,6 @@ struct SettingsView: View {
                 }
             }
             .listStyle(SidebarListStyle())
-            .scrollContentBackground(.hidden)
-            .background(.ultraThinMaterial)
             .tint(currentAccent)
             .toolbar(removing: .sidebarToggle)
             .navigationSplitViewColumnWidth(200)
@@ -98,6 +100,8 @@ struct SettingsView: View {
                 switch selectedTab {
                 case "General":
                     GeneralSettings()
+                case "Account":
+                    AccountSettingsView()
                 case "Appearance":
                     Appearance()
                 case "Media":
@@ -127,15 +131,7 @@ struct SettingsView: View {
                 case "Advanced":
                     Advanced()
                 case "About":
-                    if let controller = updaterController {
-                        About(updaterController: controller)
-                    } else {
-                        // Fallback with a default controller
-                        About(
-                            updaterController: SPUStandardUpdaterController(
-                                startingUpdater: false, updaterDelegate: nil,
-                                userDriverDelegate: nil))
-                    }
+                    About(updaterController: updaterController)
                 default:
                     GeneralSettings()
                 }
@@ -145,15 +141,7 @@ struct SettingsView: View {
             .background(Color.clear)
         }
         .navigationSplitViewStyle(.balanced)
-        .toolbarBackground(.visible, for: .windowToolbar)
         .toolbar(removing: .sidebarToggle)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Text("")
-                    .frame(width: 0, height: 0)
-                    .accessibilityHidden(true)
-            }
-        }
         .formStyle(.grouped)
         .toggleStyle(CompactSwitchToggleStyle())
         .controlSize(.regular)
@@ -217,6 +205,7 @@ struct GeneralSettings: View {
     @Default(.notchHeight) var notchHeight
     @Default(.notchHeightMode) var notchHeightMode
     @Default(.showOnAllDisplays) var showOnAllDisplays
+    @Default(.showOnExternalDisplays) var showOnExternalDisplays
     @Default(.automaticallySwitchDisplay) var automaticallySwitchDisplay
     @Default(.enableGestures) var enableGestures
     @Default(.openNotchOnHover) var openNotchOnHover
@@ -240,6 +229,7 @@ struct GeneralSettings: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 LaunchAtLogin.Toggle("Launch at login")
+                Group {
                 Defaults.Toggle(key: .showOnAllDisplays) {
                     Text("Show on all displays")
                 }
@@ -268,20 +258,22 @@ struct GeneralSettings: View {
                             name: Notification.Name.automaticallySwitchDisplayChanged, object: nil)
                     }
                     .disabled(showOnAllDisplays)
+                }
+                .disabled(!showOnExternalDisplays)
+                .opacity(showOnExternalDisplays ? 1 : 0.42)
             } header: {
                 Text("System features")
             }
 
             Section {
-                Picker("Style on displays without a notch", selection: $nonNotchPresentation) {
-                    ForEach(NonNotchPresentation.allCases) { presentation in
-                        Text(presentation.title).tag(presentation)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .onChange(of: nonNotchPresentation) {
-                    NotificationCenter.default.post(
-                        name: Notification.Name.notchHeightChanged, object: nil)
+                Toggle("Show on external displays", isOn: $showOnExternalDisplays)
+                    .accessibilityHint("Hides the notch and Dynamic Island on external monitors without changing your saved layout.")
+                if !showOnExternalDisplays {
+                    Label("External displays are off", systemImage: "display.slash")
+                        .font(.callout.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                    Text("External-display controls are disabled below. Your choices are kept for when you turn them back on. Open the app from Applications to return to Settings if no notch is visible.")
+                        .font(.caption).foregroundStyle(.secondary)
                 }
 
                 Picker(
@@ -317,6 +309,17 @@ struct GeneralSettings: View {
                             name: Notification.Name.notchHeightChanged, object: nil)
                     }
                 }
+                Group {
+                Picker("Style on displays without a notch", selection: $nonNotchPresentation) {
+                    ForEach(NonNotchPresentation.allCases) { presentation in
+                        Text(presentation.title).tag(presentation)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .onChange(of: nonNotchPresentation) {
+                    NotificationCenter.default.post(
+                        name: Notification.Name.notchHeightChanged, object: nil)
+                }
                 Picker("Notch height on non-notch displays", selection: $nonNotchHeightMode) {
                     Text("Match menubar height")
                         .tag(WindowHeightMode.matchMenuBar)
@@ -346,10 +349,13 @@ struct GeneralSettings: View {
                             name: Notification.Name.notchHeightChanged, object: nil)
                     }
                 }
+                }
+                .disabled(!showOnExternalDisplays)
+                .opacity(showOnExternalDisplays ? 1 : 0.42)
             } header: {
                 Text("Display style and sizing")
             } footer: {
-                Text("Dynamic Island stays inside the menu bar. Notch attaches to the top edge. Macs with a physical notch always match their hardware.")
+                Text("Turning external displays off keeps the built-in display available, if connected. Dynamic Island stays inside the menu bar; Notch attaches to the top edge. This display choice stays on this Mac and is not synced to your account.")
             }
 
             NotchBehaviour()
@@ -2301,8 +2307,17 @@ struct Advanced: View {
             Section("Window Behavior") {
                 Defaults.Toggle(key: .extendHoverArea) { Text("Extend hover area") }
                 Defaults.Toggle(key: .hideTitleBar) { Text("Hide title bar") }
-                Defaults.Toggle(key: .showOnLockScreen) { Text("Show notch on lock screen") }
                 Defaults.Toggle(key: .hideFromScreenRecording) { Text("Hide from screen recording") }
+            }
+            Section {
+                Defaults.Toggle(key: .showOnLockScreen) { Text("Show locked Home dropdown") }
+                Button("Preview Locked Home…") {
+                    NotificationCenter.default.post(name: .previewLockedHomeRequested, object: nil)
+                }
+            } header: {
+                Text("Lock Screen · Experimental")
+            } footer: {
+                Text("Shows a lock instead of your Home widgets while your Mac is locked. Hover or click to expand the lock view; unlock your Mac normally to return to Home. Calendar, files, AI activity and account details are not shown. Uses the existing experimental lock-screen window integration; interaction depends on macOS. Preview does not lock your Mac and ends after 30 seconds.")
             }
             Text("App icons, themes, accent colors and Home layout are in Appearance. Performance options are in General.")
                 .font(.caption).foregroundStyle(.secondary)

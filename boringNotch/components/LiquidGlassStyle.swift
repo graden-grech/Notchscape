@@ -31,7 +31,7 @@ enum AgentProviderStyle {
     }
 
     static func symbol(for provider: String) -> String {
-        isClaude(provider) ? "sparkle" : "apple.intelligence"
+        isClaude(provider) ? "sparkle" : "terminal.fill"
     }
 }
 
@@ -130,13 +130,6 @@ struct LiquidGlassSettingsBackground: View {
     var body: some View {
         Rectangle()
             .fill(Color(nsColor: .windowBackgroundColor))
-            .overlay {
-                LinearGradient(
-                    colors: [Color.white.opacity(0.035), .clear],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            }
         .ignoresSafeArea()
         .allowsHitTesting(false)
     }

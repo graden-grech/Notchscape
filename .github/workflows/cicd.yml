@@ -44,6 +44,21 @@ jobs:
         "$RUNNER_TEMP/customization-policy-tests"
     - name: Check workflow and release helpers
       run: python3 -m unittest discover -s .github/scripts/tests -v
+    - name: Check account settings allowlist
+      run: |
+        set -euo pipefail
+        swiftc boringNotch/models/AccountSettingsPolicy.swift \
+          tests/AccountSettingsPolicyTests.swift -o "$RUNNER_TEMP/account-policy-tests"
+        "$RUNNER_TEMP/account-policy-tests"
+    - name: Check first-login Keychain handling
+      run: bash .github/scripts/test_account_storage.sh
+    - name: Check sign-in cancellation and timeout
+      run: |
+        set -euo pipefail
+        swiftc -parse-as-library -swift-version 6 \
+          boringNotch/managers/AccountSignInAttempt.swift \
+          tests/AccountSignInAttemptTests.swift -o "$RUNNER_TEMP/account-sign-in-tests"
+        "$RUNNER_TEMP/account-sign-in-tests"
     - # TODO: pin to immutable SHA
       uses: mxcl/xcodebuild@d3ee9b419c1be9a988086c58fe0988f32d99cfc5 # v3.6.0
       with:
