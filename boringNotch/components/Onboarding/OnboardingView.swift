@@ -33,16 +33,22 @@ struct OnboardingView: View {
             case .welcome:
                 WelcomeView {
                     withAnimation(.easeInOut(duration: 0.6)) {
-                        step = .account
+                        step = AccountFeaturePolicy.enabled ? .account : .cameraPermission
                     }
                 }
                 .transition(.opacity)
 
             case .account:
-                AccountOnboardingView {
-                    withAnimation(.easeInOut(duration: 0.4)) { step = .cameraPermission }
+                if AccountFeaturePolicy.enabled {
+                    AccountOnboardingView {
+                        withAnimation(.easeInOut(duration: 0.4)) { step = .cameraPermission }
+                    }
+                    .transition(.opacity)
+                } else {
+                    // Also recover an explicitly restored/old account step
+                    // without constructing AccountManager or opening a browser.
+                    Color.clear.onAppear { step = .cameraPermission }
                 }
-                .transition(.opacity)
 
             case .cameraPermission:
                 PermissionRequestView(

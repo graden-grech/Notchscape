@@ -39,8 +39,10 @@ struct SettingsView: View {
                 NavigationLink(value: "General") {
                     Label("General", systemImage: "gear")
                 }
-                NavigationLink(value: "Account") {
-                    Label("Account", systemImage: "person.crop.circle")
+                if AccountFeaturePolicy.enabled {
+                    NavigationLink(value: "Account") {
+                        Label("Account", systemImage: "person.crop.circle")
+                    }
                 }
                 NavigationLink(value: "Appearance") {
                     Label("Appearance", systemImage: "eye")
@@ -101,7 +103,11 @@ struct SettingsView: View {
                 case "General":
                     GeneralSettings()
                 case "Account":
-                    AccountSettingsView()
+                    if AccountFeaturePolicy.enabled {
+                        AccountSettingsView()
+                    } else {
+                        GeneralSettings()
+                    }
                 case "Appearance":
                     Appearance()
                 case "Media":

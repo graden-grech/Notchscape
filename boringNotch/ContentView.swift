@@ -1527,36 +1527,26 @@ struct LockedNotchHomeView: View {
     @State private var expanded = false
     @State private var hoverTask: Task<Void, Never>?
 
-    private var height: CGFloat { max(22, closedSize.height) }
-    private var width: CGFloat { hasPhysicalNotch ? closedSize.width + 52 : max(92, closedSize.width) }
+    private var height: CGFloat { max(usesIsland ? 18 : 22, closedSize.height) }
+    private var width: CGFloat { closedSize.width }
 
     var body: some View {
         VStack(spacing: 8) {
             if expanded {
+                Spacer(minLength: hasPhysicalNotch ? height + 10 : 18)
                 Image(systemName: "lock.fill")
                     .font(.system(size: 24, weight: .medium))
-                    .padding(.top, hasPhysicalNotch ? height + 10 : 18)
-                Text("Mac Locked")
-                    .font(.headline)
-                Text("Unlock your Mac to see Home.")
-                    .font(.callout).foregroundStyle(.secondary)
+                    .accessibilityLabel("Mac locked. Unlock your Mac to see Home.")
                 if let endPreview {
                     Button("End Preview", action: endPreview)
                         .buttonStyle(.bordered)
                         .controlSize(.small)
                 }
                 Spacer(minLength: 14)
-            } else if hasPhysicalNotch {
-                HStack(spacing: 0) {
-                    Image(systemName: "lock.fill").frame(width: 26)
-                    Color.clear.frame(width: closedSize.width)
-                    Color.clear.frame(width: 26)
-                }
-                .font(.system(size: 12, weight: .semibold))
             } else {
-                Image(systemName: "lock.fill")
-                    .font(.system(size: 12, weight: .semibold))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // The closed notch stays plain and at its original width.
+                // Only the expanded Home dropdown shows the lock symbol.
+                Color.clear.accessibilityHidden(true)
             }
         }
         .foregroundStyle(.white)

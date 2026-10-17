@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NotchAccountsEnabled</key>
+	<false/>
 	<key>NotchAccountDomain</key>
 	<string>dev-f31y4vcdyhkcfqf0.us.auth0.com</string>
 	<key>NotchAccountClientID</key>
@@ -43,6 +45,6 @@
 		<dict/>
 	</array>
 	<key>BNUpdateChannel</key>
-	<string>beta</string>
+	<string>stable</string>
 </dict>
 </plist>

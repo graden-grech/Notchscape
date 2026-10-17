@@ -170,8 +170,15 @@ struct AccountOnboardingView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             }
-            Button(account.user == nil ? "Continue Without an Account" : "Continue") { onContinue() }
-                .buttonStyle(.borderedProminent).disabled(account.busy)
+            Button("Continue Without an Account") {
+                account.continueWithoutAccount()
+                onContinue()
+            }
+            .buttonStyle(.borderedProminent)
+            if account.user != nil {
+                Button("Continue with This Account", action: onContinue)
+                    .disabled(account.busy)
+            }
             Text("Camera, calendar, AI activity and HUD access stay on your Mac.")
                 .font(.caption).foregroundStyle(.secondary)
         }

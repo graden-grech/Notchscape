@@ -1,4 +1,17 @@
 import Foundation
+import CoreFoundation
+
+/// Release hold, not an authentication/authorization boundary. Missing or
+/// malformed configuration must never enable the unfinished account feature.
+enum AccountFeaturePolicy {
+    static let enabled = isEnabled(Bundle.main.object(forInfoDictionaryKey: "NotchAccountsEnabled"))
+
+    static func isEnabled(_ value: Any?) -> Bool {
+        guard let number = value as? NSNumber,
+              CFGetTypeID(number) == CFBooleanGetTypeID() else { return false }
+        return number.boolValue
+    }
+}
 
 /// This is deliberately not a dump of UserDefaults. Permissions, files, commands,
 /// display IDs, credentials, locations and AI/calendar contents never enter sync.

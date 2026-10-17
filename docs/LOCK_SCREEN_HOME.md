@@ -8,9 +8,10 @@ When the session locks and the option is enabled, the app hides its notch
 windows, detaches the entire normal SwiftUI menu hierarchy and installs an
 isolated `LockedNotchHomeView` before moving windows into the inherited SkyLight
 lock-screen space. It does not overlay a lock image over accessible private
-widgets. The closed view shows a small lock beside the physical camera notch,
-or inside the simulated notch/island. Hovering (when hover-to-open is enabled)
-or clicking expands a lock and an unlock message in place of Home.
+widgets. The closed notch/island remains plain and at its normal width, with
+no lock badge or extra side lanes. Hovering (when hover-to-open is enabled)
+or clicking shows only a lock symbol inside the expanded Home dropdown.
+The unlock instruction is provided to accessibility users, not as visible text.
 
 The isolated view has no references to account, calendar, Shelf, music metadata,
 weather/location or AI managers. It has no Settings, Mirror, file-drop, shortcut
@@ -52,3 +53,12 @@ preference and ten other protected stored preferences were preserved.
 Pure policy checks cover locked/on, locked/off, unlocked and preview combinations.
 Real lock-screen off/on transitions, rapid re-lock, multiple screens, startup
 while already locked, and other macOS versions remain unverified.
+
+The subsequent local 2.9.0-beta.2/build 286 correction removes the closed lock
+badge and its extra width, and removes the visible unlock text. The isolated
+preview was inspected collapsed (no lock image) and expanded (only the lock,
+plus the preview-only exit button). Signing identity, 107 policy checks and HUD
+event-tap checks after cold launch, Restart HUD and closing Settings pass; all
+eleven stored protected preferences are unchanged. A new real lock/unlock or
+Sparkle installation was not repeated for this visual-only correction. This
+local build has not replaced or modified the published beta.1 archive.

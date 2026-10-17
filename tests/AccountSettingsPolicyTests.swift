@@ -10,6 +10,12 @@ import Foundation
             do { _ = try JSONDecoder().decode(AccountSettingsDocument.self, from: Data(text.utf8)); preconditionFailure("Accepted unsafe API document") }
             catch { checks += 1 }
         }
+        require(!AccountFeaturePolicy.isEnabled(nil))
+        require(!AccountFeaturePolicy.isEnabled(false))
+        require(AccountFeaturePolicy.isEnabled(true))
+        for invalid: Any in [1, 0, "true", "false", NSNull(), ["enabled": true], [true]] {
+            require(!AccountFeaturePolicy.isEnabled(invalid))
+        }
         for key in AccountSettingsPolicy.booleans {
             let document = AccountSettingsDocument(values: [key: .bool(true)])
             require(try AccountSettingsDocument.decode(document.encoded()) == document)

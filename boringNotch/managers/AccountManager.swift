@@ -13,7 +13,8 @@ struct NotchAccountConfiguration {
     let settingsURL: URL?
 
     static var bundled: Self? {
-        guard let domain = Bundle.main.object(forInfoDictionaryKey: "NotchAccountDomain") as? String,
+        guard AccountFeaturePolicy.enabled,
+              let domain = Bundle.main.object(forInfoDictionaryKey: "NotchAccountDomain") as? String,
               !domain.isEmpty, !domain.contains("/"),
               let clientID = Bundle.main.object(forInfoDictionaryKey: "NotchAccountClientID") as? String,
               !clientID.isEmpty,
@@ -63,6 +64,9 @@ struct NotchAccountConfiguration {
             // Reading the cached profile is only for display, never authorization.
             user = try? credentials?.userProfile()
         }
+        // Keep existing Keychain entries untouched during the public release
+        // hold. No preference observation or account work runs while disabled.
+        guard configuration != nil else { return }
         observer = NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification,
                                                           object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.preferencesChanged() }
@@ -142,6 +146,13 @@ struct NotchAccountConfiguration {
     }
 
     func cancelSignIn() { signInAttempt?.cancel() }
+
+    func continueWithoutAccount() {
+        cancelSignIn()
+        pendingSync?.cancel(); pendingSync = nil
+        automaticSync = false
+        // Guest use never clears an existing login or changes cloud settings.
+    }
 
     func signOut() {
         guard !busy else { return }

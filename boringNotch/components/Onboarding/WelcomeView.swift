@@ -35,6 +35,13 @@ struct WelcomeView: View {
                         .font(.title)
                         .foregroundStyle(.secondary)
                         .padding(.bottom, 30)
+                    if !AccountFeaturePolicy.enabled {
+                        Text("No account needed. Your settings are saved on this Mac.")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 28)
+                    }
                     if false {
                         Text("PRO")
                             .font(.system(size: 18, design: .rounded))
@@ -55,7 +62,7 @@ struct WelcomeView: View {
                     Button {
                         onGetStarted?()
                     } label: {
-                        Text("Get started")
+                        Text(AccountFeaturePolicy.enabled ? "Get started" : "Continue Without an Account")
                             .padding(.horizontal, 20)
                             .padding(.vertical, 6)
                     }

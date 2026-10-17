@@ -1,5 +1,39 @@
 # Optional accounts and cloud settings
 
+## Release hold (2026-10-17)
+
+The owner requested account-free use and asked not to publish account features
+yet. `NotchAccountsEnabled` is explicitly false in the signed app configuration.
+Settings omits the Account page and onboarding goes directly from **Continue
+Without an Account** to the normal optional-permission steps. Missing or malformed
+feature flags fail closed. An old/restored Account step is skipped as well.
+
+The disabled configuration does not initialize account credential storage,
+observe preferences for cloud saves, start sign-in, or run account sync. Existing
+Keychain credentials and saved cloud settings are not erased or signed out.
+When accounts are intentionally enabled for future development, the onboarding
+skip action stays available even during a pending sign-in: it cancels that
+attempt and pauses automatic saves without deleting an existing login.
+
+The signed build entry point and CI run `verify_public_feature_flags.py` to
+reject any build whose flag is not explicitly false. Account code remains in
+the repository for future work; this is a release/feature hold, not deletion of
+source history, identities, Auth0/Cloudflare services or the owner's settings.
+The previously published optional 2.9.0-beta.1 account preview was returned to
+draft rather than deleting its assets or tag. Stable 2.8.3 and its update feed
+remain unchanged. Do not publish or re-enable accounts without a new request.
+
+The signed local 2.9.0-beta.2/build 286 account-free build passed the source and
+built-bundle release gates, 71 account-policy checks, sign-in cancellation tests,
+107 customization checks and 46 workflow/helper tests. The running Settings
+sidebar was visually inspected and has no Account entry. Twelve stored protected
+preferences, including first-launch state, are unchanged. The enabled HUD tap
+passed after cold launch, Restart HUD and closing Settings. Fresh-device
+onboarding, a new real volume-key test and a Sparkle installation were not
+repeated. The disabled configuration does not load or clear saved credentials.
+The withdrawn preview's unauthenticated ZIP download returns HTTP 404; previously
+downloaded copies cannot be recalled. No new app release was published.
+
 Accounts do not replace macOS accounts, confer operating-system privileges, or
 grant HUD access. The app remains usable without signing in. This feature uses
 Auth0 Universal Login (its maintained Swift SDK, authorization code + PKCE) and
