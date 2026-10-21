@@ -1,0 +1,73 @@
+name: Build for macOS
+
+on:
+  push:
+    branches:
+      - '*'
+  pull_request:
+    branches:
+      - '*'
+
+# https://stackoverflow.com/a/72408109/6942800
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+# Least-privilege: only needs to read code for building.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Boring Notch
+    strategy:
+      matrix:
+        platform:
+          - macOS
+        xcode:
+          - ^26
+        scheme:
+          - boringNotch
+    # Native Liquid Glass requires the macOS 26 SDK.
+    runs-on: macos-26
+    steps:
+    - name: Code Checkout
+      # TODO: pin to immutable SHA
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+    - name: Keep unfinished accounts out of public builds
+      run: python3 .github/scripts/verify_public_feature_flags.py boringNotch/Info.plist
+    - name: Check customization policies
+      run: |
+        set -euo pipefail
+        swiftc -D CUSTOMIZATION_POLICY_TEST \
+          boringNotch/models/CustomizationModels.swift \
+          tests/CustomizationPolicyTests.swift \
+          -o "$RUNNER_TEMP/customization-policy-tests"
+        "$RUNNER_TEMP/customization-policy-tests"
+    - name: Check workflow and release helpers
+      run: python3 -m unittest discover -s .github/scripts/tests -v
+    - name: Check account settings allowlist
+      run: |
+        set -euo pipefail
+        swiftc boringNotch/models/AccountSettingsPolicy.swift \
+          tests/AccountSettingsPolicyTests.swift -o "$RUNNER_TEMP/account-policy-tests"
+        "$RUNNER_TEMP/account-policy-tests"
+    - name: Check first-login Keychain handling
+      run: bash .github/scripts/test_account_storage.sh
+    - name: Check sign-in cancellation and timeout
+      run: |
+        set -euo pipefail
+        swiftc -parse-as-library -swift-version 6 \
+          boringNotch/managers/AccountSignInAttempt.swift \
+          tests/AccountSignInAttemptTests.swift -o "$RUNNER_TEMP/account-sign-in-tests"
+        "$RUNNER_TEMP/account-sign-in-tests"
+    - # TODO: pin to immutable SHA
+      uses: mxcl/xcodebuild@d3ee9b419c1be9a988086c58fe0988f32d99cfc5 # v3.6.0
+      with:
+        xcode: ${{ matrix.xcode }}
+        platform: ${{ matrix.platform }}
+        scheme: ${{ matrix.scheme }}
+        action: build
+        verbosity: xcpretty
+        upload-logs: always
+        configuration: release

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>NotchAccountsEnabled</key>
+	<false/>
+	<key>NotchAccountDomain</key>
+	<string>dev-f31y4vcdyhkcfqf0.us.auth0.com</string>
+	<key>NotchAccountClientID</key>
+	<string>iT6fqxlZSQANST8qrPs7wMEOgpLPDXFi</string>
+	<key>NotchAccountAudience</key>
+	<string>https://notsoboringnotch.app/settings</string>
+	<key>NotchAccountSettingsURL</key>
+	<string>https://notsoboringnotch-settings.notsoboringnotch-settings-service.workers.dev</string>
+	<key>NotchAppleSignInEnabled</key>
+	<false/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>theboringteam.boringnotch.account</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>theboringteam.boringnotch</string>
+			</array>
+		</dict>
+	</array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Boring Notch uses your location to show local weather.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+	<key>SUEnableDownloaderService</key>
+	<true/>
+	<key>SUEnableInstallerLauncherService</key>
+	<true/>
+	<key>SUFeedURL</key>
+	<string>https://raw.githubusercontent.com/graden-grech/boringNotch-custom/main/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>nqZKiSN++X9uwH4MqHVLSJ9RQ6bvbT9Y2B07flQ34OQ=</string>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict/>
+	</array>
+	<key>BNUpdateChannel</key>
+	<string>stable</string>
+</dict>
+</plist>

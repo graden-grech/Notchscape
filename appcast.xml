@@ -1,0 +1,131 @@
+<?xml version="1.0" standalone="yes"?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+    <channel>
+        <title>Boring Notch</title>
+        <item>
+            <title>2.8.4</title>
+            <pubDate>Sat, 17 Oct 2026 12:32:24 -0400</pubDate>
+            <link>https://github.com/graden-grech/boringNotch-custom/releases/tag/v2.8.4</link>
+            <sparkle:version>287</sparkle:version>
+            <sparkle:shortVersionString>2.8.4</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[# boringNotch Custom 2.8.4
+
+- No account required: Continue Without an Account skips account setup. Sign-in, account pages, passkeys and cloud sync stay disabled; existing saved credentials and cloud settings are not deleted.
+- A release check keeps unfinished account features disabled. The earlier account preview remains withdrawn.
+- The optional lock-screen Home dropdown shows only a lock inside the expanded menu, with no closed-notch badge or explanatory text.
+- External-display visibility can be turned off, with dependent controls clearly disabled.
+- Lighter Settings surfaces and a clearer terminal symbol for AI activity.
+
+The lock-screen option remains experimental, off by default, and uses inherited private SkyLight integration rather than an official Apple extension. Development-signed with the existing app/helper identity and update key; not notarized. Requires Apple silicon and macOS 14 or later; native Liquid Glass requires macOS 26. Fresh-device onboarding, other macOS versions, full VoiceOver coverage, multiple displays/DisplayLink, rapid lock transitions and permission revocation remain unverified.
+]]></description>
+            <enclosure url="https://github.com/graden-grech/boringNotch-custom/releases/download/v2.8.4/boringNotch-custom.zip" length="21818606" type="application/octet-stream" sparkle:edSignature="iqGP2pnk240QGMIfbjyhe1jtnCNl6Mq0HeRgJkMMJaNy61/8sWAD9OHBV0632nG2rXOmMXWVaFNHYdHcFWBZCw=="/>
+        </item>
+        <item>
+            <title>2.8.3</title>
+            <pubDate>Wed, 14 Oct 2026 12:01:56 -0400</pubDate>
+            <link>https://github.com/graden-grech/boringNotch-custom/releases/tag/v2.8.3</link>
+            <sparkle:version>284</sparkle:version>
+            <sparkle:shortVersionString>2.8.3</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[# boringNotch Custom 2.8.3
+
+- Bounded HUD recovery after launch, activation, and wake, with no permanent watchdog.
+- Accurate interceptor status, a Restart HUD control, and permission monitoring that survives closing Settings.
+- Stale event-tap cleanup and recovery that respects the user's HUD on/off choice.
+- Matching 30-point native glass capsules for the Home battery, Mirror, and Settings controls. Small native switches stay unchanged.
+- Signed-build identity checks and a live HUD smoke test to catch future regressions.
+
+Uses the same signing identity and update key. Development-signed; not notarized. Requires Apple silicon and macOS 14 or later; native Liquid Glass requires macOS 26. Full sleep/wake, permission-revocation, VoiceOver, and external-display/DisplayLink testing remain pending.
+]]></description>
+            <enclosure url="https://github.com/graden-grech/boringNotch-custom/releases/download/v2.8.3/boringNotch-custom.zip" length="21114719" type="application/octet-stream" sparkle:edSignature="jAydkGwSzmevjgMVcvmOlcNh3Fq3fu88WjAFK5yrq54lL/VxYcvT2yeyu43rsDtCxHqiv9+n6o7Rf8kf2OauDg=="/>
+        </item>
+        <item>
+            <title>2.8.2</title>
+            <pubDate>Tue, 13 Oct 2026 22:20:13 -0400</pubDate>
+            <link>https://github.com/graden-grech/boringNotch-custom/releases/tag/v2.8.2</link>
+            <sparkle:version>283</sparkle:version>
+            <sparkle:shortVersionString>2.8.2</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[# boringNotch Custom 2.8.2
+
+- Optional Enhanced battery controls, real local history, and brief optional battery alerts. Original style remains available.
+- Battery glass stays inside the Home header, including when charging.
+- Small native Apple switches with Liquid Glass and drag interaction on macOS 26.
+- Lighter content materials, improved settings scrolling and resizing, and better accessibility for media, Mirror, Shelf, and opening the menu.
+- Home widget ordering, Quick Actions, local AI outcome history, and battery-conscious rendering modes.
+- Refined seasonal backgrounds, inclusive Winter theme, manual or theme-matched app icons, and custom accents.
+- Improved Dock visibility and opt-in setup for inherited publishing workflows.
+
+Development-signed; not notarized. Requires Apple silicon and macOS 14 or later. Native Liquid Glass requires macOS 26. Full external-display/DisplayLink, VoiceOver, onboarding permission-dialog, and HUD permission/restart regression tests remain pending.
+]]></description>
+            <enclosure url="https://github.com/graden-grech/boringNotch-custom/releases/download/v2.8.2/boringNotch-custom.zip" length="21107401" type="application/octet-stream" sparkle:edSignature="9OyHWw+pXWMBQd8yQ5tC7/G2Ne2UJo2MIfiVXNSfBGUL7UT1rTcEaHoUWvPvpam9I8gvwnq4zw3vF/s9crw1Ag=="/>
+        </item>
+        <item>
+            <title>2.8.1</title>
+            <pubDate>Sun, 11 Oct 2026 22:28:29 -0400</pubDate>
+            <link>https://github.com/graden-grech/boringNotch-custom/releases/tag/v2.8.1</link>
+            <sparkle:version>281</sparkle:version>
+            <sparkle:shortVersionString>2.8.1</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[# boringNotch Custom 2.8.1
+
+- Choose Dynamic Island or Notch for notchless displays.
+- Seasonal themes and matching icons, including a full-sized Christmas tree beside the Home calendar.
+- Sports favorites, compact scores, and score notifications.
+- Improved AI quota handling: low-usage warnings stay active and quota failures cannot turn into completion checks.
+- Native Liquid Glass on macOS 26 with lighter fallbacks on older macOS.
+- Fewer AI redraws and paused music timers for better efficiency.
+
+Physical-notch and DisplayLink hardware validation and the full HUD restart regression remain pending. Developer-signed; not notarized.
+]]></description>
+            <enclosure url="https://github.com/graden-grech/boringNotch-custom/releases/download/v2.8.1/boringNotch-custom.zip" length="15035356" type="application/octet-stream" sparkle:edSignature="iftUEVrxW7crcIA4OmyUc2d4HxI5eJCPzVbadbHmtaOghUhm/3HMGPNKdzDQh5hI/8COwdBCP8+/yUyhqRlECA=="/>
+        </item>
+        <item>
+            <title>2.8.0</title>
+            <pubDate>Sat, 10 Oct 2026 17:16:38 -0400</pubDate>
+            <link>https://github.com/graden-grech/boringNotch-custom/releases/tag/v2.8.0</link>
+            <sparkle:version>280</sparkle:version>
+            <sparkle:shortVersionString>2.8.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[# boringNotch Custom 2.8.0
+
+- Shows a single Apple-style green completion check on one side of the notch.
+- Detects AI usage and rate limits, shows a red three-second alert, and clears
+  abandoned working states automatically.
+- Adds an optional System tab with efficient, on-demand CPU, memory, storage,
+  and thermal-pressure monitoring plus safe Mac controls.
+- Adds rounded rectangle, squircle, and capsule mirror shapes.
+- Introduces a new Liquid Glass app icon, native Apple Liquid Glass navigation
+  and music controls, plus translucent Settings, Live, System, and Shelf surfaces.
+- Replaces the separate top buttons with a compact Apple-style segmented
+  control and removes the stray pressed-symbol animation from music controls.
+- Keeps the HUD enabled across launches and rebuilds, automatically restarts
+  its media-key interceptor after Accessibility approval, and uses a stable
+  local signing identity so macOS keeps the permission grant.
+- Removes costly activation-policy switching when Settings opens and closes,
+  making the custom Settings window significantly smoother.
+- Keeps Sparkle automatic updates on the public
+  `graden-grech/boringNotch-custom` GitHub feed.
+
+- Adds Codex and Claude Code activities with provider colors, Music/AI priority,
+  dual-activity layouts, and four-second completion indicators.
+- Adds a location-aware weather tile that can live on Home or the Live page.
+- Restores native notch sizing when weather is on the Live page and keeps the
+  calendar at its normal size.
+- Adds Live Activity controls, timers, download status, calendar alerts, and
+  Apple-style privacy indicators.
+- Improves the HUD permission flow and keeps the original rounded notch shape.
+- Refines the AI completion checkmark and music waveform with a cleaner,
+  Apple-like appearance.
+- Moves Sparkle updates to the public `graden-grech/boringNotch-custom` feed.
+]]></description>
+            <enclosure url="https://github.com/graden-grech/boringNotch-custom/releases/download/v2.8.0/boringNotch-custom.zip" length="10439073" type="application/octet-stream" sparkle:edSignature="k3NQsP38VbQVP+bUaVa8KR8pDmsCo7p04vAyZozLjYVkGfrBUTFalNmosmhFyGKsV60RvzcuaaWCaGymcFOLAQ=="/>
+        </item>
+    </channel>
+</rss>
