@@ -496,7 +496,7 @@ struct ContentView: View {
             hoverTask?.cancel(); hoverTask = nil
             vm.isEditingHomeLayout = false; vm.draggedHomeWidget = nil
             if session?.mode.hidesPrivateContent == true {
-                webcamManager.stopSession(); vm.isCameraExpanded = false
+                vm.isCameraExpanded = false
             }
         }
         .onChange(of: quickActions) { _, _ in vm.refreshOpenNotchSize() }

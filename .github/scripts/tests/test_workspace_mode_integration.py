@@ -17,6 +17,7 @@ class WorkspaceModeIntegrationTests(unittest.TestCase):
         self.assertIn(".NSSystemClockDidChange", manager)
         self.assertIn("self.session?.id == value.id", manager)
         self.assertIn("!Task.isCancelled", manager)
+        self.assertIn("WebcamManager.shared.stopSession()", manager)
 
     def test_presentation_cannot_expire(self):
         model = self.source("models/WorkspaceModeModels.swift")

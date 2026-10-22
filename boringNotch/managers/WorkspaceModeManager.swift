@@ -21,6 +21,8 @@ final class WorkspaceModeManager: ObservableObject {
         let value = WorkspaceModeSession(mode: mode, duration: duration)
         session = value
         if mode.hidesPrivateContent {
+            // Privacy must not depend on a visible SwiftUI window receiving onChange.
+            WebcamManager.shared.stopSession()
             NotchToolsWindowController.shared.close()
             BoringViewCoordinator.shared.currentView = .home
             BoringViewCoordinator.shared.sneakPeek.show = false
