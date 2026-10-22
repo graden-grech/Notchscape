@@ -35,6 +35,8 @@ class BoringViewModel: NSObject, ObservableObject {
     @Published var screenUUID: String?
 
     @Published var notchSize: CGSize = getClosedNotchSize()
+    @Published var isEditingHomeLayout = false
+    @Published var draggedHomeWidget: HomeWidget?
     @Published var closedNotchSize: CGSize = getClosedNotchSize()
     
     let webcamManager = WebcamManager.shared
@@ -129,6 +131,7 @@ class BoringViewModel: NSObject, ObservableObject {
     }
 
     func toggleCameraPreview() {
+        guard WorkspaceModeManager.shared.active?.hidesPrivateContent != true else { return }
         if isRequestingAuthorization {
             return
         }

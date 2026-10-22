@@ -27,6 +27,9 @@ permissions:
 jobs:
   authorize:
     name: Authorize manual build
+    # The custom fork uses its local identity-preserving signed-build process.
+    # Opt in only after configuring hosted signing and verifying its identity.
+    if: ${{ github.repository == 'TheBoredTeam/boring.notch' || vars.ENABLE_HOSTED_SIGNED_BUILDS == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read

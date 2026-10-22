@@ -1,4 +1,5 @@
 import Combine
+import AppKit
 @preconcurrency import CoreLocation
 import Defaults
 import Foundation
@@ -11,6 +12,7 @@ struct WeatherSnapshot: Equatable {
     let high: Double
     let low: Double
     let updatedAt: Date
+    var isDay = true
 
     var symbol: String {
         switch weatherCode {
@@ -50,7 +52,7 @@ struct WeatherSnapshot: Equatable {
 }
 
 @MainActor
-final class WeatherManager: NSObject, ObservableObject, CLLocationManagerDelegate {
+final class WeatherManager: NSObject, ObservableObject, @preconcurrency CLLocationManagerDelegate {
     static let shared = WeatherManager()
 
     @Published private(set) var weather: WeatherSnapshot?
@@ -62,12 +64,24 @@ final class WeatherManager: NSObject, ObservableObject, CLLocationManagerDelegat
     private var refreshTask: Task<Void, Never>?
     private var locationContinuation: CheckedContinuation<CLLocation, Error>?
     private var locationTimeoutTask: Task<Void, Never>?
+    private var generation = 0
+    private var configurationKey = ""
+    private var successfulConfigurationKey = ""
+    private var observations = Set<AnyCancellable>()
+    private let session: URLSession = {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.timeoutIntervalForRequest = 15
+        configuration.timeoutIntervalForResource = 25
+        return URLSession(configuration: configuration)
+    }()
 
     private override init() {
         locationAuthorizationStatus = locationManager.authorizationStatus
         super.init()
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyThreeKilometers
+        Defaults.publisher(.weatherEnabled).dropFirst().receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.refresh(force: true) }.store(in: &observations)
 
         if Defaults[.weatherEnabled],
            Defaults[.weatherUseCurrentLocation] || !Defaults[.weatherLocation].isEmpty {
@@ -75,63 +89,95 @@ final class WeatherManager: NSObject, ObservableObject, CLLocationManagerDelegat
         }
     }
 
-    func refresh() {
+    func refresh(force: Bool = false, requestPermission: Bool = false) {
         let location = Defaults[.weatherLocation].trimmingCharacters(in: .whitespacesAndNewlines)
         let useCurrentLocation = Defaults[.weatherUseCurrentLocation]
         guard Defaults[.weatherEnabled], useCurrentLocation || !location.isEmpty else {
+            generation += 1; refreshTask?.cancel(); cancelLocationRequest(); isLoading = false
             weather = nil
             errorMessage = useCurrentLocation ? nil : "Enter a city or postal code"
             return
         }
 
+        let key = "\(useCurrentLocation)|\(location)|\(Defaults[.weatherUseCelsius])"
+        if configurationKey == key, isLoading { return }
+        if !force, successfulConfigurationKey == key, let weather, Date().timeIntervalSince(weather.updatedAt) < 900 { return }
+        if useCurrentLocation, locationManager.authorizationStatus == .notDetermined, !requestPermission {
+            errorMessage = "Choose Use My Location to allow local weather, or enter a city in Weather settings."
+            return
+        }
+
+        generation += 1
+        let run = generation
+        configurationKey = key
         refreshTask?.cancel()
         cancelLocationRequest()
+        isLoading = true
         refreshTask = Task {
-            isLoading = true
             errorMessage = nil
-            defer { isLoading = false }
+            defer { if run == generation { isLoading = false } }
 
             do {
+                try Task.checkCancellation()
+                let snapshot: WeatherSnapshot
                 if useCurrentLocation {
                     let currentLocation = try await requestCurrentLocation()
-                    weather = try await fetchWeather(
-                        latitude: currentLocation.coordinate.latitude,
-                        longitude: currentLocation.coordinate.longitude,
+                    snapshot = try await fetchWeather(
+                        latitude: (currentLocation.coordinate.latitude * 100).rounded() / 100,
+                        longitude: (currentLocation.coordinate.longitude * 100).rounded() / 100,
                         locationName: "Current location"
                     )
                 } else {
                     let place = try await geocode(location)
-                    weather = try await fetchWeather(
+                    snapshot = try await fetchWeather(
                         latitude: place.latitude,
                         longitude: place.longitude,
                         locationName: [place.name, place.admin1].compactMap { $0 }.joined(separator: ", ")
                     )
                 }
+                try Task.checkCancellation()
+                guard run == generation else { return }
+                weather = snapshot
+                successfulConfigurationKey = key
             } catch is CancellationError {
                 return
             } catch {
-                errorMessage = error.localizedDescription
+                if run == generation { errorMessage = error.localizedDescription }
             }
         }
+    }
+
+    func useMyLocation() {
+        // An explicit action brings the app forward; background tile appearance
+        // must never trigger an invisible, repeated permission request.
+        NSApp.activate(ignoringOtherApps: true)
+        refresh(force: true, requestPermission: true)
     }
 
     var locationPermissionDescription: String {
         switch locationAuthorizationStatus {
         case .notDetermined: "Location access has not been requested yet"
         case .restricted: "Location access is restricted"
-        case .denied: "Location access is off for Boring Notch"
+        case .denied: "Location access is off for Notchscape"
         case .authorizedAlways, .authorizedWhenInUse: "Location access is on"
         @unknown default: "Location access status is unavailable"
         }
     }
 
     private func requestCurrentLocation() async throws -> CLLocation {
-        guard CLLocationManager.locationServicesEnabled() else {
+        guard await Task.detached(priority: .utility, operation: { CLLocationManager.locationServicesEnabled() }).value else {
             throw WeatherError.locationServicesDisabled
         }
+        try Task.checkCancellation()
 
         if locationContinuation != nil {
             cancelLocationRequest()
+        }
+
+        if locationManager.authorizationStatus == .authorizedAlways,
+           let cached = locationManager.location, cached.horizontalAccuracy >= 0,
+           Date().timeIntervalSince(cached.timestamp) >= 0, Date().timeIntervalSince(cached.timestamp) < 600 {
+            return cached
         }
 
         return try await withCheckedThrowingContinuation { continuation in
@@ -139,7 +185,10 @@ final class WeatherManager: NSObject, ObservableObject, CLLocationManagerDelegat
 
             switch locationManager.authorizationStatus {
             case .notDetermined:
-                locationManager.requestWhenInUseAuthorization()
+                // macOS requests consent when a location service starts. The
+                // iOS-style authorization call alone can leave a menu-bar app
+                // waiting forever without presenting a prompt.
+                locationManager.requestLocation()
             case .authorizedAlways, .authorizedWhenInUse:
                 locationManager.requestLocation()
             case .denied:
@@ -150,8 +199,9 @@ final class WeatherManager: NSObject, ObservableObject, CLLocationManagerDelegat
                 finishLocationRequest(.failure(WeatherError.locationPermissionDenied))
             }
 
+            let waitingForConsent = locationManager.authorizationStatus == .notDetermined
             locationTimeoutTask = Task { @MainActor [weak self] in
-                try? await Task.sleep(for: .seconds(15))
+                try? await Task.sleep(for: .seconds(waitingForConsent ? 90 : 15))
                 guard !Task.isCancelled else { return }
                 self?.finishLocationRequest(.failure(WeatherError.locationTimedOut))
             }
@@ -160,7 +210,10 @@ final class WeatherManager: NSObject, ObservableObject, CLLocationManagerDelegat
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         locationAuthorizationStatus = manager.authorizationStatus
-        guard locationContinuation != nil else { return }
+        guard locationContinuation != nil else {
+            if manager.authorizationStatus == .authorizedAlways, Defaults[.weatherEnabled], Defaults[.weatherUseCurrentLocation] { refresh() }
+            return
+        }
 
         switch manager.authorizationStatus {
         case .authorizedAlways, .authorizedWhenInUse:
@@ -185,7 +238,10 @@ final class WeatherManager: NSObject, ObservableObject, CLLocationManagerDelegat
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
-        finishLocationRequest(.failure(error))
+        locationAuthorizationStatus = manager.authorizationStatus
+        if let error = error as? CLError, error.code == .denied {
+            finishLocationRequest(.failure(WeatherError.locationPermissionDenied))
+        } else { finishLocationRequest(.failure(error)) }
     }
 
     private func finishLocationRequest(_ result: Result<CLLocation, Error>) {
@@ -209,8 +265,9 @@ final class WeatherManager: NSObject, ObservableObject, CLLocationManagerDelegat
             URLQueryItem(name: "language", value: "en"),
             URLQueryItem(name: "format", value: "json")
         ]
-        let (data, response) = try await URLSession.shared.data(from: components.url!)
+        let (data, response) = try await session.data(from: components.url!)
         try validate(response)
+        guard data.count < 1_000_000 else { throw WeatherError.invalidResponse }
         let payload = try JSONDecoder().decode(GeoResponse.self, from: data)
         guard let result = payload.results?.first else { throw WeatherError.locationNotFound }
         return result
@@ -221,14 +278,15 @@ final class WeatherManager: NSObject, ObservableObject, CLLocationManagerDelegat
         components.queryItems = [
             URLQueryItem(name: "latitude", value: String(latitude)),
             URLQueryItem(name: "longitude", value: String(longitude)),
-            URLQueryItem(name: "current", value: "temperature_2m,apparent_temperature,weather_code"),
+            URLQueryItem(name: "current", value: "temperature_2m,apparent_temperature,weather_code,is_day"),
             URLQueryItem(name: "daily", value: "temperature_2m_max,temperature_2m_min"),
             URLQueryItem(name: "temperature_unit", value: Defaults[.weatherUseCelsius] ? "celsius" : "fahrenheit"),
             URLQueryItem(name: "timezone", value: "auto"),
             URLQueryItem(name: "forecast_days", value: "1")
         ]
-        let (data, response) = try await URLSession.shared.data(from: components.url!)
+        let (data, response) = try await session.data(from: components.url!)
         try validate(response)
+        guard data.count < 1_000_000 else { throw WeatherError.invalidResponse }
         let payload = try JSONDecoder().decode(ForecastResponse.self, from: data)
         guard let high = payload.daily.temperature2mMax.first, let low = payload.daily.temperature2mMin.first else {
             throw WeatherError.invalidResponse
@@ -240,7 +298,8 @@ final class WeatherManager: NSObject, ObservableObject, CLLocationManagerDelegat
             weatherCode: payload.current.weatherCode,
             high: high,
             low: low,
-            updatedAt: .now
+            updatedAt: .now,
+            isDay: payload.current.isDay != 0
         )
     }
 
@@ -289,11 +348,13 @@ private struct ForecastResponse: Decodable {
         let temperature2m: Double
         let apparentTemperature: Double
         let weatherCode: Int
+        let isDay: Int?
 
         enum CodingKeys: String, CodingKey {
             case temperature2m = "temperature_2m"
             case apparentTemperature = "apparent_temperature"
             case weatherCode = "weather_code"
+            case isDay = "is_day"
         }
     }
 

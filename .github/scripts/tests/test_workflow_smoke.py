@@ -9,6 +9,7 @@ stable/beta follow too.
 
 from __future__ import annotations
 
+import re
 import unittest
 from pathlib import Path
 
@@ -30,6 +31,45 @@ class WorkflowSmokeTests(unittest.TestCase):
         self.manual_build = (REPOSITORY_ROOT / ".github" / "workflows" / "manual_build.yml").read_text(
             encoding="utf-8"
         )
+
+    def test_inherited_signed_workflows_require_explicit_fork_opt_in(self) -> None:
+        for workflow, entry_job, opt_in in (
+            (self.manual_build, "authorize", "ENABLE_HOSTED_SIGNED_BUILDS"),
+            (self.release, "preparation", "ENABLE_HOSTED_RELEASES"),
+        ):
+            with self.subTest(entry_job=entry_job):
+                entry = re.search(
+                    rf"(?ms)^  {entry_job}:\n(.*?)(?=^  [a-zA-Z0-9_-]+:|\Z)",
+                    workflow,
+                )
+                self.assertIsNotNone(entry)
+                self.assertIn(
+                    "if: ${{ github.repository == 'TheBoredTeam/boring.notch' || "
+                    f"vars.{opt_in} == 'true' " + "}}",
+                    entry.group(1),
+                )
+
+    def test_dependabot_keeps_codeql_actions_together_on_the_real_branch(self) -> None:
+        dependabot = (REPOSITORY_ROOT / ".github" / "dependabot.yml").read_text(
+            encoding="utf-8"
+        )
+        self.assertRegex(
+            dependabot,
+            r'groups:\s+(?:#[^\n]*\n\s*)?codeql-actions:\s+patterns:\s+- "github/codeql-action/\*"',
+        )
+        self.assertIn('target-branch: "main"', dependabot)
+        self.assertNotIn('target-branch: "dev"', dependabot)
+
+    def test_codeql_init_and_analyze_use_the_same_pinned_version(self) -> None:
+        # The generated configuration rejects a different analyze version.
+        codeql = (REPOSITORY_ROOT / ".github" / "workflows" / "codeql.yml").read_text(
+            encoding="utf-8"
+        )
+        revisions = re.findall(
+            r"uses: github/codeql-action/(?:init|analyze)@([0-9a-f]{40})", codeql
+        )
+        self.assertEqual(len(revisions), 2)
+        self.assertEqual(len(set(revisions)), 1)
 
     def test_nightly_uses_the_fixed_rolling_tag_and_asset(self) -> None:
         self.assertIn("TAG: nightly", self.nightly)
@@ -308,15 +348,20 @@ class WorkflowSmokeTests(unittest.TestCase):
             self.assertNotIn(removed, self.nightly)
 
     def test_built_product_is_named_boring_notch(self) -> None:
-        # The Xcode product and app bundle are "Boring Notch", while the public
-        # DMG keeps the legacy boringNotch.dmg name for download/appcast
-        # compatibility. The project/target/scheme remain boringNotch.
+        # Marketing PRODUCT_NAME drives the generated CFBundleName. Freeze the
+        # executable, module and wrapper separately so branding cannot move the
+        # update/install path or alter existing code identity. The public DMG
+        # keeps its compatibility filename; project/target/scheme stay unchanged.
         pbxproj = (
             REPOSITORY_ROOT / "boringNotch.xcodeproj" / "project.pbxproj"
         ).read_text(encoding="utf-8")
-        self.assertEqual(pbxproj.count('PRODUCT_NAME = "Boring Notch";'), 2)
-        self.assertEqual(pbxproj.count('INFOPLIST_KEY_CFBundleName = "Boring Notch";'), 2)
-        self.assertEqual(pbxproj.count('INFOPLIST_KEY_CFBundleDisplayName = "Boring Notch";'), 2)
+        self.assertEqual(pbxproj.count('PRODUCT_NAME = Notchscape;'), 2)
+        self.assertEqual(pbxproj.count('EXECUTABLE_NAME = "Boring Notch";'), 2)
+        self.assertEqual(pbxproj.count('WRAPPER_NAME = "Boring Notch.app";'), 2)
+        self.assertEqual(pbxproj.count('PRODUCT_MODULE_NAME = Boring_Notch;'), 2)
+        self.assertEqual(pbxproj.count('INFOPLIST_KEY_CFBundleName = Notchscape;'), 2)
+        self.assertEqual(pbxproj.count('INFOPLIST_KEY_CFBundleDisplayName = Notchscape;'), 2)
+        self.assertEqual(pbxproj.count('PRODUCT_BUNDLE_IDENTIFIER = theboringteam.boringnotch;'), 2)
 
         # Reusable build: archives under the project name, exports the app under
         # APP_NAME, and publishes the compatibility DMG under PROJECT_NAME.

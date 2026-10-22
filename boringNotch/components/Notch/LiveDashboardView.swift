@@ -29,14 +29,6 @@ struct LiveDashboardView: View {
             symbol: AgentProviderStyle.symbol(for: "Codex"),
             tint: AgentProviderStyle.accent(for: "Codex")
         ) {
-            HStack {
-                Spacer(minLength: 0)
-                Button(showingHistory ? "Current" : "History") { showingHistory.toggle() }
-                    .buttonStyle(.plain)
-                    .font(.caption2)
-                    .padding(.horizontal, 8).padding(.vertical, 3)
-                    .liquidGlassCapsule()
-            }
             if showingHistory {
                 if agents.history.isEmpty {
                     Text(historyEnabled ? "No finished tasks yet." : "Enable local history in AI Agents settings.")
@@ -44,40 +36,8 @@ struct LiveDashboardView: View {
                 } else {
                     ScrollView { AgentHistoryRows(entries: Array(agents.history.prefix(20))) }
                 }
-            } else if let activity = agents.activities.first {
-                VStack(alignment: .leading, spacing: 7) {
-                    HStack(spacing: 8) {
-                        AgentProviderMark(
-                            provider: activity.provider,
-                            state: activity.state,
-                            size: 30
-                        )
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(activity.title)
-                                .font(.subheadline.weight(.semibold))
-                                .lineLimit(1)
-                            Text("\(activity.provider) • \(activity.state.label)")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                    }
-                    Text(activity.detail)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
             } else {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 8) {
-                        AgentProviderMark(provider: "Codex", state: .working, size: 28)
-                        Text(agents.isListening ? "Ready for Codex" : "Starting bridge…")
-                            .font(.subheadline.weight(.medium))
-                    }
-                    Text("Agent activity will appear here.")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
+                AgentInsightsView()
             }
         }
     }
@@ -89,9 +49,16 @@ struct LiveDashboardView: View {
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 9) {
-            Label(title, systemImage: symbol)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
+            HStack {
+                Label(title, systemImage: symbol)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Button(showingHistory ? "Current" : "History") { showingHistory.toggle() }
+                    .buttonStyle(.plain).font(.caption2)
+                    .padding(.horizontal, 8).padding(.vertical, 3)
+                    .liquidGlassCapsule()
+            }
             content()
             Spacer(minLength: 0)
         }
@@ -149,14 +116,40 @@ struct HomeWeatherTile: View {
                     Text(weather.errorMessage ?? "Weather unavailable")
                         .font(.caption2)
                         .foregroundStyle(.secondary)
+                        .lineLimit(3)
                         .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 3)
+                    Button(weather.locationAuthorizationStatus == .notDetermined ? "Use My Location" : "Weather Settings…") {
+                        if weather.locationAuthorizationStatus == .notDetermined && Defaults[.weatherUseCurrentLocation] { weather.useMyLocation() }
+                        else { SettingsWindowController.shared.showWindow(section: "Weather") }
+                    }.buttonStyle(.plain).font(.caption2.weight(.semibold))
+                        .padding(.horizontal, 8).padding(.vertical, 5).liquidGlassCapsule()
                 }
             }
             .padding(12)
-            .frame(width: 132)
+            .frame(width: 144)
             .frame(maxHeight: .infinity, alignment: .topLeading)
-            .standardMaterialPanel(tint: weatherTint, cornerRadius: 18)
-            .task { weather.refresh() }
+            .foregroundStyle(.white)
+            .background {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(LinearGradient(colors: skyColors, startPoint: .topLeading, endPoint: .bottomTrailing))
+            }
+            .overlay(alignment: .topTrailing) {
+                if weather.weather != nil, let error = weather.errorMessage {
+                    Image(systemName: "exclamationmark.circle.fill").font(.caption2)
+                        .foregroundStyle(.white.opacity(0.8)).padding(7).help(error)
+                }
+            }
+            .contextMenu {
+                Button("Refresh Weather", systemImage: "arrow.clockwise") { weather.refresh(force: true) }
+                Button("Weather Settings…", systemImage: "gearshape") { SettingsWindowController.shared.showWindow(section: "Weather") }
+            }
+            .task {
+                while !Task.isCancelled {
+                    weather.refresh()
+                    do { try await Task.sleep(for: .seconds(900)) } catch { return }
+                }
+            }
         }
     }
 
@@ -170,5 +163,12 @@ struct HomeWeatherTile: View {
         case 95...99: return .purple
         default: return .blue
         }
+    }
+
+    private var skyColors: [Color] {
+        guard let current = weather.weather else { return [Color(red: 0.18, green: 0.28, blue: 0.46), Color(red: 0.1, green: 0.15, blue: 0.28)] }
+        if !current.isDay { return [Color(red: 0.12, green: 0.17, blue: 0.36), Color(red: 0.04, green: 0.07, blue: 0.18)] }
+        if current.weatherCode >= 45 { return [Color(red: 0.33, green: 0.42, blue: 0.51), Color(red: 0.18, green: 0.25, blue: 0.36)] }
+        return [Color(red: 0.24, green: 0.55, blue: 0.83), Color(red: 0.12, green: 0.32, blue: 0.61)]
     }
 }

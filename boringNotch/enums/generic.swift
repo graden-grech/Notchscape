@@ -30,6 +30,8 @@ public enum NotchViews {
     case shelf
     case live
     case system
+    case tools
+    case wallpapers
 }
 
 enum SettingsEnum {
@@ -88,6 +90,7 @@ enum AppIconVariant: String, CaseIterable, Defaults.Serializable, Identifiable {
     case halloween
     case christmas
     case winter
+    case easter
 
     var id: Self { self }
 
@@ -98,6 +101,7 @@ enum AppIconVariant: String, CaseIterable, Defaults.Serializable, Identifiable {
         case .halloween: "Halloween"
         case .christmas: "Christmas"
         case .winter: "Winter"
+        case .easter: "Easter"
         }
     }
 
@@ -108,6 +112,7 @@ enum AppIconVariant: String, CaseIterable, Defaults.Serializable, Identifiable {
         case .halloween: "AppIconHalloween"
         case .christmas: "AppIconChristmas"
         case .winter: "AppIconWinter"
+        case .easter: "AppIconEaster"
         }
     }
 
@@ -138,8 +143,14 @@ enum AppTheme: String, CaseIterable, Defaults.Serializable, Identifiable {
     case halloween
     case christmas
     case winter
+    case easter
+    case starWars, starWarsDarkSide, starWarsLuke, starWarsObiWan
+    case starWarsAhsoka, starWarsYoda, starWarsMaceWindu, starWarsRey, starWarsVader, starWarsMaul
 
     var id: Self { self }
+    var starWarsVariant: StarWarsThemeVariant? { StarWarsThemeVariant(rawValue: rawValue) }
+    var isStarWars: Bool { starWarsVariant != nil }
+    static var pickerThemes: [Self] { allCases.filter { !$0.isStarWars || $0 == .starWars } }
 
     var title: String {
         switch self {
@@ -148,6 +159,8 @@ enum AppTheme: String, CaseIterable, Defaults.Serializable, Identifiable {
         case .halloween: "Halloween"
         case .christmas: "Christmas"
         case .winter: "Winter"
+        case .easter: "Easter"
+        default: "Star Wars · \(starWarsVariant?.title ?? "Jedi")"
         }
     }
 
@@ -158,6 +171,8 @@ enum AppTheme: String, CaseIterable, Defaults.Serializable, Identifiable {
         case .halloween: "moon.stars.fill"
         case .christmas: "tree.fill"
         case .winter: "snowflake"
+        case .easter: "leaf.circle.fill"
+        default: "sparkles"
         }
     }
 
@@ -168,6 +183,8 @@ enum AppTheme: String, CaseIterable, Defaults.Serializable, Identifiable {
         case .halloween: NSColor(red: 0.62, green: 0.32, blue: 0.92, alpha: 1)
         case .christmas: NSColor(red: 0.14, green: 0.62, blue: 0.38, alpha: 1)
         case .winter: NSColor(red: 0.35, green: 0.64, blue: 0.84, alpha: 1)
+        case .easter: NSColor(red: 0.42, green: 0.72, blue: 0.59, alpha: 1)
+        default: starWarsVariant?.accentColor
         }
     }
 
@@ -178,6 +195,8 @@ enum AppTheme: String, CaseIterable, Defaults.Serializable, Identifiable {
         case .halloween: .halloween
         case .christmas: .christmas
         case .winter: .winter
+        case .easter: .easter
+        default: .standard
         }
     }
 
@@ -188,6 +207,8 @@ enum AppTheme: String, CaseIterable, Defaults.Serializable, Identifiable {
         case .halloween: "🎃"
         case .christmas: "🎄"
         case .winter: nil
+        case .easter: nil
+        default: nil
         }
     }
 
@@ -197,11 +218,16 @@ enum AppTheme: String, CaseIterable, Defaults.Serializable, Identifiable {
         case .christmas: "ChristmasBackdrop"
         case .halloween: "HalloweenBackdrop"
         case .winter: "WinterBackdrop"
-        default: nil
+        case .easter: "EasterBackdrop"
+        default: starWarsVariant?.backdropName
         }
     }
 
     var hasHomeScene: Bool { homeBackdrop != nil }
+
+    func homeBackdrop(characterArtwork: StarWarsCharacterArtwork, characterArtworkAvailable: Bool = true) -> String? {
+        starWarsVariant?.backdropName(artwork: characterArtwork, characterArtworkAvailable: characterArtworkAvailable) ?? homeBackdrop
+    }
 
     var subtitle: String {
         switch self {
@@ -210,8 +236,14 @@ enum AppTheme: String, CaseIterable, Defaults.Serializable, Identifiable {
         case .halloween: "Pumpkin glow and candlelight"
         case .christmas: "Tree lights and a cozy fireplace"
         case .winter: "Snowy pines, without holiday decorations"
+        case .easter: "Spring blossoms and pastel Easter eggs"
+        default: "Jedi, Dark Side, and character-inspired palettes"
         }
     }
+}
+
+extension StarWarsThemeVariant {
+    var accentColor: NSColor { NSColor(srgbRed: rgb.red, green: rgb.green, blue: rgb.blue, alpha: 1) }
 }
 
 enum WeatherTilePosition: String, CaseIterable, Defaults.Serializable, Identifiable {

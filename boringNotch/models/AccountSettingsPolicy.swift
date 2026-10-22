@@ -103,8 +103,10 @@ enum AccountSettingsPolicy {
         "showPowerStatusIcons", "hideBatteryWhenAbsent", "hideCompletedReminders"
     ]
     static let choices: [String: Set<String>] = [
-        "appTheme": ["system", "autumn", "halloween", "christmas", "winter"],
-        "appIconVariant": ["standard", "autumn", "halloween", "christmas", "winter"],
+        "appTheme": ["system", "autumn", "halloween", "christmas", "winter", "easter",
+                     "starWars", "starWarsDarkSide", "starWarsLuke", "starWarsObiWan", "starWarsAhsoka",
+                     "starWarsYoda", "starWarsMaceWindu", "starWarsRey", "starWarsVader", "starWarsMaul"],
+        "appIconVariant": ["standard", "autumn", "halloween", "christmas", "winter", "easter"],
         "seasonHemisphere": ["northern", "southern"],
         "batteryPresentation": ["original", "enhanced"],
         "batteryIndicatorDisplay": ["iconOnly", "percentageOnly", "both"]

@@ -1,4 +1,4 @@
-name: "Deploy Boring Notch"
+name: "Hosted Notchscape Release (opt-in)"
 
 on:
   workflow_dispatch:
@@ -25,6 +25,9 @@ env:
 jobs:
   preparation:
     name: Preparation
+    # This inherited pipeline still requires upstream-specific publishing setup.
+    # Custom releases use the local signing/identity gates unless opted in.
+    if: ${{ github.repository == 'TheBoredTeam/boring.notch' || vars.ENABLE_HOSTED_RELEASES == 'true' }}
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.extract_version.outputs.version }}
@@ -708,10 +711,10 @@ jobs:
           fi
           {
             if [[ "${RELEASE_SUCCEEDED}" == "true" ]]; then
-              echo "✅ Released Boring Notch v${VERSION} (${BUILD_TYPE} build ${BUILD_NUMBER})"
+              echo "✅ Released Notchscape v${VERSION} (${BUILD_TYPE} build ${BUILD_NUMBER})"
               echo "🍺 Homebrew cask updated"
               echo "📱 Sparkle appcast updated"
             else
-              echo "❌ Release failed${VERSION:+ for Boring Notch v${VERSION}}"
+              echo "❌ Release failed${VERSION:+ for Notchscape v${VERSION}}"
             fi
           } >> "$GITHUB_STEP_SUMMARY"

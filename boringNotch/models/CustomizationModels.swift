@@ -1,5 +1,114 @@
 import Foundation
 
+/// Music has an explicit opt-in exception to the activity master switch/profile.
+/// Its own off switch always wins; this never overrides lock/full-screen rules.
+enum MusicPresentationPolicy {
+    static func isAllowed(musicEnabled: Bool, overrideEnabled: Bool,
+                          liveActivitiesEnabled: Bool, profileAllowsMusic: Bool) -> Bool {
+        musicEnabled && (overrideEnabled || (liveActivitiesEnabled && profileAllowsMusic))
+    }
+}
+
+enum StarWarsThemeCategory: String, CaseIterable, Identifiable {
+    case jedi, darkSide, characters
+    var id: Self { self }
+    var title: String {
+        switch self { case .jedi: "Jedi"; case .darkSide: "Dark Side"; case .characters: "Characters" }
+    }
+}
+
+enum StarWarsCharacterArtwork: String, Codable, CaseIterable, Identifiable {
+    case lightsaber, character
+    var id: Self { self }
+    var title: String { self == .lightsaber ? "Lightsaber" : "Character" }
+}
+
+/// Each variant is a real theme value so existing accent, Home, and animation
+/// observers update together. The picker groups them under one Star Wars card.
+enum StarWarsThemeVariant: String, Codable, CaseIterable, Identifiable {
+    case jedi = "starWars"
+    case darkSide = "starWarsDarkSide"
+    case luke = "starWarsLuke"
+    case obiWan = "starWarsObiWan"
+    case ahsoka = "starWarsAhsoka"
+    case yoda = "starWarsYoda"
+    case maceWindu = "starWarsMaceWindu"
+    case rey = "starWarsRey"
+    case vader = "starWarsVader"
+    case maul = "starWarsMaul"
+    var id: Self { self }
+    var category: StarWarsThemeCategory {
+        switch self { case .jedi: .jedi; case .darkSide: .darkSide; default: .characters }
+    }
+    static var characters: [Self] { allCases.filter { $0.category == .characters } }
+    var title: String {
+        switch self {
+        case .jedi: "Jedi"
+        case .darkSide: "Dark Side"
+        case .luke: "Luke Skywalker"
+        case .obiWan: "Obi-Wan Kenobi"
+        case .ahsoka: "Ahsoka Tano"
+        case .yoda: "Yoda"
+        case .maceWindu: "Mace Windu"
+        case .rey: "Rey"
+        case .vader: "Darth Vader"
+        case .maul: "Darth Maul"
+        }
+    }
+    var colorName: String {
+        switch self {
+        case .jedi, .obiWan: "Azure"
+        case .darkSide, .vader, .maul: "Crimson"
+        case .luke, .yoda: "Emerald"
+        case .ahsoka: "Pearl"
+        case .maceWindu: "Amethyst"
+        case .rey: "Golden"
+        }
+    }
+    var rgb: (red: Double, green: Double, blue: Double) {
+        switch self {
+        case .jedi, .obiWan: (0.20, 0.65, 1)
+        case .darkSide, .vader, .maul: (1, 0.20, 0.25)
+        case .luke, .yoda: (0.28, 0.92, 0.46)
+        case .ahsoka: (0.86, 0.95, 1)
+        case .maceWindu: (0.75, 0.38, 1)
+        case .rey: (1, 0.78, 0.22)
+        }
+    }
+    var backdropName: String {
+        switch self {
+        case .darkSide, .vader, .maul: "StarWarsDarkSideBackdrop"
+        case .luke, .obiWan, .rey: "StarWarsDesertBackdrop"
+        default: "StarWarsJediBackdrop"
+        }
+    }
+    var supportsCharacterArtwork: Bool { self == .vader }
+    func backdropName(artwork: StarWarsCharacterArtwork, characterArtworkAvailable: Bool = true) -> String {
+        if supportsCharacterArtwork && artwork == .character && characterArtworkAvailable { return "StarWarsVaderSceneBackdrop" }
+        return backdropName
+    }
+}
+
+enum LightsaberColorMode: String, Codable, CaseIterable, Identifiable {
+    case theme, albumArtwork, custom
+    var id: Self { self }
+    var title: String {
+        switch self { case .theme: "Theme / character"; case .albumArtwork: "Album cover"; case .custom: "Custom color" }
+    }
+}
+
+/// Shared by drawing, scrubbing, and keyboard/VoiceOver adjustment.
+enum LightsaberTrackPolicy {
+    static func progress(value: Double, duration: Double) -> Double {
+        guard value.isFinite, duration.isFinite, duration > 0 else { return 0 }
+        return min(1, max(0, value / duration))
+    }
+    static func time(at x: Double, width: Double, duration: Double) -> Double? {
+        guard x.isFinite, width.isFinite, width > 0, duration.isFinite, duration > 0 else { return nil }
+        return min(1, max(0, x / width)) * duration
+    }
+}
+
 /// Locked windows must never reuse the normal Home/Shelf/Live view hierarchy.
 enum NotchLockScreenPresentation: Equatable {
     case normal, hidden, lockedHome
@@ -75,6 +184,20 @@ enum HomeLayoutPolicy {
         result.swapAt(index, index + delta)
         return result
     }
+    static func reordered(_ widget: HomeWidget, over target: HomeWidget, in order: [HomeWidget]) -> [HomeWidget] {
+        guard widget != target, let source = order.firstIndex(of: widget), let destination = order.firstIndex(of: target) else { return order }
+        var result = order
+        result.remove(at: source)
+        result.insert(widget, at: destination)
+        return result
+    }
+}
+
+enum NotchTabLayoutPolicy {
+    static func index(at x: Double, width: Double, count: Int) -> Int? {
+        guard count > 0, width > 0, x.isFinite, width.isFinite else { return nil }
+        return max(0, min(count - 1, Int(max(0, min(width, x)) / width * Double(count))))
+    }
 }
 
 enum SeasonHemisphere: String, Codable, CaseIterable, Identifiable {
@@ -84,6 +207,29 @@ enum SeasonHemisphere: String, Codable, CaseIterable, Identifiable {
 }
 
 enum SeasonalThemeSchedule {
+    /// Western/Gregorian Easter; holiday switching remains explicitly opt-in.
+    static func easterComponents(year: Int) -> DateComponents? {
+        guard (1583...9999).contains(year) else { return nil }
+        let a = year % 19, b = year / 100, c = year % 100
+        let d = b / 4, e = b % 4, f = (b + 8) / 25
+        let g = (b - f + 1) / 3
+        let h = (19 * a + b - d - g + 15) % 30
+        let i = c / 4, k = c % 4
+        let l = (32 + 2 * e + 2 * i - h - k) % 7
+        let m = (a + 11 * h + 22 * l) / 451
+        return DateComponents(year: year, month: (h + l - 7 * m + 114) / 31, day: (h + l - 7 * m + 114) % 31 + 1)
+    }
+    static func themeName(date: Date, hemisphere: SeasonHemisphere, halloween: Bool, christmas: Bool,
+                          easter: Bool, calendar: Calendar = .current) -> String {
+        var calendar = calendar
+        if calendar.identifier != .gregorian { calendar = Calendar(identifier: .gregorian) }
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        if easter, let year = components.year, let day = easterComponents(year: year), let holiday = calendar.date(from: day) {
+            let distance = calendar.dateComponents([.day], from: holiday, to: calendar.startOfDay(for: date)).day ?? Int.max
+            if (-7...1).contains(distance) { return "easter" }
+        }
+        return themeName(month: components.month ?? 1, day: components.day ?? 1, hemisphere: hemisphere, halloween: halloween, christmas: christmas)
+    }
     /// Explicit, testable schedule. Holiday themes are optional in either hemisphere.
     static func themeName(month: Int, day: Int, hemisphere: SeasonHemisphere, halloween: Bool, christmas: Bool) -> String {
         if halloween && month == 10 && day >= 15 { return "halloween" }

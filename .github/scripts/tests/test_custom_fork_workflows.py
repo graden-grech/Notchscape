@@ -29,6 +29,19 @@ class CustomForkWorkflowTests(unittest.TestCase):
             self.assertNotIn("ENABLE_NIGHTLY_BUILDS", workflow)
             self.assertNotIn("ENABLE_GITHUB_PAGES", workflow)
 
+    def test_native_sdk_build_retains_intel_runner_and_feature_policy_checks(self):
+        workflow = (ROOT / ".github/workflows/cicd.yml").read_text()
+        self.assertIn("runs-on: macos-26-intel", workflow)
+        self.assertIn("          - ^26", workflow)
+        self.assertIn("          - boringNotch", workflow)
+        self.assertIn("tests/CustomizationPolicyTests.swift", workflow)
+        self.assertIn("tests/ProductivityPolicyTests.swift", workflow)
+        self.assertIn("tests/NotchUtilitiesPolicyTests.swift", workflow)
+        self.assertIn("boringNotch/models/WorkspaceModeModels.swift", workflow)
+        self.assertIn("tests/WorkspaceModePolicyTests.swift", workflow)
+        self.assertIn('"$RUNNER_TEMP/workspace-mode-tests"', workflow)
+        self.assertIn("tests/AccountSettingsPolicyTests.swift", workflow)
+
 
 if __name__ == "__main__":
     unittest.main()

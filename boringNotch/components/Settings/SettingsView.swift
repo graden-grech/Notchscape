@@ -17,6 +17,23 @@ import SwiftUIIntrospect
 
 struct SettingsView: View {
     @State private var selectedTab = "General"
+    @State private var search = ""
+    private var destinations: [NotchSettingsDestination] {
+        NotchSettingsDestination.all.filter { ($0.id != "Account" || AccountFeaturePolicy.enabled) && $0.matches(search) }
+    }
+    private func sidebarColor(_ name: String) -> Color {
+        switch name {
+        case "blue": .blue
+        case "indigo": .indigo
+        case "pink": .pink
+        case "red": .red
+        case "cyan": .cyan
+        case "purple": .purple
+        case "green": .green
+        case "orange": .orange
+        default: .gray
+        }
+    }
     @Default(.appTheme) private var appTheme
     @Default(.useCustomAccentColor) private var useCustomAccentColor
     @Default(.customAccentColorData) private var customAccentColorData
@@ -36,72 +53,28 @@ struct SettingsView: View {
     var body: some View {
         NavigationSplitView {
             List(selection: $selectedTab) {
-                NavigationLink(value: "General") {
-                    Label("General", systemImage: "gear")
-                }
-                if AccountFeaturePolicy.enabled {
-                    NavigationLink(value: "Account") {
-                        Label("Account", systemImage: "person.crop.circle")
+                ForEach(destinations) { destination in
+                    NavigationLink(value: destination.id) {
+                        SettingsSidebarItem(destination.title, symbol: destination.symbol, color: sidebarColor(destination.color))
                     }
                 }
-                NavigationLink(value: "Appearance") {
-                    Label("Appearance", systemImage: "eye")
-                }
-                NavigationLink(value: "Media") {
-                    Label("Media", systemImage: "play.laptopcomputer")
-                }
-                NavigationLink(value: "Calendar") {
-                    Label("Calendar", systemImage: "calendar")
-                }
-                NavigationLink(value: "Agents") {
-                    Label("AI Agents", systemImage: "sparkles")
-                }
-                NavigationLink(value: "Weather") {
-                    Label("Weather", systemImage: "cloud.sun")
-                }
-                NavigationLink(value: "Sports") {
-                    Label("Sports", systemImage: "sportscourt")
-                }
-                NavigationLink(value: "Activities") {
-                    Label("Live Activities", systemImage: "waveform.path.ecg")
-                }
-                NavigationLink(value: "System") {
-                    Label("System", systemImage: "gauge.with.dots.needle.50percent")
-                }
-                NavigationLink(value: "HUD") {
-                    Label("HUDs", systemImage: "dial.medium.fill")
-                }
-                NavigationLink(value: "Battery") {
-                    Label("Battery", systemImage: "battery.100.bolt")
-                }
-//                NavigationLink(value: "Downloads") {
-//                    Label("Downloads", systemImage: "square.and.arrow.down")
-//                }
-                NavigationLink(value: "Shelf") {
-                    Label("Shelf", systemImage: "books.vertical")
-                }
-                NavigationLink(value: "Shortcuts") {
-                    Label("Shortcuts", systemImage: "keyboard")
-                }
-                // NavigationLink(value: "Extensions") {
-                //     Label("Extensions", systemImage: "puzzlepiece.extension")
-                // }
-                NavigationLink(value: "Advanced") {
-                    Label("Advanced", systemImage: "gearshape.2")
-                }
-                NavigationLink(value: "About") {
-                    Label("About", systemImage: "info.circle")
+            }
+            .overlay {
+                if destinations.isEmpty {
+                    Text("No matching settings").font(.callout).foregroundStyle(.secondary).padding()
                 }
             }
             .listStyle(SidebarListStyle())
             .tint(currentAccent)
             .toolbar(removing: .sidebarToggle)
-            .navigationSplitViewColumnWidth(200)
+            .navigationSplitViewColumnWidth(min: 210, ideal: 220, max: 250)
         } detail: {
             Group {
                 switch selectedTab {
                 case "General":
                     GeneralSettings()
+                case "Modes":
+                    WorkspaceModesSettings()
                 case "Account":
                     if AccountFeaturePolicy.enabled {
                         AccountSettingsView()
@@ -114,6 +87,10 @@ struct SettingsView: View {
                     Media()
                 case "Calendar":
                     CalendarSettings()
+                case "Tools":
+                    ProductivitySettings()
+                case "Wallpapers":
+                    WallpaperSettings()
                 case "Agents":
                     AgentSettings()
                 case "Weather":
@@ -142,19 +119,42 @@ struct SettingsView: View {
                     GeneralSettings()
                 }
             }
+            .navigationTitle(NotchSettingsDestination.all.first(where: { $0.id == selectedTab })?.title ?? "Settings")
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .scrollContentBackground(.hidden)
             .background(Color.clear)
         }
         .navigationSplitViewStyle(.balanced)
+        .searchable(text: $search, prompt: "Search Settings")
         .toolbar(removing: .sidebarToggle)
         .formStyle(.grouped)
         .toggleStyle(CompactSwitchToggleStyle())
         .controlSize(.regular)
-        .frame(minWidth: 620, idealWidth: 700, maxWidth: .infinity, minHeight: 500, maxHeight: .infinity)
+        .frame(minWidth: 760, idealWidth: 840, maxWidth: .infinity, minHeight: 560, maxHeight: .infinity)
         .background(LiquidGlassSettingsBackground())
         .tint(currentAccent)
+        .onReceive(NotificationCenter.default.publisher(for: .notchSettingsSectionRequested)) { notification in
+            if let section = notification.object as? String,
+               NotchSettingsDestination.all.contains(where: { $0.id == section && ($0.id != "Account" || AccountFeaturePolicy.enabled) }) {
+                search = ""; selectedTab = section
+            }
+        }
         .transaction { if performance.suppressAnimations { $0.animation = nil; $0.disablesAnimations = true } }
+    }
+}
+
+private struct SettingsSidebarItem: View {
+    let title: String
+    let symbol: String
+    let color: Color
+    init(_ title: String, symbol: String, color: Color) { self.title = title; self.symbol = symbol; self.color = color }
+    var body: some View {
+        HStack(spacing: 9) {
+            Image(systemName: symbol).font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white).frame(width: 22, height: 22)
+                .background(color.gradient, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+            Text(title).font(.body).foregroundStyle(.primary)
+        }.padding(.vertical, 1)
     }
 }
 
@@ -661,7 +661,7 @@ struct HUD: View {
                             }
                         }
 
-                        Text("After you enable Boring Notch, the HUD replacement will turn on automatically.")
+                        Text("After you enable Notchscape, the HUD replacement will turn on automatically.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -801,6 +801,7 @@ struct Media: View {
     @Default(.hideNotchOption) var hideNotchOption
     @Default(.enableSneakPeek) private var enableSneakPeek
     @Default(.sneakPeekStyles) var sneakPeekStyles
+    @Default(.musicActivityOverride) private var musicActivityOverride
 
     @Default(.enableLyrics) var enableLyrics
 
@@ -844,9 +845,19 @@ struct Media: View {
             
             Section {
                 Toggle(
-                    "Show music live activity",
+                    "Show music in the notch",
                     isOn: $coordinator.musicLiveActivityEnabled.animation()
                 )
+                Toggle("Keep music visible", isOn: $musicActivityOverride)
+                    .disabled(!coordinator.musicLiveActivityEnabled)
+                    .help("Keep music in the closed notch even when Live Activities are off or the activity profile hides music.")
+            } header: {
+                Text("Music in the notch")
+            } footer: {
+                Text("Keep music visible overrides the Live Activities switch and activity profiles. Music still hides when stopped, and its own switch above always takes priority. The Home music tile is managed separately in Appearance → Home layout.")
+            }
+
+            Section("Playback behavior") {
                 Toggle("Show sneak peek on playback changes", isOn: $enableSneakPeek)
                 Picker("Sneak Peek Style", selection: $sneakPeekStyles) {
                     ForEach(SneakPeekStyle.allCases) { style in
@@ -876,8 +887,6 @@ struct Media: View {
                         HideNotchOption.nowPlayingOnly)
                     Text("Never hide").tag(HideNotchOption.never)
                 }
-            } header: {
-                Text("Media playback live activity")
             }
             
             Section {
@@ -1056,7 +1065,9 @@ struct ActivitySettings: View {
             Section {
                 Toggle("Show Live Activities", isOn: $liveActivitiesEnabled)
             } footer: {
-                Text("Turn this off to hide all music, AI, sports, calendar, timer, privacy, download, and weather activities from the closed notch. HUDs and the expanded notch still work normally.")
+                Text("Turn this off to hide AI, sports, calendar, timer, privacy, download, and weather activities from the closed notch. Music can stay visible using its override in Media. HUDs and the expanded notch still work normally.")
+                Button("Music settings…") { SettingsWindowController.shared.showWindow(section: "Media") }
+                    .buttonStyle(.link)
             }
 
             Section("Activity Profile") {
@@ -1065,7 +1076,7 @@ struct ActivitySettings: View {
                         Text(profile.title).tag(profile)
                     }
                 }
-                Text("Focus hides music and downloads. Entertainment keeps music and downloads. Minimal keeps only AI and privacy indicators.")
+                Text("Focus hides music and downloads. Entertainment keeps music and downloads. Minimal keeps only AI and privacy indicators. Music’s override in Media takes priority over these profiles.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -1128,6 +1139,11 @@ struct AgentSettings: View {
         Form {
             AgentHistorySettings()
             Section {
+                Defaults.Toggle(key: .agentUsageEnabled) { Text("Show available local AI usage") }
+            } header: { Text("Usage dashboard") } footer: {
+                Text("Reads usage events from recent local Codex session files only while Live is open, and accepts explicit usage fields from agent hooks. Prompts, credentials and OAuth tokens are not retained or uploaded. Claude usage requires hook-provided data. Reset times and percentages appear only when supplied; these readings never mark a task as complete or interrupted. Open Terminal returns to the Terminal app, not an exact Claude session.")
+            }
+            Section {
                 Defaults.Toggle(key: .agentStatusEnabled) {
                     Text("Show AI agent status")
                 }
@@ -1173,7 +1189,7 @@ struct AgentSettings: View {
 
     private static let hookConfiguration = """
     {
-      "description": "Send local Codex activity to boringNotch.",
+      "description": "Send local Codex activity to Notchscape.",
       "hooks": {
         "SessionStart": [{"hooks": [{"type": "command", "command": "/usr/bin/curl -sS --max-time 1 -H 'Content-Type: application/json' --data-binary @- http://127.0.0.1:43765/codex >/dev/null", "timeout": 2}]}],
         "UserPromptSubmit": [{"hooks": [{"type": "command", "command": "/usr/bin/curl -sS --max-time 1 -H 'Content-Type: application/json' --data-binary @- http://127.0.0.1:43765/codex >/dev/null", "timeout": 2}]}],
@@ -1449,11 +1465,14 @@ struct WeatherSettings: View {
                 .onChange(of: useCelsius) { manager.refresh() }
 
                 Button("Refresh Weather") {
-                    manager.refresh()
+                    manager.refresh(force: true)
                 }
                 .disabled((!useCurrentLocation && location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) || manager.isLoading)
 
                 if useCurrentLocation {
+                    if manager.locationAuthorizationStatus == .notDetermined {
+                        Button("Use My Location…") { manager.useMyLocation() }
+                    }
                     LabeledContent("Permission", value: manager.locationPermissionDescription)
 
                     if manager.locationAuthorizationStatus == .denied {
@@ -1477,11 +1496,16 @@ struct WeatherSettings: View {
                     let valueString = String(format: "%.0f° • %@", weather.temperature, weather.condition)
                     LabeledContent(weather.location, value: valueString)
                 }
-            } else if let error = manager.errorMessage {
+            }
+            if let error = manager.errorMessage {
                 Section {
                     Label(error, systemImage: "exclamationmark.triangle")
                         .foregroundStyle(.orange)
                 }
+            }
+            Section {
+                Link("Weather data by Open-Meteo", destination: URL(string: "https://open-meteo.com/")!)
+                    .font(.caption)
             }
         }
         .navigationTitle("Weather")
@@ -1515,12 +1539,19 @@ struct About: View {
         VStack {
             Form {
                 Section {
-                    HStack {
-                        Text("Release name")
-                        Spacer()
-                        Text(Defaults[.releaseName])
-                            .foregroundStyle(.secondary)
+                    HStack(spacing: 14) {
+                        Image(nsImage: NSApplication.shared.applicationIconImage)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 56, height: 56)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Notchscape").font(.title2.weight(.semibold))
+                            Text("Your Mac, together.").foregroundStyle(.secondary)
+                        }
                     }
+                    .padding(.vertical, 4)
+                }
+                Section {
                     HStack {
                         Text("Version")
                         Spacer()
@@ -1528,7 +1559,7 @@ struct About: View {
                             Text("(\(Bundle.main.buildVersionNumber ?? ""))")
                                 .foregroundStyle(.secondary)
                         }
-                        Text(Bundle.main.releaseVersionNumber ?? "unkown")
+                        Text(Bundle.main.releaseVersionNumber ?? "Unknown")
                             .foregroundStyle(.secondary)
                     }
                     .onTapGesture {
@@ -1545,7 +1576,7 @@ struct About: View {
                 HStack(spacing: 30) {
                     Spacer(minLength: 0)
                     Button {
-                        if let url = URL(string: "https://github.com/TheBoredTeam/boring.notch") {
+                        if let url = URL(string: "https://github.com/graden-grech/Notchscape") {
                             NSWorkspace.shared.open(url)
                         }
                     } label: {
@@ -1561,10 +1592,15 @@ struct About: View {
                     Spacer(minLength: 0)
                 }
                 .buttonStyle(PlainButtonStyle())
+
+                Section("Legal") {
+                    Link("Open-Source Notices", destination: URL(string: "https://github.com/graden-grech/Notchscape/blob/main/docs/ATTRIBUTION.md")!)
+                    Link("GNU General Public License", destination: URL(string: "https://github.com/graden-grech/Notchscape/blob/main/LICENSE")!)
+                }
             }
             VStack(spacing: 0) {
                 Divider()
-                Text("Made with 🫶🏻 by not so boring not.people")
+                Text("Maintained by Graden Grech")
                     .foregroundStyle(.secondary)
                     .padding(.top, 5)
                     .padding(.bottom, 7)
@@ -1837,15 +1873,15 @@ private struct ThemePreviewCard: View {
     let selected: Bool
     @Default(.useCustomAccentColor) private var useCustomAccentColor
     @Default(.customAccentColorData) private var customAccentColorData
+    @Default(.starWarsVaderArtwork) private var starWarsVaderArtwork
 
     var body: some View {
         VStack(alignment: .leading, spacing: 9) {
             ZStack {
                 GeometryReader { geometry in
-                    if let backdrop = theme.homeBackdrop {
-                        Image(backdrop).resizable().scaledToFill()
-                            .frame(width: geometry.size.width, height: geometry.size.height)
-                            .clipped()
+                    if theme.hasHomeScene {
+                        HomeThemeScene(theme: theme, vaderArtwork: starWarsVaderArtwork,
+                                       imageAlignment: theme.isStarWars ? .topTrailing : .center)
                     } else {
                         LinearGradient(colors: [theme == .autumn ? Color.brown.opacity(0.75) : .black, .black], startPoint: .topLeading, endPoint: .bottomTrailing)
                     }
@@ -1873,7 +1909,7 @@ private struct ThemePreviewCard: View {
             .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
 
             HStack {
-                Text(theme.title).font(.callout.weight(.semibold))
+                Text(theme.isStarWars ? "Star Wars" : theme.title).font(.callout.weight(.semibold))
                 Spacer()
                 Image(systemName: selected ? "checkmark.circle.fill" : "circle")
                     .foregroundStyle(selected ? Color.effectiveAccent : .secondary.opacity(0.45))
@@ -2018,6 +2054,7 @@ struct Appearance: View {
     @State private var name: String = ""
     @State private var url: String = ""
     @State private var speed: CGFloat = 1.0
+    @State private var starWarsSettingsPresented = false
     var body: some View {
         Form {
             Section {
@@ -2032,29 +2069,34 @@ struct Appearance: View {
 
             Section {
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 14) {
-                    ForEach(AppTheme.allCases) { theme in
+                    ForEach(AppTheme.pickerThemes) { theme in
                         Button {
+                            let selectedTheme = theme.isStarWars && appTheme.isStarWars ? appTheme : theme
                             withAnimation(.smooth(duration: 0.22)) {
                                 Defaults[.automaticSeasonalThemes] = false
-                                appTheme = theme
+                                appTheme = selectedTheme
                                 if appIconFollowsTheme {
-                                    appIconVariant = theme.matchingIcon
+                                    appIconVariant = selectedTheme.matchingIcon
                                 }
                             }
-                            if appIconFollowsTheme { theme.matchingIcon.apply() }
+                            if appIconFollowsTheme { selectedTheme.matchingIcon.apply() }
+                            if theme.isStarWars { starWarsSettingsPresented = true }
                         } label: {
-                            ThemePreviewCard(theme: theme, selected: appTheme == theme)
+                            ThemePreviewCard(theme: theme.isStarWars && appTheme.isStarWars ? appTheme : theme,
+                                             selected: appTheme == theme || (theme.isStarWars && appTheme.isStarWars))
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel(theme.title)
-                        .accessibilityAddTraits(appTheme == theme ? [.isSelected] : [])
+                        .accessibilityLabel(theme.isStarWars ? "Star Wars themes" : theme.title)
+                        .accessibilityHint(theme.isStarWars ? "Choose Jedi, Dark Side, or a character, and customize your lightsaber music bar." : "Apply this theme")
+                        .accessibilityAddTraits(appTheme == theme || (theme.isStarWars && appTheme.isStarWars) ? [.isSelected] : [])
                     }
                 }
             } header: {
                 Text("Menu theme")
             } footer: {
-                Text("Preview Home's seasonal scenes. Winter has no Christmas or holiday decorations.")
+                Text("Preview Home’s scenes. Star Wars opens its own Jedi, Dark Side, and Characters page. Winter has no holiday decorations.")
             }
+            .sheet(isPresented: $starWarsSettingsPresented) { StarWarsThemeSettingsView() }
 
             Section("App icon") {
                 SeasonalIconPicker()
@@ -2312,7 +2354,6 @@ struct Advanced: View {
             }
             Section("Window Behavior") {
                 Defaults.Toggle(key: .extendHoverArea) { Text("Extend hover area") }
-                Defaults.Toggle(key: .hideTitleBar) { Text("Hide title bar") }
                 Defaults.Toggle(key: .hideFromScreenRecording) { Text("Hide from screen recording") }
             }
             Section {

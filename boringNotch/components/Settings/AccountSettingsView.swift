@@ -38,15 +38,15 @@ struct AccountSettingsView: View {
                         switch account.signInProvider {
                         case .google:
                             Label("You sign in with Google", systemImage: "person.crop.circle.badge.checkmark")
-                            Text("Keep using Continue with Google. There is no separate Boring Notch password to remember. Your Google account’s security settings have not been changed.")
+                            Text("Keep using Continue with Google. There is no separate Notchscape password to remember. Your Google account’s security settings have not been changed.")
                                 .font(.callout).foregroundStyle(.secondary)
                         case .apple:
                             Label("You sign in with Apple", systemImage: "apple.logo")
-                            Text("Keep using Continue with Apple. There is no separate Boring Notch password to remember. Your Apple Account’s security settings have not been changed.")
+                            Text("Keep using Continue with Apple. There is no separate Notchscape password to remember. Your Apple Account’s security settings have not been changed.")
                                 .font(.callout).foregroundStyle(.secondary)
                         case .email, .other:
                             Label("Your existing sign-in is unchanged", systemImage: "person.crop.circle.badge.checkmark")
-                            Text("Keep using the same sign-in service. It handles your password and recovery; Boring Notch does not change its security settings.")
+                            Text("Keep using the same sign-in service. It handles your password and recovery; Notchscape does not change its security settings.")
                                 .font(.callout).foregroundStyle(.secondary)
                         }
                     }
@@ -76,7 +76,7 @@ struct AccountSettingsView: View {
                 Label("HUD permissions and display setup", systemImage: "macwindow")
                 Label("AI conversations, calendar events and files", systemImage: "lock.shield")
                 Label("Location, shortcuts and credentials", systemImage: "hand.raised")
-                Text("Only supported appearance, Home layout, media display and battery display choices are synced. No app password is stored by Boring Notch; session tokens are kept in macOS Keychain.")
+                Text("Only supported appearance, Home layout, media display and battery display choices are synced. No app password is stored by Notchscape; session tokens are kept in macOS Keychain.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             if let message = account.message {
@@ -162,7 +162,7 @@ struct AccountOnboardingView: View {
             VStack(alignment: .leading, spacing: 20) {
             Image(systemName: "person.crop.circle").font(.system(size: 38)).foregroundStyle(.secondary)
             Text("Make it yours").font(.largeTitle.weight(.semibold))
-            Text("Create an optional account to save your appearance and layout. You can also use Boring Notch without signing in.")
+            Text("Create an optional account to save your appearance and layout. You can also use Notchscape without signing in.")
                 .foregroundStyle(.secondary)
             AccountPreviewNotice()
             AccountSignInControls()

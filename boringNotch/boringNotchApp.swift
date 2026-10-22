@@ -92,7 +92,7 @@ struct DynamicNotchApp: App {
     }
 
     var body: some Scene {
-        MenuBarExtra("boring.notch", systemImage: "sparkle", isInserted: $showMenuBarIcon) {
+        MenuBarExtra("Notchscape", systemImage: "sparkle", isInserted: $showMenuBarIcon) {
             Button("Settings") {
                 DispatchQueue.main.async {
                     SettingsWindowController.shared.showWindow()
@@ -100,8 +100,10 @@ struct DynamicNotchApp: App {
             }
             .keyboardShortcut(KeyEquivalent(","), modifiers: .command)
             CheckForUpdatesView(updater: updaterController.updater)
+            Button("Open Tools…") { NotchToolsWindowController.shared.show() }
+            WorkspaceModeMenu()
             Divider()
-            Button("Restart Boring Notch") {
+            Button("Restart Notchscape") {
                 ApplicationRelauncher.restart()
             }
             Button("Quit", role: .destructive) {
@@ -160,6 +162,35 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return false
     }
 
+    private var toolsTerminationInProgress = false
+    private var toolsTerminationApproved = false
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard !toolsTerminationApproved, LocalToolsManager.shared.needsSave else { return .terminateNow }
+        guard !toolsTerminationInProgress else { return .terminateCancel }
+        toolsTerminationInProgress = true
+        // Keep AppKit's normal event loop running while Swift concurrency flushes
+        // encrypted storage. A terminateLater modal loop can starve that task.
+        Task { @MainActor in
+            await LocalToolsManager.shared.flush()
+            var shouldQuit = true
+            if LocalToolsManager.shared.needsSave {
+                let alert = NSAlert()
+                alert.messageText = "Your latest Tools changes couldn’t be saved"
+                alert.informativeText = "Keep the app open to retry, or quit without saving the latest changes. Previously saved notes and clipboard items are preserved."
+                alert.addButton(withTitle: "Keep Open")
+                alert.addButton(withTitle: "Quit Without Saving")
+                shouldQuit = alert.runModal() == .alertSecondButtonReturn
+            }
+            toolsTerminationInProgress = false
+            if shouldQuit {
+                toolsTerminationApproved = true
+                sender.terminate(nil)
+            }
+        }
+        return .terminateCancel
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         unlockTransitionTask?.cancel()
         lockPreviewTask?.cancel()
@@ -181,6 +212,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor
     func onScreenLocked(_ notification: Notification) {
         isScreenLocked = true
+        LocalToolsManager.shared.setLocked(true)
+        AppleNotesSyncManager.shared.setLocked(true)
+        NotchWallpaperManager.shared.setLocked(true)
+        NotchToolsWindowController.shared.close()
+        DeviceControlsManager.shared.stop()
+        AgentInsightsManager.shared.clear()
         unlockTransitionTask?.cancel()
         lockPreviewTask?.cancel()
         isPreviewingLockedHome = false
@@ -210,6 +247,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         guard let session = CGSessionCopyCurrentDictionary() as? [String: Any],
               session["CGSSessionScreenIsLocked"] as? Bool != true else { return }
         isScreenLocked = false
+        LocalToolsManager.shared.setLocked(false)
+        AppleNotesSyncManager.shared.setLocked(false)
+        NotchWallpaperManager.shared.setLocked(false)
+        DeviceControlsManager.shared.configureNotifications()
         disableSkyLightOnAllWindows()
     }
     
@@ -433,6 +474,21 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         AppPresentationManager.shared.start()
         _ = AppPerformanceManager.shared
         SeasonalThemeManager.shared.start()
+        KeyboardShortcuts.onKeyDown(for: .clipboardHistoryPanel) {
+            guard Defaults[.clipboardHistoryEnabled] else { return }
+            NotchToolsWindowController.shared.show(.clipboard)
+        }
+        KeyboardShortcuts.onKeyDown(for: .captureNotchText) {
+            guard Defaults[.textCaptureEnabled] else { return }
+            NotchToolsWindowController.shared.show(.capture)
+            LocalToolsManager.shared.captureScreenText()
+        }
+        LocalToolsManager.shared.start()
+        LocalToolsManager.shared.setLocked(isScreenLocked)
+        AppleNotesSyncManager.shared.start()
+        AppleNotesSyncManager.shared.setLocked(isScreenLocked)
+        DeviceControlsManager.shared.start()
+        NotchWallpaperManager.shared.start(locked: isScreenLocked)
 
         externalDisplayObservation = Defaults.publisher(.showOnExternalDisplays)
             .dropFirst()

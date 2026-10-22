@@ -1,208 +1,91 @@
-<h1 align="center">
-  <br>
-  <a href="http://theboring.name"><img src="https://framerusercontent.com/images/RFK4vs0kn8pRMuOO58JeyoemXA.png?scale-down-to=256" alt="Boring Notch" width="150"></a>
-  <br>
-  Boring Notch
-  <br>
-</h1>
-
-<p align="center"><strong>Graden's custom boringNotch build</strong></p>
-
-This public fork adds local weather, Codex and Claude Code agent activities,
-privacy indicators, configurable Live Activities, timer controls, and a more
-Apple-like completion treatment. It keeps the original project as the upstream
-base while shipping updates from
-[`graden-grech/boringNotch-custom`](https://github.com/graden-grech/boringNotch-custom).
-
-
 <p align="center">
-  <a title="Crowdin" target="_blank" href="https://crowdin.com/project/boring-notch"><img src="https://badges.crowdin.net/boring-notch/localized.svg"></a>
-  <img src="https://github.com/graden-grech/boringNotch-custom/actions/workflows/cicd.yml/badge.svg" alt="Custom boringNotch Build & Test" style="margin-right: 10px;" />
-  <a href="https://discord.gg/c8JXA7qrPm">
-    <img src="https://dcbadge.limes.pink/api/server/https://discord.gg/c8JXA7qrPm?style=flat" alt="Discord Badge" />
-  </a>
-  <a href="https://www.ko-fi.com/alexander5015">
-    <img src="https://srv-cdn.himpfen.io/badges/kofi/kofi-flat.svg" alt="Ko-Fi" />
-  </a>
+  <img src="boringNotch/Assets.xcassets/AppIcon.appiconset/notch-stage-icon2%2010.png" alt="Notchscape icon" width="128" />
 </p>
 
-<p align="center">
-  <a href="https://trendshift.io/repositories/14815?utm_source=repository-badge&amp;utm_medium=badge&amp;utm_campaign=badge-repository-14815" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/repositories/14815" alt="TheBoredTeam%2Fboring.notch |    Trendshift" width="250" height="55"/></a>
-</p>
-<!--Welcome to **Boring.Notch**, the coolest way to make your MacBook's notch the star of the show! Forget about those boring status bars—our notch turns into a dynamic music control center, complete with a snazzy visualizer and all the music controls you need. It's like having a mini concert right at the top of your screen! -->
+# Notchscape
 
-Say hello to **Boring Notch**, the coolest way to make your MacBook’s notch the star of the show! Say goodbye to boring status bars: with Boring Notch, your notch transforms into a dynamic music control center, complete with a vibrant visualizer and all the essential music controls you need. But that’s just the start! Boring Notch also offers calendar integration, a handy file shelf with AirDrop support, a complete MacOS HUD replacement and more!
+Your Mac, together. Music, calendar, weather, wallpapers and useful local tools
+in one native macOS workspace, at the top of your display.
 
-<p align="center">
-  <img src="https://github.com/user-attachments/assets/2d5f69c1-6e7b-4bc2-a6f1-bb9e27cf88a8" alt="Demo GIF" />
-</p>
+Maintained by [Graden Grech](https://github.com/graden-grech).
 
-<!--https://github.com/user-attachments/assets/19b87973-4b3a-4853-b532-7e82d1d6b040-->
----
-<!--## Table of Contents
-- [Installation](#installation)
-- [Usage](#usage)
-- [Roadmap](#-roadmap)
-- [Building from Source](#building-from-source)
-- [Contributing](#-contributing)
-- [Join our Discord Server](#join-our-discord-server)
-- [Star History](#star-history)
-- [Buy us a coffee!](#buy-us-a-coffee)
-- [Acknowledgments](#-acknowledgments)-->
+[![Build and test](https://github.com/graden-grech/Notchscape/actions/workflows/cicd.yml/badge.svg)](https://github.com/graden-grech/Notchscape/actions/workflows/cicd.yml)
+[![Security checks](https://github.com/graden-grech/Notchscape/actions/workflows/codeql.yml/badge.svg)](https://github.com/graden-grech/Notchscape/actions/workflows/codeql.yml)
 
-## Installation
+## One workspace
 
-**System Requirements:**
-- macOS **14 Sonoma** or later
-- Apple Silicon or Intel Mac
+- A configurable notch or floating island, with per-display visibility.
+- Music controls, calendar and reminders, location-aware weather, and a file shelf.
+- Local Codex and Claude Code activity, with distinct completion and usage-limit states.
+- Optional volume and brightness HUDs, battery controls, and system monitoring.
+- Seasonal themes, matching icons, custom accent colors and Home layout controls.
+- 328 wallpapers adapted from MacScapes and credited sources, with theme matching,
+  favorites, previews, display selection and optional rotation.
+- Eight temporary workspace Modes, with one-click End/Restore and a manual-end
+  Presentation privacy mode. [Mode behavior and limits](docs/WORKSPACE_MODES.md).
+- Local Quick Notes, optional Apple Notes sync, clipboard history and text recognition.
+- Searchable Settings and a consistent, native control language.
 
----
+The wallpaper and newer tools work is currently in the source tree, not yet in
+the public downloadable app. The latest public release is **2.8.4 (287)**,
+published before the Notchscape rebrand. Accounts remain disabled in public
+builds; no app account is required.
 
-### Option 1: Download and Install Manually
+## Download and updates
 
-<a href="https://github.com/graden-grech/boringNotch-custom/releases/latest/download/boringNotch-custom.zip" target="_self"><img width="200" src="https://github.com/user-attachments/assets/e3179be1-8416-4b8a-b417-743e1ecc67d6" alt="Download Graden's custom build for macOS" /></a>
+[Public releases](https://github.com/graden-grech/Notchscape/releases)
+include version-specific notes and known testing limits. The current public
+binary requires Apple silicon and macOS 14 or later. Native Liquid Glass is
+available on macOS 26 or later; earlier systems use lighter standard materials.
 
-Once downloaded, open the `.dmg` and move **Boring Notch** to your `/Applications` folder.
+The app is development-signed with its existing identity, **not notarized**.
+Review the release notes before installing. If macOS blocks a download you
+trust, review it in System Settings → Privacy & Security. This project does not
+recommend disabling Gatekeeper or globally changing system security settings.
 
-> [!IMPORTANT]
-> We don't have an Apple Developer account (yet 👀), so macOS will warn you that Boring Notch is from an unidentified developer on first launch. This is expected behavior.
->
-> You'll need to bypass this before the app will open. You only need to do this once. Use one of the methods below.
+Automatic updates continue through this repository's signed Sparkle feed. The
+repository is now **graden-grech/Notchscape**; legacy repository, feed and release
+download paths still resolve for existing installations. Do not reuse the old
+repository name or remove compatibility downloads. The app's internal identity,
+signing trust and installed path remain stable to preserve settings and HUD
+permissions. A source push is not an app release; signed archives and the update
+feed are published separately. See the [update destination and rename policy](docs/UPDATES_AND_REPOSITORY_RENAME.md).
 
----
+Existing standalone MacScapes users need a one-time installation of a released
+combined app, not a cross-bundle automatic replacement. See the
+[migration and updater policy](docs/MACSCAPES_MIGRATION.md).
 
-#### Recommended: Terminal (Always Works)
+## Build and verify
 
-This is the quickest and easiest method. It only requires a single command and works consistently for all users. System Settings can sometimes fail and won't work for non-admin users.
+Open `boringNotch.xcodeproj` in Xcode 26 or later. The project and executable
+retain their compatibility names; the user-facing app name is Notchscape.
+For trusted local builds, follow [AGENTS.md](AGENTS.md) and the
+[HUD release checklist](docs/HUD_RELEASE_CHECKS.md). Do not install an unsigned
+CI build over a permission-approved app.
 
-After moving Boring Notch to your Applications folder, run:
-
-```bash
-xattr -dr com.apple.quarantine "/Applications/Boring Notch.app"
+```sh
+git clone https://github.com/graden-grech/Notchscape.git
+cd Notchscape
+open boringNotch.xcodeproj
+python3 -m unittest discover -s .github/scripts/tests -q
 ```
 
-Then open the app normally.
+Fresh-device onboarding, full VoiceOver coverage, external-display/DisplayLink
+behavior and all supported macOS versions require further device testing. The
+experimental lock-screen dropdown uses inherited private SkyLight integration.
+Commercial distribution also needs review of weather/artwork provider rights.
 
----
+## Help and contributions
 
-#### Alternative: System Settings
+[Report a bug or suggest an improvement](https://github.com/graden-grech/Notchscape/issues).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the contribution and verification process.
+Optional inherited publishing jobs remain opt-in; see
+[GitHub automation setup](docs/custom-fork-ci.md).
 
-> [!NOTE]
-> This method doesn't work for all users. If this doesn't work, use the Terminal method above.
+## License and acknowledgments
 
-1. Try to open the app — you'll see a security warning.
-2. Click **OK** to dismiss it.
-3. Open **System Settings** > **Privacy & Security**.
-4. Scroll to the bottom and click **Open Anyway** next to the Boring Notch warning.
-5. Confirm if prompted.
-
----
-
-### Original Homebrew build
-
-The Homebrew command below installs the original upstream app, not this custom
-edition. Use the release download above if you want weather and AI activities.
-
-```bash
-brew install --cask TheBoredTeam/boring-notch/boring-notch
-```
-
-## Usage
-
-- Launch the app, and voilà—your notch is now the coolest part of your screen.
-- Hover over the notch to see it expand and reveal all its secrets.
-- Use the controls to manage your music like a rockstar.
-- Click the star in your menu bar to customize your notch to your heart's content.
-
-## 📋 Roadmap
-- [x] Playback live activity 🎧
-- [x] Calendar integration 📆
-- [x] Reminders integration ☑️
-- [x] Mirror 📷
-- [x] Charging indicator and current percentage 🔋
-- [x] Customizable gesture control 👆🏻
-- [x] Shelf functionality with AirDrop 📚
-- [x] Notch sizing customization, finetuning on different display sizes 🖥️
-- [x] System HUD replacements (volume, brightness, backlight) 🎚️💡⌨️
-- [ ] Bluetooth Live Activity (connect/disconnect for bluetooth devices) 
-- [ ] Weather integration ⛅️
-- [ ] Customizable Layout options 🛠️
-- [ ] Lock Screen Widgets 🔒
-- [ ] Extension system 🧩
-- [ ] Notifications (under consideration) 🔔
-<!-- - [ ] Clipboard history manager 📌 `Extension` -->
-<!-- - [ ] Download indicator of different browsers (Safari, Chromium browsers, Firefox) 🌍 `Extension`-->
-<!-- - [ ] Customizable function buttons 🎛️ -->
-<!-- - [ ] App switcher 🪄 -->
-
-<!-- ## 🧩 Extensions
-> [!NOTE]
-> We’re hard at work on some awesome extensions! Stay tuned, and we’ll keep you updated as soon as they’re released. -->
-
-## Building from Source
-
-### Prerequisites
-
-- **macOS 15.6 or later**
-- **Xcode 26 or later**
-
-### Installation
-
-1. **Clone the Repository**:
-   ```bash
-   git clone https://github.com/TheBoredTeam/boring.notch.git
-   cd boring.notch
-   ```
-
-2. **Open the Project in Xcode**:
-   ```bash
-   open boringNotch.xcodeproj
-   ```
-
-3. **Build and Run**:
-    - Click the "Run" button or press `Cmd + R`. Watch the magic unfold!
-
-## 🤝 Contributing
-
-We’re all about good vibes and awesome contributions! Read [CONTRIBUTING.md](CONTRIBUTING.md) to learn how you can join the fun!
-
-## Join our Discord Server
-
-<a href="https://discord.gg/GvYcYpAKTu" target="_blank"><img src="https://iili.io/28m3GHv.png" alt="Join The Boring Server!" style="height: 60px !important;width: 217px !important;" ></a>
-
-## Star History
-<!-- BROKEN: GitHub now restricts the stargazer API for privacy reasons
-<a href="https://www.star-history.com/#TheBoredTeam/boring.notch&Timeline">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=TheBoredTeam/boring.notch&type=Timeline&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=TheBoredTeam/boring.notch&type=Timeline" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=TheBoredTeam/boring.notch&type=Timeline" />
- </picture>
-</a>
--->
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/TheBoredTeam/org-star-chart-updater/main/projects/boring.notch/chart-dark.svg">
-   <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/TheBoredTeam/org-star-chart-updater/main/projects/boring.notch/chart-light.svg">
-   <img src="https://raw.githubusercontent.com/TheBoredTeam/org-star-chart-updater/main/projects/boring.notch/chart-light.svg" alt="TheBoredTeam/boring.notch GitHub star history">
- </picture>
-
-## Support us on Ko-fi!
-<!-- <a href="https://www.buymeacoffee.com/jfxh67wvfxq" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-red.png" alt="Buy Me A Coffee" style="height: 60px !important;width: 217px !important;" ></a> -->
-<a href="https://www.ko-fi.com/alexander5015" target="_blank"><img src="https://github.com/user-attachments/assets//a76175ef-7e93-475a-8b67-4922ba5964c2" alt="Support us on Ko-fi" style="height: 70px !important;width: 346px !important;" ></a>
-
-## 🎉 Acknowledgments
-
-We would like to express our gratitude to the authors and maintainers of the open-source projects that made this possible. 
-
-## Notable Projects
-- **[MediaRemoteAdapter](https://github.com/ungive/mediaremote-adapter)** –  An open-source project that allowed us to use the Now Playing source in macOS 15.4+
-- **[NotchDrop](https://github.com/Lakr233/NotchDrop)** – An open-source project that has been instrumental in developing the first version of the "Shelf" feature in Boring Notch.
-
-For a full list of licenses and attributions, please see the [Third-Party Licenses](./THIRD_PARTY_LICENSES.md) file.
-
-### Icon credits: [@maxtron95](https://github.com/maxtron95)
-### Website credits: [@himanshhhhuv](https://github.com/himanshhhhuv)
-
-- **SwiftUI**: For making us look like coding wizards.
-- **You**: For being awesome and checking out **boring.notch**!
-
+Notchscape is an independently maintained derivative of the GPL-licensed Boring
+Notch project. The new product name does not remove original authors' rights or
+license obligations, and does not imply their endorsement. See
+[attribution and preserved credits](docs/ATTRIBUTION.md), the
+[GNU GPL v3 license](LICENSE), and [third-party licenses](THIRD_PARTY_LICENSES).

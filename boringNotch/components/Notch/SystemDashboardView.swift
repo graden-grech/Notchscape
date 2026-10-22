@@ -2,32 +2,36 @@ import SwiftUI
 
 struct SystemDashboardView: View {
     @ObservedObject private var performance = SystemPerformanceManager.shared
+    @ObservedObject private var rendering = AppPerformanceManager.shared
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
             HStack(spacing: 10) {
-                metricCard("CPU", value: performance.cpuUsage, detail: performance.thermalState, color: .cyan)
+                metricCard("CPU", symbol: "cpu", value: performance.cpuUsage, detail: "Thermal: " + performance.thermalState, color: .blue)
                 metricCard(
                     "Memory",
+                    symbol: "memorychip",
                     value: performance.memoryUsage,
                     detail: byteSummary(performance.usedMemory, performance.totalMemory),
                     color: .purple
                 )
                 metricCard(
                     "Storage",
+                    symbol: "internaldrive",
                     value: performance.diskUsage,
                     detail: byteSummary(UInt64(max(0, performance.usedDisk)), UInt64(max(0, performance.totalDisk))),
-                    color: .blue
+                    color: .orange
                 )
             }
 
-            HStack(spacing: 8) {
-                controlButton("Activity Monitor", icon: "chart.xyaxis.line", action: performance.openActivityMonitor)
-                controlButton("Settings", icon: "gearshape.fill", action: performance.openSystemSettings)
-                controlButton("Sleep Display", icon: "display", action: performance.sleepDisplay)
-                controlButton("Lock", icon: "lock.fill", action: performance.lockMac)
-            }
+            if #available(macOS 26.0, *), !rendering.lowImpact, !rendering.reduceTransparency {
+                GlassEffectContainer(spacing: 8) { controls }
+            } else { controls }
         }
+        // Participate in the expanded page's height, just like Home and Live.
+        // An intrinsic-height dashboard is otherwise centered by the physical
+        // notch's outer frame, leaving a transparent gap above its header.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(.horizontal, 8)
         .padding(.bottom, 5)
         .onAppear { performance.startSampling() }
@@ -36,27 +40,32 @@ struct SystemDashboardView: View {
         .accessibilityLabel("System performance")
     }
 
-    private func metricCard(_ title: String, value: Double, detail: String, color: Color) -> some View {
-        HStack(spacing: 11) {
-            Gauge(value: min(max(value, 0), 1)) {
-                Text(title)
-            }
-            .gaugeStyle(.accessoryCircularCapacity)
-            .tint(color.gradient)
-            .scaleEffect(1.08)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-                Text(value, format: .percent.precision(.fractionLength(0)))
-                    .font(.system(size: 20, weight: .semibold, design: .rounded))
-                    .contentTransition(.numericText())
-                Text(detail).font(.caption2).foregroundStyle(.tertiary).lineLimit(1)
-            }
-            Spacer(minLength: 0)
+    private var controls: some View {
+        HStack(spacing: 8) {
+            controlButton("Activity Monitor", icon: "chart.xyaxis.line", action: performance.openActivityMonitor)
+            controlButton("Settings", icon: "gearshape", action: performance.openSystemSettings)
+            controlButton("Sleep Display", icon: "display", action: performance.sleepDisplay)
+            controlButton("Lock", icon: "lock", action: performance.lockMac)
         }
-        .padding(11)
-        .frame(maxWidth: .infinity)
-        .standardMaterialPanel(tint: color, cornerRadius: 16)
+    }
+
+    private func metricCard(_ title: String, symbol: String, value: Double, detail: String, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 5) {
+                Image(systemName: symbol).foregroundStyle(color)
+                Text(title).foregroundStyle(.secondary)
+            }
+            .font(.caption.weight(.medium))
+            Text(value, format: .percent.precision(.fractionLength(0)))
+                .font(.system(size: 26, weight: .medium)).monospacedDigit()
+                .contentTransition(.numericText())
+            ProgressView(value: min(max(value, 0), 1)).tint(color).controlSize(.mini)
+                .accessibilityLabel("\(title) usage")
+            Text(detail).font(.caption2).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.85)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .standardMaterialPanel(tint: .white, cornerRadius: 18)
     }
 
     private func controlButton(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
@@ -64,7 +73,8 @@ struct SystemDashboardView: View {
             Label(title, systemImage: icon)
                 .font(.caption.weight(.medium))
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 6)
+                .lineLimit(1).minimumScaleFactor(0.85)
+                .padding(.vertical, 5)
         }
         .buttonStyle(.plain)
         .liquidGlassCapsule(tint: .accentColor)

@@ -16,7 +16,7 @@ class SettingsWindowController: NSWindowController {
     
     private init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 700, height: 600),
+            contentRect: NSRect(x: 0, y: 0, width: 840, height: 650),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: false
@@ -40,16 +40,22 @@ class SettingsWindowController: NSWindowController {
     private func setupWindow() {
         guard let window = window else { return }
         
-        window.title = "Boring Notch Settings"
-        window.titlebarAppearsTransparent = false
-        window.titleVisibility = .visible
-        window.toolbarStyle = .unifiedCompact
-        window.minSize = NSSize(width: 620, height: 500)
+        window.title = "Notchscape Settings"
+        window.titlebarAppearsTransparent = true
+        window.titleVisibility = .hidden
+        window.toolbarStyle = .unified
+        // A real system toolbar gives traffic lights their native inset and
+        // height. Do not draw content over the title bar or move button frames.
+        let toolbar = NSToolbar(identifier: "NotchSettingsToolbar")
+        toolbar.displayMode = .iconOnly
+        toolbar.allowsUserCustomization = false
+        window.toolbar = toolbar
+        window.minSize = NSSize(width: 760, height: 560)
         window.titlebarSeparatorStyle = .none
-        window.backgroundColor = .clear
-        window.isOpaque = false
+        window.backgroundColor = .windowBackgroundColor
+        window.isOpaque = true
         window.animationBehavior = .documentWindow
-        window.isMovableByWindowBackground = true
+        window.isMovableByWindowBackground = false
         
         // Make it behave like a regular app window with proper Spaces support
         window.collectionBehavior = [.managed, .participatesInCycle, .fullScreenAuxiliary]
@@ -71,7 +77,12 @@ class SettingsWindowController: NSWindowController {
         window.delegate = self
     }
     
-    func showWindow() {
+    func showWindow(section: String? = nil) {
+        if let section {
+            DispatchQueue.main.async {
+                NotificationCenter.default.post(name: .notchSettingsSectionRequested, object: section)
+            }
+        }
         // If window is already visible, bring it to front properly
         if window?.isVisible == true {
             NSApp.activate(ignoringOtherApps: true)
@@ -104,6 +115,10 @@ class SettingsWindowController: NSWindowController {
         
         // Dock visibility is owned by AppPresentationManager, not window focus.
     }
+}
+
+extension Notification.Name {
+    static let notchSettingsSectionRequested = Notification.Name("NotchSettingsSectionRequested")
 }
 
 extension SettingsWindowController: NSWindowDelegate {

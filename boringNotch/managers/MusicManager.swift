@@ -10,7 +10,7 @@ import Defaults
 import SwiftUI
 
 let defaultImage: NSImage = .init(
-    systemSymbolName: "heart.fill",
+    systemSymbolName: "music.note",
     accessibilityDescription: "Album Art"
 )!
 
@@ -29,11 +29,11 @@ class MusicManager: ObservableObject {
     private var activeController: (any MediaControllerProtocol)?
 
     // Published properties for UI
-    @Published var songTitle: String = "I'm Handsome"
-    @Published var artistName: String = "Me"
+    @Published var songTitle: String = "Not Playing"
+    @Published var artistName: String = ""
     @Published var albumArt: NSImage = defaultImage
     @Published var isPlaying = false
-    @Published var album: String = "Self Love"
+    @Published var album: String = ""
     @Published var isPlayerIdle: Bool = true
     @Published var animations: BoringAnimations = .init()
     @Published var avgColor: NSColor = .white
@@ -57,9 +57,9 @@ class MusicManager: ObservableObject {
     private var artworkData: Data? = nil
 
     // Store last values at the time artwork was changed
-    private var lastArtworkTitle: String = "I'm Handsome"
-    private var lastArtworkArtist: String = "Me"
-    private var lastArtworkAlbum: String = "Self Love"
+    private var lastArtworkTitle: String = ""
+    private var lastArtworkArtist: String = ""
+    private var lastArtworkAlbum: String = ""
     private var lastArtworkBundleIdentifier: String? = nil
 
     @Published var isFlipping: Bool = false
@@ -243,8 +243,9 @@ class MusicManager: ObservableObject {
         let repeatModeChanged = state.repeatMode != self.repeatMode
         let volumeChanged = state.volume != self.volume
         
-        if state.title != self.songTitle {
-            self.songTitle = state.title
+        let displayedTitle = state.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Not Playing" : state.title
+        if displayedTitle != self.songTitle {
+            self.songTitle = displayedTitle
         }
 
         if state.artist != self.artistName {
@@ -583,7 +584,14 @@ class MusicManager: ObservableObject {
     }
 
     private func updateSneakPeek() {
-        if isPlaying && Defaults[.enableSneakPeek] {
+        let profile = Defaults[.activityProfile]
+        let musicAllowed = MusicPresentationPolicy.isAllowed(
+            musicEnabled: coordinator.musicLiveActivityEnabled,
+            overrideEnabled: Defaults[.musicActivityOverride],
+            liveActivitiesEnabled: Defaults[.liveActivitiesEnabled],
+            profileAllowsMusic: profile == .everything || profile == .entertainment
+        )
+        if isPlaying && musicAllowed && (WorkspaceModeManager.shared.active?.allows(.music) ?? true) && Defaults[.enableSneakPeek] {
             if Defaults[.sneakPeekStyles] == .standard {
                 coordinator.toggleSneakPeek(status: true, type: .music)
             } else {

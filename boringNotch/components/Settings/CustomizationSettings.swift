@@ -1,5 +1,6 @@
 import Defaults
 import SwiftUI
+import UniformTypeIdentifiers
 
 enum PresetAccentColor: String, CaseIterable, Identifiable {
     case blue = "Blue"
@@ -34,16 +35,27 @@ struct HomeLayoutSettings: View {
     @Default(.weatherOnLiveTab) private var weatherOnLiveTab
     @Default(.weatherEnabled) private var weatherEnabled
     @Default(.showCalendar) private var showCalendar
+    @State private var dragged: HomeWidget?
 
     private var widgets: [HomeWidget] { HomeLayoutPolicy.normalized(order, legacyWeatherPosition: legacyWeatherPosition.rawValue) }
 
     var body: some View {
         ForEach(Array(widgets.enumerated()), id: \.element) { index, widget in
             HStack(spacing: 10) {
+                Image(systemName: "line.3.horizontal").foregroundStyle(.tertiary)
+                    .help("Drag to reorder \(widget.title)")
+                    .onDrag {
+                        order = widgets; dragged = widget
+                        let provider = NSItemProvider()
+                        provider.registerDataRepresentation(forTypeIdentifier: UTType.notchHomeWidget.identifier, visibility: .ownProcess) { completion in
+                            completion(Data(widget.rawValue.utf8), nil); return nil
+                        }
+                        return provider
+                    }
                 Toggle(isOn: visibility(widget)) {
                     Label(widget.title, systemImage: widget.symbol)
                 }
-                .toggleStyle(.checkbox)
+                .toggleStyle(CompactSwitchToggleStyle())
                 Spacer()
                 Button { order = HomeLayoutPolicy.moved(widget, by: -1, in: widgets) } label: {
                     Image(systemName: "chevron.up")
@@ -59,9 +71,10 @@ struct HomeLayoutSettings: View {
                 .accessibilityLabel("Move \(widget.title) later")
             }
             .buttonStyle(.borderless)
+            .onDrop(of: [.notchHomeWidget], delegate: HomeTileReorderDelegate(target: widget, order: $order, dragged: $dragged))
         }
         Button("Reset Home layout") { order = []; hidden = [] }
-        Text("Use the arrows to reorder tiles; uncheck a tile to hide it from Home. Showing Weather here moves it from Live. Calendar alerts and other Live Activities are unchanged.")
+        Text("Drag the handles to reorder tiles, or right-click Home and choose Edit Home to move the tiles directly. Switch a tile off to hide it. Showing Weather here moves it from Live. The arrows are an accessible alternative to dragging.")
             .font(.caption).foregroundStyle(.secondary)
     }
 
@@ -84,6 +97,7 @@ struct SeasonalThemeSettings: View {
     @Default(.seasonHemisphere) private var hemisphere
     @Default(.seasonalHalloween) private var halloween
     @Default(.seasonalChristmas) private var christmas
+    @Default(.seasonalEaster) private var easter
     @Default(.appTheme) private var theme
 
     var body: some View {
@@ -94,12 +108,172 @@ struct SeasonalThemeSettings: View {
             }
             Toggle("Include Halloween · October 15–31", isOn: $halloween)
             Toggle("Include Christmas · December 1–26", isOn: $christmas)
+            Toggle("Include Easter · Palm Sunday through Easter Monday", isOn: $easter)
             LabeledContent("Current theme", value: theme.title)
         }
         Text(hemisphere == .northern
              ? "Fall: September–November. Winter: December–February. System: March–August. Holiday themes are optional. Selecting a theme yourself turns off automatic switching."
              : "Fall: March–May. Winter: June–August. System: September–February. Optional holiday themes still follow their calendar dates. Selecting a theme yourself turns off automatic switching.")
             .font(.caption).foregroundStyle(.secondary)
+    }
+}
+
+struct StarWarsThemeSettingsView: View {
+    @Environment(\.dismiss) private var dismiss
+    @Default(.appTheme) private var theme
+    @Default(.starWarsPreferredCharacter) private var preferredCharacter
+    @Default(.starWarsVaderArtwork) private var vaderArtwork
+    @Default(.lightsaberMusicBar) private var saberEnabled
+    @Default(.lightsaberColorMode) private var colorMode
+    @Default(.lightsaberCustomColorData) private var customColorData
+    @ObservedObject private var music = MusicManager.shared
+    @ObservedObject private var performance = AppPerformanceManager.shared
+    @State private var category: StarWarsThemeCategory = .jedi
+
+    init() {
+        _category = State(initialValue: Defaults[.appTheme].starWarsVariant?.category ?? .jedi)
+    }
+
+    private var variant: StarWarsThemeVariant { theme.starWarsVariant ?? .jedi }
+    private var characterSceneAvailable: Bool { StarWarsArtworkAvailability.vaderSceneAvailable }
+    private var bladeColor: Color { LightsaberColors.resolve(mode: colorMode, theme: theme, album: music.avgColor, customData: customColorData) }
+    private var customColor: Binding<Color> {
+        Binding(get: { LightsaberColors.resolve(mode: .custom, theme: theme, album: music.avgColor, customData: customColorData) }, set: { color in
+            let saved = (NSColor(color).usingColorSpace(.sRGB) ?? NSColor(color)).withAlphaComponent(1)
+            guard let data = try? NSKeyedArchiver.archivedData(withRootObject: saved, requiringSecureCoding: true) else { return }
+            customColorData = data
+            colorMode = .custom
+        })
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Star Wars").font(.title2.weight(.semibold))
+                    Text("Choose your side. Make it yours.").font(.callout).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("Done") { dismiss() }.keyboardShortcut(.defaultAction)
+            }
+            .padding(20)
+            Form {
+                Section {
+                    ZStack(alignment: .bottomLeading) {
+                        HomeThemeScene(theme: theme, vaderArtwork: vaderArtwork, imageAlignment: .topTrailing)
+                        LinearGradient(colors: [.black.opacity(0.7), .clear], startPoint: .leading, endPoint: .trailing)
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(variant.title).font(.title3.weight(.semibold))
+                            Text(variant.colorName + " · " + (category == .characters ? "Character palette" : "Home scene"))
+                                .font(.caption).foregroundStyle(.white.opacity(0.75))
+                        }.padding(16)
+                    }
+                    .frame(height: 120).clipShape(RoundedRectangle(cornerRadius: 14))
+                    .accessibilityElement(children: .combine)
+                    Picker("Theme style", selection: $category) {
+                        ForEach(StarWarsThemeCategory.allCases) { Text($0.title).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .onChange(of: category) { _, selection in
+                        switch selection {
+                        case .jedi: apply(.jedi)
+                        case .darkSide: apply(.darkSide)
+                        case .characters: apply(preferredCharacter.category == .characters ? preferredCharacter : .luke)
+                        }
+                    }
+                }
+
+                if category == .characters {
+                    Section("Choose a character") {
+                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                            ForEach(StarWarsThemeVariant.characters) { character in
+                                Button { preferredCharacter = character; apply(character) } label: {
+                                    HStack(spacing: 9) {
+                                        Circle().fill(Color(nsColor: character.accentColor)).frame(width: 12, height: 12)
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            Text(character.title).font(.callout.weight(.medium))
+                                            Text(character.colorName).font(.caption).foregroundStyle(.secondary)
+                                        }
+                                        Spacer(minLength: 0)
+                                        if variant == character { Image(systemName: "checkmark").font(.caption.weight(.semibold)) }
+                                    }
+                                    .padding(10).frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(Color.white.opacity(variant == character ? 0.09 : 0.035), in: RoundedRectangle(cornerRadius: 12))
+                                    .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(variant == character ? Color(nsColor: character.accentColor).opacity(0.65) : .clear) }
+                                    .contentShape(RoundedRectangle(cornerRadius: 12))
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityAddTraits(variant == character ? [.isSelected] : [])
+                            }
+                        }
+                    }
+                }
+
+                if variant.supportsCharacterArtwork {
+                    Section {
+                        Picker("Right-side artwork", selection: $vaderArtwork) {
+                            ForEach(StarWarsCharacterArtwork.allCases) { artwork in
+                                Text(artwork == .character ? "Darth Vader" : artwork.title)
+                                    .disabled(artwork == .character && !characterSceneAvailable)
+                                    .tag(artwork)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .help("Choose the lightsaber or Darth Vader himself on the right side of Home.")
+                    } header: { Text("Darth Vader artwork") } footer: {
+                        Text("Keep the original lightsaber scenery, or show Vader inside the same volcanic scene beside the calendar. This choice is saved for Vader only and does not change the lightsaber music bar.")
+                        if !characterSceneAvailable {
+                            Label("Vader’s scene artwork is not available yet. The original lightsaber scene is shown.", systemImage: "info.circle")
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                Section {
+                    Toggle("Lightsaber music bar", isOn: $saberEnabled)
+                    Group {
+                        Picker("Blade color", selection: $colorMode) {
+                            ForEach(LightsaberColorMode.allCases) { Text($0.title).tag($0) }
+                        }
+                        if colorMode == .custom {
+                            ColorPicker("Choose any blade color", selection: customColor, supportsOpacity: false)
+                        }
+                        LightsaberTrack(progress: 0.64, tint: bladeColor, dragging: false, lowImpact: performance.lowImpact)
+                            .frame(height: 20).padding(.vertical, 5).accessibilityLabel("Lightsaber color preview")
+                    }.disabled(!saberEnabled)
+                } header: { Text("Music") } footer: {
+                    Text("Album cover follows the current artwork automatically. Custom color opens the macOS color picker. The blade shows playback progress and can be dragged to seek. Other themes keep the normal music bar.")
+                }
+
+                Section {
+                    Text("Character presets use inspired colors and environments. Fan-made theme; not an official Star Wars product.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            .formStyle(.grouped).scrollContentBackground(.hidden)
+        }
+        .frame(width: 610, height: 650)
+        .background(Color(nsColor: .windowBackgroundColor))
+        .preferredColorScheme(.dark)
+        .tint(Color(nsColor: variant.accentColor))
+        .toggleStyle(CompactSwitchToggleStyle())
+        .onAppear {
+            // Reopening a restored character theme must not replace it with a
+            // different previously used character through the picker callback.
+            if variant.category == .characters { preferredCharacter = variant }
+            if !characterSceneAvailable && vaderArtwork == .character { vaderArtwork = .lightsaber }
+        }
+        .transaction { if performance.suppressAnimations { $0.animation = nil } }
+    }
+
+    private func apply(_ variant: StarWarsThemeVariant) {
+        guard let selected = AppTheme(rawValue: variant.rawValue) else { return }
+        Defaults[.automaticSeasonalThemes] = false
+        theme = selected
+        if Defaults[.appIconFollowsTheme] {
+            Defaults[.appIconVariant] = selected.matchingIcon
+            selected.matchingIcon.apply()
+        }
     }
 }
 

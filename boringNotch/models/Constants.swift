@@ -16,6 +16,9 @@ extension AgentHistoryEntry: Defaults.Serializable {}
 extension BatteryPresentationStyle: Defaults.Serializable {}
 extension BatteryIndicatorDisplay: Defaults.Serializable {}
 extension BatteryHistorySample: Defaults.Serializable {}
+extension StarWarsThemeVariant: Defaults.Serializable {}
+extension StarWarsCharacterArtwork: Defaults.Serializable {}
+extension LightsaberColorMode: Defaults.Serializable {}
 
 private let availableDirectories = FileManager
     .default
@@ -78,6 +81,19 @@ enum OptionKeyAction: String, CaseIterable, Identifiable, Defaults.Serializable 
 }
 
 extension Defaults.Keys {
+    // Optional local tools. Private content is never stored in Defaults/sync.
+    static let showToolsTab = Key<Bool>("showToolsTab", default: false)
+    static let showWallpapersTab = Key<Bool>("showWallpapersTab", default: false)
+    static let clipboardHistoryEnabled = Key<Bool>("clipboardHistoryEnabled", default: false)
+    static let clipboardRetentionDays = Key<Int>("clipboardRetentionDays", default: 7)
+    static let clipboardExcludedApps = Key<String>("clipboardExcludedApps", default: "")
+    static let quickNotesEnabled = Key<Bool>("quickNotesEnabled", default: false)
+    static let appleNotesSyncEnabled = Key<Bool>("appleNotesSyncEnabled", default: false)
+    static let seasonalEaster = Key<Bool>("seasonalEaster", default: false)
+    static let deviceControlsEnabled = Key<Bool>("deviceControlsEnabled", default: false)
+    static let deviceConnectionAlerts = Key<Bool>("deviceConnectionAlerts", default: false)
+    static let textCaptureEnabled = Key<Bool>("textCaptureEnabled", default: false)
+    static let agentUsageEnabled = Key<Bool>("agentUsageEnabled", default: false)
     // MARK: General
     static let menubarIcon = Key<Bool>("menubarIcon", default: true)
     static let showDockIcon = Key<Bool>("showDockIcon", default: true)
@@ -122,6 +138,11 @@ extension Defaults.Keys {
     static let appIconVariant = Key<AppIconVariant>("appIconVariant", default: .standard)
     static let appIconFollowsTheme = Key<Bool>("appIconFollowsTheme", default: true)
     static let appTheme = Key<AppTheme>("appTheme", default: .system)
+    static let starWarsPreferredCharacter = Key<StarWarsThemeVariant>("starWarsPreferredCharacter", default: .luke)
+    static let starWarsVaderArtwork = Key<StarWarsCharacterArtwork>("starWarsVaderArtwork", default: .lightsaber)
+    static let lightsaberMusicBar = Key<Bool>("lightsaberMusicBar", default: true)
+    static let lightsaberColorMode = Key<LightsaberColorMode>("lightsaberColorMode", default: .theme)
+    static let lightsaberCustomColorData = Key<Data?>("lightsaberCustomColorData", default: nil)
     static let homeWidgetOrder = Key<[HomeWidget]>("homeWidgetOrder", default: [])
     static let hiddenHomeWidgets = Key<Set<HomeWidget>>("hiddenHomeWidgets", default: [])
     static let quickActions = Key<[NotchQuickAction]>("quickActions", default: [])
@@ -218,6 +239,7 @@ extension Defaults.Keys {
 
     // MARK: Live dashboard
     static let liveActivitiesEnabled = Key<Bool>("liveActivitiesEnabled", default: true)
+    static let musicActivityOverride = Key<Bool>("musicActivityOverride", default: false)
     static let activityProfile = Key<ActivityProfile>("activityProfile", default: .everything)
     static let privacyActivitiesEnabled = Key<Bool>("privacyActivitiesEnabled", default: true)
     static let weatherAlertsEnabled = Key<Bool>("weatherAlertsEnabled", default: true)

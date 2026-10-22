@@ -8,6 +8,7 @@ import UniformTypeIdentifiers
 final class AppPresentationManager {
     static let shared = AppPresentationManager()
     private var subscription: AnyCancellable?
+    private var activationSubscription: AnyCancellable?
 
     private init() {}
 
@@ -17,9 +18,13 @@ final class AppPresentationManager {
         subscription = Defaults.publisher(.showDockIcon)
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in self?.apply() }
+        activationSubscription = NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.refreshApplicationMenuAfterLayout() }
     }
 
     func apply() {
+        defer { refreshApplicationMenuAfterLayout() }
         let policy: NSApplication.ActivationPolicy = Defaults[.showDockIcon] ? .regular : .accessory
         guard NSApp.activationPolicy() != policy else { return }
         let keyWindow = NSApp.keyWindow
@@ -31,6 +36,28 @@ final class AppPresentationManager {
         if wasActive {
             NSApp.activate(ignoringOtherApps: true)
             keyWindow?.makeKeyAndOrderFront(nil)
+        }
+    }
+
+    private func refreshApplicationMenuAfterLayout() {
+        // SwiftUI may create/rebuild its menu after launch or activation-policy
+        // changes. Update on the next turn, not with a timer or process rename.
+        DispatchQueue.main.async { [weak self] in self?.refreshApplicationMenuTitle() }
+    }
+
+    private func refreshApplicationMenuTitle() {
+        guard let applicationItem = NSApp.mainMenu?.items.first,
+              let applicationMenu = applicationItem.submenu else { return }
+        let name = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "Notchscape"
+        if applicationItem.title != name { applicationItem.title = name }
+        if applicationMenu.title != name { applicationMenu.title = name }
+        // Keep system localization and actions; replace only the previous brand.
+        for item in applicationMenu.items {
+            var title = item.title
+            for previous in ["Boring Notch", "boring.notch", "boringNotch"] {
+                title = title.replacingOccurrences(of: previous, with: name)
+            }
+            if item.title != title { item.title = title }
         }
     }
 }
@@ -49,6 +76,8 @@ final class AppPerformanceManager: ObservableObject {
 
     private init() {
         Defaults.publisher(.performanceMode).sink { [weak self] _ in self?.update() }.store(in: &subscriptions)
+        WorkspaceModeManager.shared.$session.dropFirst().receive(on: RunLoop.main)
+            .sink { [weak self] _ in self?.update() }.store(in: &subscriptions)
         BatteryStatusViewModel.shared.$isPluggedIn.combineLatest(BatteryStatusViewModel.shared.$maxCapacity)
             .receive(on: RunLoop.main).sink { [weak self] _ in self?.update() }.store(in: &subscriptions)
         NotificationCenter.default.publisher(for: .NSProcessInfoPowerStateDidChange)
@@ -60,8 +89,10 @@ final class AppPerformanceManager: ObservableObject {
 
     private func update() {
         let battery = BatteryStatusViewModel.shared
-        let newLowImpact = Defaults[.performanceMode].isLowImpact(onBattery: battery.maxCapacity > 0 && !battery.isPluggedIn,
-                                                               systemLowPower: ProcessInfo.processInfo.isLowPowerModeEnabled)
+        let newLowImpact = WorkspaceModePolicy.lowImpact(
+            base: Defaults[.performanceMode].isLowImpact(onBattery: battery.maxCapacity > 0 && !battery.isPluggedIn,
+                                                       systemLowPower: ProcessInfo.processInfo.isLowPowerModeEnabled),
+            mode: WorkspaceModeManager.shared.active)
         if lowImpact != newLowImpact { lowImpact = newLowImpact }
         let newReduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         if reduceMotion != newReduceMotion { reduceMotion = newReduceMotion }
@@ -84,6 +115,7 @@ final class SeasonalThemeManager {
         Defaults.publisher(.seasonHemisphere).sink { [weak self] _ in self?.refresh() }.store(in: &subscriptions)
         Defaults.publisher(.seasonalHalloween).sink { [weak self] _ in self?.refresh() }.store(in: &subscriptions)
         Defaults.publisher(.seasonalChristmas).sink { [weak self] _ in self?.refresh() }.store(in: &subscriptions)
+        Defaults.publisher(.seasonalEaster).sink { [weak self] _ in self?.refresh() }.store(in: &subscriptions)
         NSWorkspace.shared.notificationCenter.publisher(for: NSWorkspace.didWakeNotification)
             .receive(on: RunLoop.main).sink { [weak self] _ in self?.configure() }.store(in: &subscriptions)
         NotificationCenter.default.publisher(for: .NSSystemClockDidChange)
@@ -93,9 +125,8 @@ final class SeasonalThemeManager {
 
     func refresh(date: Date = Date()) {
         guard Defaults[.automaticSeasonalThemes] else { return }
-        let parts = Calendar.current.dateComponents([.month, .day], from: date)
-        let name = SeasonalThemeSchedule.themeName(month: parts.month ?? 1, day: parts.day ?? 1,
-            hemisphere: Defaults[.seasonHemisphere], halloween: Defaults[.seasonalHalloween], christmas: Defaults[.seasonalChristmas])
+        let name = SeasonalThemeSchedule.themeName(date: date, hemisphere: Defaults[.seasonHemisphere],
+            halloween: Defaults[.seasonalHalloween], christmas: Defaults[.seasonalChristmas], easter: Defaults[.seasonalEaster])
         guard let theme = AppTheme(rawValue: name) else { return }
         if Defaults[.appTheme] != theme { Defaults[.appTheme] = theme }
         if Defaults[.appIconFollowsTheme], Defaults[.appIconVariant] != theme.matchingIcon {

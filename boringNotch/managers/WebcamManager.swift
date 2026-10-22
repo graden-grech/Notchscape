@@ -36,6 +36,10 @@ class WebcamManager: NSObject, ObservableObject {
     }
 
     private let sessionQueue = DispatchQueue(label: "BoringNotch.WebcamManager.SessionQueue", qos: .userInitiated)
+    // Read and written only on sessionQueue. A later Stop invalidates every
+    // queued setup/completion, even if it has not created a session yet.
+    private var desiredRunning = false
+    private var sessionGeneration: UInt64 = 0
     
     private var isCleaningUp: Bool = false
     
@@ -129,11 +133,15 @@ class WebcamManager: NSObject, ObservableObject {
     }
     
     /// Sets up the capture session with a completion handler
-    private func setupCaptureSession(completion: @escaping (Bool) -> Void) {
+    private func setupCaptureSession(generation: UInt64, completion: @escaping (Bool) -> Void) {
         sessionQueue.async { [weak self] in
             guard let self = self else { 
                 completion(false)
                 return 
+            }
+            guard self.desiredRunning, self.sessionGeneration == generation else {
+                completion(false)
+                return
             }
             
             // Clean up any existing session before creating a new one
@@ -265,25 +273,31 @@ class WebcamManager: NSObject, ObservableObject {
     func startSession() {
         sessionQueue.async { [weak self] in
             guard let self = self else { return }
+            self.desiredRunning = true
+            self.sessionGeneration &+= 1
+            let generation = self.sessionGeneration
             
             // If no session exists, create new session
             if self.captureSession == nil {
-                self.setupCaptureSession { success in
+                self.setupCaptureSession(generation: generation) { success in
                     if success {
-                        // Only start the session if setup was successful
-                        self.startRunningCaptureSession()
+                        // Recheck on sessionQueue: this main-thread completion
+                        // may arrive after Stop or a newer Start request.
+                        self.startRunningCaptureSession(generation: generation)
                     }
                 }
             } else {
                 // Session already exists, just start it
-                self.startRunningCaptureSession()
+                self.startRunningCaptureSession(generation: generation)
             }
         }
     }
     
-    private func startRunningCaptureSession() {
+    private func startRunningCaptureSession(generation: UInt64) {
         sessionQueue.async { [weak self] in
-            guard let self = self, let session = self.captureSession, !session.isRunning else {
+            guard let self = self, self.desiredRunning,
+                  self.sessionGeneration == generation,
+                  let session = self.captureSession, !session.isRunning else {
                 return
             }
             
@@ -299,6 +313,8 @@ class WebcamManager: NSObject, ObservableObject {
     func stopSession() {
         sessionQueue.async { [weak self] in
             guard let self = self else { return }
+            self.desiredRunning = false
+            self.sessionGeneration &+= 1
             
             // Update state to indicate we're stopping
             DispatchQueue.main.async {

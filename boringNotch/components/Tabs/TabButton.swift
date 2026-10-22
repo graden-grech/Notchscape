@@ -12,11 +12,12 @@ struct TabButton: View {
     let icon: String
     let selected: Bool
     let onClick: () -> Void
+    var width: CGFloat = 30
     
     var body: some View {
         Button(action: onClick) {
             Image(systemName: icon)
-                .frame(width: 30, height: 26)
+                .frame(width: width, height: 26)
                 .contentShape(Capsule())
         }
         .help(label)

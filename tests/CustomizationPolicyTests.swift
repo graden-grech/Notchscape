@@ -16,6 +16,55 @@ struct CustomizationPolicyTests {
     }
 
     static func main() throws {
+        check(StarWarsCharacterArtwork.allCases.count == 2, "Lightsaber scenery and character artwork stay separate choices")
+        for artwork in StarWarsCharacterArtwork.allCases {
+            let restored = try JSONDecoder().decode(StarWarsCharacterArtwork.self, from: JSONEncoder().encode(artwork))
+            check(restored == artwork, "Vader artwork choice persists")
+            for variant in StarWarsThemeVariant.allCases {
+                check(variant.backdropName(artwork: artwork, characterArtworkAvailable: false) == variant.backdropName,
+                      "Missing character artwork always keeps the original scene instead of a blank background")
+                let asset = variant.backdropName(artwork: artwork)
+                if variant == .vader && artwork == .character {
+                    check(asset == "StarWarsVaderSceneBackdrop", "Only the selected Vader character scene uses the new artwork")
+                } else {
+                    check(asset == variant.backdropName, "Other themes and original lightsaber scenery are unchanged")
+                }
+            }
+        }
+        check(StarWarsThemeVariant.characters.count == 8, "Eight characters live under the single theme family")
+        check(Set(StarWarsThemeVariant.allCases.map(\.rawValue)).count == 10, "Every Star Wars variant has a stable unique setting")
+        for variant in StarWarsThemeVariant.allCases {
+            let decodedVariant = try JSONDecoder().decode(StarWarsThemeVariant.self, from: JSONEncoder().encode(variant))
+            check(decodedVariant == variant, "Star Wars choice persists")
+            check(["StarWarsJediBackdrop", "StarWarsDarkSideBackdrop", "StarWarsDesertBackdrop"].contains(variant.backdropName), "Every variant uses a bundled scene")
+            check((0...1).contains(variant.rgb.red) && (0...1).contains(variant.rgb.green) && (0...1).contains(variant.rgb.blue), "Character colors are valid RGB")
+        }
+        check(StarWarsThemeVariant.vader.category == .characters && StarWarsThemeVariant.vader.backdropName == StarWarsThemeVariant.darkSide.backdropName, "Vader keeps a Dark Side environment on the character page")
+        check(LightsaberColorMode.allCases.count == 3, "Theme, album cover, and any custom color are available")
+        for (value, duration, expected) in [(0.0, 0.0, 0.0), (50, 100, 0.5), (-20, 100, 0), (120, 100, 1), (10, -1, 0)] {
+            check(LightsaberTrackPolicy.progress(value: value, duration: duration) == expected, "Playback progress is clamped safely")
+        }
+        check(LightsaberTrackPolicy.progress(value: .nan, duration: 100) == 0, "Invalid track metadata cannot create an invalid frame")
+        check(LightsaberTrackPolicy.progress(value: 10, duration: .infinity) == 0, "Live or unknown duration is not a full blade")
+        check(LightsaberTrackPolicy.time(at: 50, width: 100, duration: 240) == 120, "Scrubbing maps to the track's time")
+        check(LightsaberTrackPolicy.time(at: -10, width: 100, duration: 240) == 0, "Scrubbing before the hilt clamps to the start")
+        check(LightsaberTrackPolicy.time(at: 200, width: 100, duration: 240) == 240, "Scrubbing beyond the tip clamps to the end")
+        check(LightsaberTrackPolicy.time(at: .nan, width: 100, duration: 240) == nil, "Invalid drag coordinates are ignored")
+        check(LightsaberTrackPolicy.time(at: 10, width: 0, duration: 240) == nil, "Zero-width playback bars cannot divide by zero")
+        check(LightsaberTrackPolicy.time(at: 10, width: 100, duration: 0) == nil, "An empty player never issues a seek")
+        for music in [false, true] {
+            for override in [false, true] {
+                for activities in [false, true] {
+                    for profileAllowsMusic in [false, true] {
+                        let allowed = MusicPresentationPolicy.isAllowed(musicEnabled: music,
+                            overrideEnabled: override, liveActivitiesEnabled: activities,
+                            profileAllowsMusic: profileAllowsMusic)
+                        let expected = music && (override || (activities && profileAllowsMusic))
+                        check(allowed == expected, "Music override respects its own switch and all activity/profile combinations")
+                    }
+                }
+            }
+        }
         for preview in [false, true] {
             check(NotchLockScreenPresentation.resolve(isLocked: true, enabled: false, preview: preview) == .hidden,
                   "A preview cannot override lock-screen visibility being off")
@@ -57,6 +106,31 @@ struct CustomizationPolicyTests {
         check(HomeLayoutPolicy.moved(.music, by: -1, in: all) == all, "Cannot move beyond first tile")
         check(HomeLayoutPolicy.moved(.quickActions, by: 1, in: all) == all, "Cannot move beyond last tile")
         check(HomeLayoutPolicy.moved(.calendar, by: -1, in: all) == [.calendar, .music, .weather, .quickActions], "Move calendar earlier")
+        check(HomeLayoutPolicy.reordered(.music, over: .weather, in: all) == [.calendar, .weather, .music, .quickActions], "Drag a tile forward")
+        check(HomeLayoutPolicy.reordered(.weather, over: .music, in: all) == [.weather, .music, .calendar, .quickActions], "Drag a tile backward")
+        check(HomeLayoutPolicy.reordered(.music, over: .music, in: all) == all, "Dragging over itself is stable")
+        check(HomeLayoutPolicy.reordered(.music, over: .weather, in: [.music]) == [.music], "A hidden/missing target cannot corrupt the layout")
+        for count in 3...5 {
+            for index in 0..<count {
+                check(NotchTabLayoutPolicy.index(at: (Double(index) + 0.5) * 134 / Double(count), width: 134, count: count) == index, "Tab drag picks the correct segment")
+            }
+            check(NotchTabLayoutPolicy.index(at: -100, width: 134, count: count) == 0, "Drag clamps before the first tab")
+            check(NotchTabLayoutPolicy.index(at: 1000, width: 134, count: count) == count - 1, "Drag clamps after the last tab")
+        }
+        check(NotchTabLayoutPolicy.index(at: .nan, width: 134, count: 5) == nil, "Invalid drag coordinate rejected")
+        check(NotchTabLayoutPolicy.index(at: 0, width: 0, count: 0) == nil, "No division by zero with no tabs")
+        check(SeasonalThemeSchedule.easterComponents(year: 2026)?.month == 4 && SeasonalThemeSchedule.easterComponents(year: 2026)?.day == 5, "Easter 2026 follows its real date")
+        check(SeasonalThemeSchedule.easterComponents(year: 2027)?.month == 3 && SeasonalThemeSchedule.easterComponents(year: 2027)?.day == 28, "Easter moves in 2027")
+        check(SeasonalThemeSchedule.easterComponents(year: 2028)?.day == 16, "Easter computus handles leap years")
+        check(SeasonalThemeSchedule.easterComponents(year: 0) == nil, "Invalid Easter year rejected")
+        let gregorian = Calendar(identifier: .gregorian)
+        let easter2026 = gregorian.date(from: DateComponents(year: 2026, month: 4, day: 5))!
+        for delta in [-8, -7, 0, 1, 2] {
+            let date = gregorian.date(byAdding: .day, value: delta, to: easter2026)!
+            let theme = SeasonalThemeSchedule.themeName(date: date, hemisphere: .northern, halloween: false, christmas: false, easter: true, calendar: gregorian)
+            check((theme == "easter") == (-7...1).contains(delta), "Easter schedule boundary \(delta)")
+        }
+        check(SeasonalThemeSchedule.themeName(date: easter2026, hemisphere: .northern, halloween: false, christmas: false, easter: false, calendar: gregorian) == "system", "Easter is never enabled without opt-in")
 
         for month in 1...12 {
             let north = SeasonalThemeSchedule.themeName(month: month, day: 20, hemisphere: .northern, halloween: false, christmas: false)

@@ -12,6 +12,7 @@ struct BoringHeader: View {
     @EnvironmentObject var vm: BoringViewModel
     @ObservedObject var batteryModel = BatteryStatusViewModel.shared
     @ObservedObject var coordinator = BoringViewCoordinator.shared
+    @ObservedObject private var modes = WorkspaceModeManager.shared
     @StateObject var tvm = ShelfStateViewModel.shared
     @Default(.appTheme) private var appTheme
     @Default(.hideBatteryWhenAbsent) private var hideBatteryWhenAbsent
@@ -61,7 +62,15 @@ struct BoringHeader: View {
 
             HStack(spacing: 4) {
                 if vm.notchState == .open {
-                    if isHUDType(coordinator.sneakPeek.type) && coordinator.sneakPeek.show && Defaults[.showOpenNotchHUD] {
+                    if vm.isEditingHomeLayout && coordinator.currentView == .home {
+                        Button("Done") {
+                            withAnimation(.smooth(duration: 0.2)) { vm.isEditingHomeLayout = false; vm.draggedHomeWidget = nil }
+                        }
+                        .buttonStyle(.plain).font(.caption.weight(.semibold))
+                        .padding(.horizontal, 14).frame(height: NotchHeaderMetrics.controlHeight)
+                        .liquidGlassCapsule(tint: .accentColor)
+                        .accessibilityLabel("Done editing Home")
+                    } else if isHUDType(coordinator.sneakPeek.type) && coordinator.sneakPeek.show && Defaults[.showOpenNotchHUD] {
                         OpenNotchHUD(type: $coordinator.sneakPeek.type, value: $coordinator.sneakPeek.value, icon: $coordinator.sneakPeek.icon)
                             .transition(.scale(scale: 0.8).combined(with: .opacity))
                     } else {
@@ -77,6 +86,7 @@ struct BoringHeader: View {
                             .buttonStyle(PlainButtonStyle())
                             .help("Mirror")
                             .accessibilityLabel("Mirror")
+                            .disabled(modes.active?.hidesPrivateContent == true)
                         }
                         if Defaults[.settingsIconInNotch] {
                             Button(action: {
@@ -93,6 +103,10 @@ struct BoringHeader: View {
                             .buttonStyle(PlainButtonStyle())
                             .help("Settings")
                             .accessibilityLabel("Settings")
+                            .contextMenu { WorkspaceModeMenu() }
+                            .overlay(alignment: .topTrailing) {
+                                if modes.active != nil { Circle().fill(Color.accentColor).frame(width: 5, height: 5).allowsHitTesting(false).accessibilityHidden(true) }
+                            }
                         }
                         if BatteryPolicy.shouldShow(enabled: showBatteryIndicator,
                             hasBattery: batteryModel.hasBattery, hideWhenAbsent: hideBatteryWhenAbsent) {

@@ -21,6 +21,12 @@ Sparkle public key, or a changed app/helper designated signing requirement. Keep
 the installed path stable. Switching from Apple Development to Developer ID
 requires a deliberate permission-migration plan; do not silently switch identities.
 
+The signed build entry point also checks that the built `CFBundleName` and
+`CFBundleDisplayName` match the explicit source branding. Do not install a stale
+or generated-plist artifact merely because its signature is valid. The visible
+product name may change, but the compatibility executable and wrapper paths are
+explicitly preserved and still pass the identity gate.
+
 With HUD replacement enabled, identify the installed app's running PID and run:
 
 ```sh

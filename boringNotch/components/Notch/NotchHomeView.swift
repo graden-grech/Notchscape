@@ -9,6 +9,35 @@
 import Combine
 import Defaults
 import SwiftUI
+import UniformTypeIdentifiers
+
+@MainActor
+enum StarWarsArtworkAvailability {
+    // Resolve once per launch, not on the music player's update timeline.
+    static let vaderSceneAvailable = NSImage(named: "StarWarsVaderSceneBackdrop") != nil
+}
+
+/// Home and its previews use the same single panoramic artwork. No separate
+/// portrait layer or online costume photo is composited over the scene.
+struct HomeThemeScene: View {
+    let theme: AppTheme
+    let vaderArtwork: StarWarsCharacterArtwork
+    var imageAlignment: Alignment = .center
+
+    var body: some View {
+        GeometryReader { geometry in
+            if let backdrop = theme.homeBackdrop(characterArtwork: vaderArtwork,
+                characterArtworkAvailable: StarWarsArtworkAvailability.vaderSceneAvailable) {
+                Image(backdrop).resizable().scaledToFill()
+                    .frame(width: geometry.size.width, height: geometry.size.height,
+                           alignment: imageAlignment)
+                    .clipped()
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
 
 // MARK: - Music Player Components
 
@@ -431,6 +460,7 @@ struct VolumeControlView: View {
 
 struct NotchHomeView: View {
     @EnvironmentObject var vm: BoringViewModel
+    @ObservedObject private var modes = WorkspaceModeManager.shared
     @ObservedObject var webcamManager = WebcamManager.shared
     @ObservedObject var batteryModel = BatteryStatusViewModel.shared
     @ObservedObject var coordinator = BoringViewCoordinator.shared
@@ -444,6 +474,7 @@ struct NotchHomeView: View {
     @Default(.weatherEnabled) private var weatherEnabled
     @Default(.showCalendar) private var showCalendar
     @Default(.quickActions) private var quickActions
+    @Default(.quickNotesEnabled) private var quickNotesEnabled
 
     var body: some View {
         Group {
@@ -452,7 +483,38 @@ struct NotchHomeView: View {
             }
         }
         // simplified: use a straightforward opacity transition
+        .contentShape(Rectangle())
         .transition(.opacity)
+        .contextMenu {
+            Button(vm.isEditingHomeLayout ? "Done Editing Home" : "Edit Home…", systemImage: "square.grid.2x2") {
+                withAnimation(.smooth(duration: 0.2)) {
+                    vm.isEditingHomeLayout.toggle()
+                    widgetOrder = HomeLayoutPolicy.normalized(widgetOrder, legacyWeatherPosition: weatherTilePosition.rawValue)
+                }
+            }.disabled(modes.active?.homePriority.isEmpty == false)
+            Menu("Show Tiles") {
+                ForEach(HomeWidget.allCases) { widget in
+                    Toggle(widget.title, isOn: Binding(get: { visibleWidgets.contains(widget) }, set: { show in
+                        if show {
+                            hiddenWidgets.remove(widget)
+                            if widget == .weather { weatherEnabled = true; weatherOnLiveTab = false }
+                            if widget == .calendar { showCalendar = true }
+                        } else { hiddenWidgets.insert(widget) }
+                    }))
+                }
+            }
+            Divider()
+            if quickNotesEnabled {
+                Button("New Quick Note…", systemImage: "square.and.pencil") {
+                    Task { @MainActor in
+                        await LocalToolsManager.shared.load()
+                        LocalToolsManager.shared.addNote()
+                        NotchToolsWindowController.shared.show(.notes)
+                    }
+                }
+            }
+            Button("Open Tools…", systemImage: "square.grid.2x2") { NotchToolsWindowController.shared.show() }
+        }
     }
 
     private var shouldShowCamera: Bool {
@@ -460,38 +522,52 @@ struct NotchHomeView: View {
     }
 
     private var visibleWidgets: [HomeWidget] {
-        HomeLayoutPolicy.normalized(widgetOrder, legacyWeatherPosition: weatherTilePosition.rawValue).filter { widget in
+        let base = HomeLayoutPolicy.normalized(widgetOrder, legacyWeatherPosition: weatherTilePosition.rawValue).filter { widget in
             !hiddenWidgets.contains(widget)
                 && (widget != .calendar || showCalendar)
                 && (widget != .weather || (weatherEnabled && !weatherOnLiveTab))
                 && (widget != .quickActions || !quickActions.isEmpty)
         }
+        return WorkspaceModePolicy.homeOrder(base.map(\.rawValue), mode: modes.active).compactMap(HomeWidget.init(rawValue:))
     }
 
     private var mainContent: some View {
         HStack(alignment: .top, spacing: (shouldShowCamera && Defaults[.showCalendar]) ? 10 : 15) {
             ForEach(visibleWidgets) { widget in
-                switch widget {
-                case .music:
-                    MusicPlayerView(albumArtNamespace: albumArtNamespace)
-                case .calendar:
-                    CalendarView()
-                    .frame(
-                        width: (shouldShowCamera || visibleWidgets.contains(.weather))
-                            ? 170
-                            : 215
-                    )
-                    .onHover { isHovering in
-                        vm.isHoveringCalendar = isHovering
+                homeWidget(widget)
+                    .overlay {
+                        if vm.isEditingHomeLayout {
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .strokeBorder(.white.opacity(0.5), style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
+                                .allowsHitTesting(false)
+                        }
                     }
-                    .environmentObject(vm)
-                    .transition(.opacity)
-                case .weather:
-                    HomeWeatherTile()
-                case .quickActions:
-                    QuickActionsHomeTile()
+                    .overlay(alignment: .topLeading) {
+                        if vm.isEditingHomeLayout {
+                            Label(widget.title, systemImage: "line.3.horizontal")
+                                .font(.caption2.weight(.medium)).padding(.horizontal, 7).padding(.vertical, 4)
+                                .liquidGlassCapsule().allowsHitTesting(false)
+                        }
+                    }
+                    .conditionalModifier(vm.isEditingHomeLayout) { content in
+                        content.overlay {
+                            Color.white.opacity(0.001).contentShape(Rectangle())
+                            .onDrag {
+                            vm.draggedHomeWidget = widget
+                            let provider = NSItemProvider()
+                            provider.registerDataRepresentation(forTypeIdentifier: UTType.notchHomeWidget.identifier, visibility: .ownProcess) { completion in
+                                completion(Data(widget.rawValue.utf8), nil); return nil
+                            }
+                            return provider
+                        } preview: {
+                            Label(widget.title, systemImage: widget.symbol).font(.headline).padding(14)
+                                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
+                        }
+                        .onDrop(of: [.notchHomeWidget], delegate: HomeTileReorderDelegate(target: widget,
+                            order: $widgetOrder, dragged: $vm.draggedHomeWidget))
+                        }
+                    }
                 }
-            }
 
             if visibleWidgets.isEmpty && !shouldShowCamera {
                 VStack(alignment: .leading, spacing: 6) {
@@ -520,9 +596,38 @@ struct NotchHomeView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .animation(.smooth(duration: 0.22), value: widgetOrder)
         .transition(.asymmetric(insertion: .opacity.combined(with: .move(edge: .top)), removal: .opacity))
         .blur(radius: vm.notchState == .closed ? 30 : 0)
     }
+
+    @ViewBuilder private func homeWidget(_ widget: HomeWidget) -> some View {
+        switch widget {
+        case .music: MusicPlayerView(albumArtNamespace: albumArtNamespace)
+        case .calendar:
+            CalendarView().frame(width: (shouldShowCamera || visibleWidgets.contains(.weather)) ? 190 : 215)
+                .onHover { vm.isHoveringCalendar = $0 }.environmentObject(vm)
+        case .weather: HomeWeatherTile()
+        case .quickActions: QuickActionsHomeTile()
+        }
+    }
+}
+
+extension UTType {
+    static let notchHomeWidget = UTType(exportedAs: "theboringteam.boringnotch.home-widget", conformingTo: .item)
+}
+
+struct HomeTileReorderDelegate: DropDelegate {
+    let target: HomeWidget
+    @Binding var order: [HomeWidget]
+    @Binding var dragged: HomeWidget?
+    func validateDrop(info: DropInfo) -> Bool { dragged != nil && info.hasItemsConforming(to: [.notchHomeWidget]) }
+    func dropEntered(info: DropInfo) {
+        guard let dragged else { return }
+        withAnimation(.smooth(duration: 0.2)) { order = HomeLayoutPolicy.reordered(dragged, over: target, in: order) }
+    }
+    func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
+    func performDrop(info: DropInfo) -> Bool { dragged = nil; return true }
 }
 
 /// A static vector decoration: crisp at every display scale, with no animation timer.
@@ -573,6 +678,9 @@ private struct ChristmasHomeTree: View {
 
 struct MusicSliderView: View {
     @Default(.appTheme) private var appTheme
+    @Default(.lightsaberMusicBar) private var lightsaberMusicBar
+    @Default(.lightsaberColorMode) private var lightsaberColorMode
+    @Default(.lightsaberCustomColorData) private var lightsaberCustomColorData
     @Default(.useCustomAccentColor) private var useCustomAccentColor
     @Default(.customAccentColorData) private var customAccentColorData
     @Binding var sliderValue: Double
@@ -587,20 +695,31 @@ struct MusicSliderView: View {
     let isPlaying: Bool
     var onValueChange: (Double) -> Void
 
+    private var safeDuration: Double { duration.isFinite ? max(0, duration) : 0 }
+    private var usesLightsaber: Bool { appTheme.isStarWars && lightsaberMusicBar }
 
     var body: some View {
         VStack {
-            CustomSlider(
-                value: $sliderValue,
-                range: 0...duration,
-                color: Defaults[.sliderColor] == SliderColorEnum.albumArt
-                    ? Color(nsColor: color).ensureMinimumBrightness(factor: 0.8)
-                    : Defaults[.sliderColor] == SliderColorEnum.accent ? .effectiveAccent : .white,
-                dragging: $dragging,
-                lastDragged: $lastDragged,
-                onValueChange: onValueChange
-            )
-            .frame(height: 10, alignment: .center)
+            Group {
+                if usesLightsaber {
+                    LightsaberSlider(value: $sliderValue, duration: safeDuration,
+                        tint: LightsaberColors.resolve(mode: lightsaberColorMode, theme: appTheme,
+                                                      album: color, customData: lightsaberCustomColorData),
+                        dragging: $dragging, lastDragged: $lastDragged, onValueChange: onValueChange)
+                } else {
+                    CustomSlider(
+                        value: $sliderValue,
+                        range: 0...safeDuration,
+                        color: Defaults[.sliderColor] == SliderColorEnum.albumArt
+                            ? Color(nsColor: color).ensureMinimumBrightness(factor: 0.8)
+                            : Defaults[.sliderColor] == SliderColorEnum.accent ? .effectiveAccent : .white,
+                        dragging: $dragging,
+                        lastDragged: $lastDragged,
+                        onValueChange: onValueChange
+                    )
+                }
+            }
+            .frame(height: usesLightsaber ? 14 : 10, alignment: .center)
             .accessibilityLabel("Playback position")
             .accessibilityValue("\(timeString(from: sliderValue)) of \(timeString(from: duration))")
 
@@ -631,8 +750,9 @@ struct MusicSliderView: View {
     }
 
     func timeString(from seconds: Double) -> String {
-        let totalMinutes = Int(seconds) / 60
-        let remainingSeconds = Int(seconds) % 60
+        let safeSeconds = seconds.isFinite ? min(max(0, seconds), 359_999) : 0
+        let totalMinutes = Int(safeSeconds) / 60
+        let remainingSeconds = Int(safeSeconds) % 60
         let hours = totalMinutes / 60
         let minutes = totalMinutes % 60
 
@@ -641,6 +761,94 @@ struct MusicSliderView: View {
         } else {
             return String(format: "%d:%02d", minutes, remainingSeconds)
         }
+    }
+}
+
+/// Static vector layers: no video, particle system, repeating glow, or new timer.
+/// Progress is supplied by the same throttled timeline as the ordinary player.
+struct LightsaberTrack: View {
+    let progress: Double
+    let tint: Color
+    let dragging: Bool
+    let lowImpact: Bool
+
+    var body: some View {
+        GeometryReader { geometry in
+            let width = max(0, geometry.size.width)
+            let hiltWidth = min(24, width * 0.2)
+            let bladeWidth = max(0, width - hiltWidth - 2)
+            let clamped = progress.isFinite ? min(1, max(0, progress)) : 0
+            let filled = bladeWidth * clamped
+            HStack(spacing: 2) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(LinearGradient(colors: [Color(white: 0.27), Color(white: 0.84), Color(white: 0.35)], startPoint: .top, endPoint: .bottom))
+                    HStack(spacing: 3) {
+                        ForEach(0..<3) { _ in Capsule().fill(.black.opacity(0.6)).frame(width: 2) }
+                        Circle().fill(tint).frame(width: 3, height: 3)
+                    }.padding(.horizontal, 4).padding(.vertical, 1)
+                }
+                .frame(width: hiltWidth, height: dragging ? 10 : 8)
+
+                ZStack(alignment: .leading) {
+                    Capsule().fill(tint.opacity(0.15)).frame(height: 4)
+                    Capsule().fill(tint).frame(width: filled, height: dragging ? 6 : 4)
+                        .shadow(color: tint.opacity(lowImpact ? 0 : 0.9), radius: lowImpact ? 0 : 3)
+                    Capsule().fill(.white.opacity(0.95)).frame(width: max(0, filled - 1), height: dragging ? 2.5 : 1.5)
+                }
+                .frame(width: bladeWidth)
+            }
+            .frame(height: geometry.size.height)
+        }
+    }
+}
+
+struct LightsaberSlider: View {
+    @Binding var value: Double
+    let duration: Double
+    let tint: Color
+    @Binding var dragging: Bool
+    @Binding var lastDragged: Date
+    let onValueChange: (Double) -> Void
+    @ObservedObject private var performance = AppPerformanceManager.shared
+
+    var body: some View {
+        GeometryReader { geometry in
+            LightsaberTrack(progress: LightsaberTrackPolicy.progress(value: value, duration: duration),
+                            tint: tint, dragging: dragging, lowImpact: performance.lowImpact)
+                .contentShape(Rectangle().inset(by: -4))
+                .gesture(DragGesture(minimumDistance: 0)
+                    .onChanged { gesture in
+                        let hilt = min(24, geometry.size.width * 0.2) + 2
+                        guard let time = LightsaberTrackPolicy.time(at: gesture.location.x - hilt,
+                            width: geometry.size.width - hilt, duration: duration) else { return }
+                        dragging = true
+                        value = time
+                    }
+                    .onEnded { _ in
+                        guard dragging else { return }
+                        dragging = false
+                        lastDragged = Date()
+                        onValueChange(value)
+                    })
+                .animation(performance.suppressAnimations ? nil : .easeOut(duration: 0.16), value: dragging)
+        }
+        .focusable(duration > 0)
+        .onMoveCommand { direction in
+            if direction == .left { adjust(by: -5) }
+            if direction == .right { adjust(by: 5) }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityAdjustableAction { direction in
+            switch direction { case .increment: adjust(by: 5); case .decrement: adjust(by: -5); @unknown default: break }
+        }
+    }
+
+    private func adjust(by delta: Double) {
+        guard duration.isFinite, duration > 0 else { return }
+        value = min(duration, max(0, (value.isFinite ? value : 0) + delta))
+        lastDragged = Date()
+        onValueChange(value)
     }
 }
 

@@ -11,6 +11,8 @@ python3 "$task_repo_root/.github/scripts/verify_public_feature_flags.py" "$task_
     CODE_SIGN_STYLE=Manual \
     CODE_SIGN_IDENTITY='Apple Development: grechgraden@icloud.com (P45575RL23)' \
     DEVELOPMENT_TEAM=6H86CTRJCP build
+bash "$task_repo_root/.github/scripts/verify_custom_app_branding.sh" \
+    "$derived/Build/Products/Release/Boring Notch.app" "$task_repo_root/boringNotch/Info.plist"
 bash "$task_repo_root/.github/scripts/verify_custom_app_identity.sh" \
     "$derived/Build/Products/Release/Boring Notch.app" "$previous"
 python3 "$task_repo_root/.github/scripts/verify_public_feature_flags.py" \

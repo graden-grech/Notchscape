@@ -8,10 +8,13 @@
 import Foundation
 
 class AppleScriptHelper {
+    // Apple recommends serializing script execution off the main thread.
+    // Media controls and optional Notes sync share the same executor.
+    static let executionQueue = DispatchQueue(label: "notch.apple-events", qos: .userInitiated)
     @discardableResult
     class func execute(_ scriptText: String) async throws -> NSAppleEventDescriptor? {
         try await withCheckedThrowingContinuation { continuation in
-            Task.detached(priority: .userInitiated) {
+            executionQueue.async {
                 let script = NSAppleScript(source: scriptText)
                 var error: NSDictionary?
                 if let descriptor = script?.executeAndReturnError(&error) {

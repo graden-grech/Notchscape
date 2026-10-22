@@ -11,7 +11,7 @@
 - Follow `docs/HUD_RELEASE_CHECKS.md`. Check the enabled HUD event tap after a cold
   launch, Restart HUD, closing Settings, and a real update/relaunch. A successful
   compile or Sparkle installation alone is not a passed HUD regression test.
-- Publish only to `personal` (`graden-grech/boringNotch-custom`) with user authority.
+- Publish only to `personal` (`graden-grech/Notchscape`) with user authority.
   Never replace a published archive with a different build. Use a new version for
   post-release corrections and retain old update-feed items.
 - Report release, updater, HUD, and CI outcomes separately. Clearly state any live

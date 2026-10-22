@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   build:
-    name: Build Boring Notch
+    name: Build Notchscape
     strategy:
       matrix:
         platform:
@@ -28,8 +28,9 @@ jobs:
           - ^26
         scheme:
           - boringNotch
-    # Native Liquid Glass requires the macOS 26 SDK.
-    runs-on: macos-26
+    # Native Liquid Glass requires the macOS 26 SDK. Hosted Intel complements
+    # locally verified signed ARM builds without relying on the congested ARM pool.
+    runs-on: macos-26-intel
     steps:
     - name: Code Checkout
       # TODO: pin to immutable SHA
@@ -46,6 +47,32 @@ jobs:
         "$RUNNER_TEMP/customization-policy-tests"
     - name: Check workflow and release helpers
       run: python3 -m unittest discover -s .github/scripts/tests -v
+    - name: Check local tools privacy and usage policies
+      run: |
+        set -euo pipefail
+        swiftc boringNotch/models/ProductivityModels.swift tests/ProductivityPolicyTests.swift \
+          -o "$RUNNER_TEMP/productivity-policy-tests"
+        "$RUNNER_TEMP/productivity-policy-tests"
+        swiftc -D APPLE_NOTES_SCRIPT_TEST \
+          boringNotch/models/ProductivityModels.swift \
+          boringNotch/managers/AppleNotesSyncManager.swift tests/AppleNotesScriptTests.swift \
+          -o "$RUNNER_TEMP/apple-notes-script-tests"
+        "$RUNNER_TEMP/apple-notes-script-tests"
+    - name: Check wallpaper, utility and settings navigation policies
+      run: |
+        set -euo pipefail
+        swiftc boringNotch/models/WallpaperModels.swift \
+          boringNotch/models/WallpaperCatalog.swift \
+          boringNotch/models/WindowsWallpaperCatalog.swift \
+          boringNotch/models/NotchUtilityModels.swift tests/NotchUtilitiesPolicyTests.swift \
+          -o "$RUNNER_TEMP/notch-utilities-policy-tests"
+        "$RUNNER_TEMP/notch-utilities-policy-tests"
+    - name: Check temporary workspace Modes and privacy policies
+      run: |
+        set -euo pipefail
+        swiftc boringNotch/models/WorkspaceModeModels.swift \
+          tests/WorkspaceModePolicyTests.swift -o "$RUNNER_TEMP/workspace-mode-tests"
+        "$RUNNER_TEMP/workspace-mode-tests"
     - name: Check account settings allowlist
       run: |
         set -euo pipefail

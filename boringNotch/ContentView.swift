@@ -36,6 +36,7 @@ struct ContentView: View {
     @ObservedObject private var downloadWatcher = DownloadWatcher.shared
     @ObservedObject private var notchTimer = NotchTimerManager.shared
     @ObservedObject private var privacyMonitor = PrivacyActivityMonitor.shared
+    @ObservedObject private var modes = WorkspaceModeManager.shared
     @State private var hoverTask: Task<Void, Never>?
     @State private var isHovering: Bool = false
     @State private var anyDropDebounceTask: Task<Void, Never>?
@@ -55,8 +56,13 @@ struct ContentView: View {
     @Default(.weatherEnabled) private var weatherEnabled
     @Default(.weatherOnLiveTab) private var weatherOnLiveTab
     @Default(.liveActivitiesEnabled) private var liveActivitiesEnabled
+    @Default(.musicActivityOverride) private var musicActivityOverride
     @Default(.agentStatusEnabled) private var agentStatusEnabled
-    @Default(.liveActivityPriority) private var liveActivityPriority
+    @Default(.liveActivityPriority) private var savedLiveActivityPriority
+    private var liveActivityPriority: LiveActivityPriority {
+        modes.active?.preferredActivity.flatMap(LiveActivityPriority.init(rawValue:)) ?? savedLiveActivityPriority
+    }
+    private func modeAllows(_ activity: WorkspaceActivity) -> Bool { modes.active?.allows(activity) ?? true }
     @Default(.activityProfile) private var activityProfile
     @Default(.privacyActivitiesEnabled) private var privacyActivitiesEnabled
     @Default(.weatherAlertsEnabled) private var weatherAlertsEnabled
@@ -64,6 +70,7 @@ struct ContentView: View {
     @Default(.sportsActivitiesEnabled) private var sportsActivitiesEnabled
     @Default(.nonNotchPresentation) private var nonNotchPresentation
     @Default(.appTheme) private var appTheme
+    @Default(.starWarsVaderArtwork) private var starWarsVaderArtwork
     @Default(.useCustomAccentColor) private var useCustomAccentColor
     @Default(.customAccentColorData) private var customAccentColorData
     @Default(.hiddenHomeWidgets) private var hiddenHomeWidgets
@@ -160,28 +167,28 @@ struct ContentView: View {
         usesNotchlessIslandPresentation
             && vm.notchState == .closed
             && !vm.hideOnClosed
-            && (activeSportsGame != nil || sportsManager.scoreBanner != nil)
+            && (activeSportsGame != nil || activeSportsBanner != nil)
     }
 
     private var activeAgentActivity: AgentActivity? {
-        guard liveActivitiesEnabled, agentStatusEnabled, activityProfile != .entertainment else { return nil }
+        guard modeAllows(.agent), liveActivitiesEnabled, agentStatusEnabled, activityProfile != .entertainment else { return nil }
         return agentStatusManager.activities.first
     }
 
     private var upcomingCalendarActivity: EventModel? {
-        guard liveActivitiesEnabled,
+        guard modeAllows(.calendar), liveActivitiesEnabled,
               activityProfile == .everything || activityProfile == .focus else { return nil }
         return calendarManager.upcomingAlertEvent ?? calendarManager.upcomingReminderEvent
     }
 
     private var activeDownload: DownloadFile? {
-        guard liveActivitiesEnabled,
+        guard modeAllows(.download), liveActivitiesEnabled,
               activityProfile == .everything || activityProfile == .entertainment else { return nil }
         return downloadWatcher.downloadFiles.first
     }
 
     private var activeWeatherAlert: WeatherSnapshot? {
-        guard liveActivitiesEnabled,
+        guard modeAllows(.weather), liveActivitiesEnabled,
               activityProfile == .everything,
               weatherAlertsEnabled,
               let weather = weatherManager.weather,
@@ -190,14 +197,20 @@ struct ContentView: View {
     }
 
     private var activeSportsGame: SportsGame? {
-        guard liveActivitiesEnabled,
+        guard modeAllows(.sports), liveActivitiesEnabled,
               sportsActivitiesEnabled,
               activityProfile == .everything || activityProfile == .entertainment else { return nil }
         return sportsManager.currentGame
     }
 
+    private var activeSportsBanner: SportsScoreBanner? {
+        guard modeAllows(.sports), liveActivitiesEnabled, sportsActivitiesEnabled,
+              activityProfile == .everything || activityProfile == .entertainment else { return nil }
+        return sportsManager.scoreBanner
+    }
+
     private var privacyActivityIsVisible: Bool {
-        liveActivitiesEnabled
+        modeAllows(.privacy) && liveActivitiesEnabled
             && privacyActivitiesEnabled
             && activityProfile != .entertainment
             && privacyMonitor.shouldShowActivity
@@ -205,18 +218,22 @@ struct ContentView: View {
     }
 
     private var timerActivityIsVisible: Bool {
-        liveActivitiesEnabled
+        modeAllows(.timer) && liveActivitiesEnabled
             && timerActivitiesEnabled
             && (activityProfile == .everything || activityProfile == .focus)
             && (notchTimer.endDate != nil || notchTimer.justFinished)
     }
 
     private var hasMusicActivity: Bool {
-        liveActivitiesEnabled
-            && (activityProfile == .everything || activityProfile == .entertainment)
+        MusicPresentationPolicy.isAllowed(
+            musicEnabled: coordinator.musicLiveActivityEnabled,
+            overrideEnabled: musicActivityOverride,
+            liveActivitiesEnabled: liveActivitiesEnabled,
+            profileAllowsMusic: activityProfile == .everything || activityProfile == .entertainment
+        )
+            && modeAllows(.music)
             && (!coordinator.expandingView.show || coordinator.expandingView.type == .music)
             && (musicManager.isPlaying || !musicManager.isPlayerIdle)
-            && coordinator.musicLiveActivityEnabled
             && !vm.hideOnClosed
     }
 
@@ -275,13 +292,12 @@ struct ContentView: View {
                     .background {
                         ZStack(alignment: .top) {
                             sportsUsesFloatingIsland ? Color.clear : Color.black
-                            if let backdrop = appTheme.homeBackdrop {
+                            if appTheme.hasHomeScene {
                                 // Keep the photo at its expanded dimensions while
                                 // the outer mask contracts. Replacing/remapping the
                                 // background on close caused a flash and image jump.
-                                Image(backdrop)
-                                    .resizable()
-                                    .scaledToFill()
+                                HomeThemeScene(theme: appTheme, vaderArtwork: starWarsVaderArtwork,
+                                               imageAlignment: .top)
                                     .frame(width: getOpenNotchSize().width, height: getOpenNotchSize().height, alignment: .top)
                                     .clipped()
                                     .overlay {
@@ -411,6 +427,19 @@ struct ContentView: View {
                     }
                     .sensoryFeedback(.alignment, trigger: haptics)
                     .contextMenu {
+                        WorkspaceModeMenu()
+                        Divider()
+                        if coordinator.currentView == .home {
+                            Button(vm.isEditingHomeLayout ? "Done Editing Home" : "Edit Home…", systemImage: "square.grid.2x2") {
+                                Defaults[.homeWidgetOrder] = HomeLayoutPolicy.normalized(Defaults[.homeWidgetOrder],
+                                    legacyWeatherPosition: Defaults[.weatherTilePosition].rawValue)
+                                withAnimation(.smooth(duration: 0.2)) { vm.isEditingHomeLayout.toggle() }
+                            }.disabled(modes.active?.homePriority.isEmpty == false || modes.active?.hidesPrivateContent == true)
+                            Button("Home Layout Settings…", systemImage: "slider.horizontal.3") {
+                                SettingsWindowController.shared.showWindow(section: "Appearance")
+                            }
+                            Divider()
+                        }
                         Button("Settings") {
                             DispatchQueue.main.async {
                                 SettingsWindowController.shared.showWindow()
@@ -440,7 +469,7 @@ struct ContentView: View {
         )
         .animation(.smooth, value: gestureProgress)
         .animation(.snappy(duration: 0.48, extraBounce: 0.04), value: activeAgentActivity?.state)
-        .animation(.snappy(duration: 0.5, extraBounce: 0.08), value: sportsManager.scoreBanner)
+        .animation(.snappy(duration: 0.5, extraBounce: 0.08), value: activeSportsBanner)
         .background(dragDetector)
         .preferredColorScheme(.dark)
         .tint(Color(nsColor: NSColor.resolvedAccent(theme: appTheme, customEnabled: useCustomAccentColor, customData: customAccentColorData)))
@@ -463,6 +492,13 @@ struct ContentView: View {
             }
         }
         .onChange(of: hiddenHomeWidgets) { _, _ in vm.refreshOpenNotchSize() }
+        .onChange(of: modes.session) { _, session in
+            hoverTask?.cancel(); hoverTask = nil
+            vm.isEditingHomeLayout = false; vm.draggedHomeWidget = nil
+            if session?.mode.hidesPrivateContent == true {
+                webcamManager.stopSession(); vm.isCameraExpanded = false
+            }
+        }
         .onChange(of: quickActions) { _, _ in vm.refreshOpenNotchSize() }
         .onChange(of: weatherEnabled) { _, _ in
             withAnimation(animationSpring) {
@@ -590,6 +626,7 @@ struct ContentView: View {
                           DownloadLiveActivity(download: download, completedName: nil)
                               .transition(.scale(scale: 0.9).combined(with: .opacity))
                       } else if let completedName = downloadWatcher.recentlyCompletedName,
+                                modeAllows(.download),
                                 liveActivitiesEnabled,
                                 activityProfile != .focus,
                                 activityProfile != .minimal,
@@ -642,7 +679,7 @@ struct ContentView: View {
                               .padding(.trailing, 8)
                           }
                           // Old sneak peek music
-                          else if coordinator.sneakPeek.type == .music {
+                          else if coordinator.sneakPeek.type == .music && modeAllows(.music) {
                               if vm.notchState == .closed && !vm.hideOnClosed && Defaults[.sneakPeekStyles] == .standard {
                                   HStack(alignment: .center) {
                                       Image(systemName: "music.note")
@@ -665,7 +702,7 @@ struct ContentView: View {
             if vm.notchState == .closed,
                !vm.hideOnClosed,
                usesNotchlessIslandPresentation,
-               sportsManager.scoreBanner == nil,
+               activeSportsBanner == nil,
                let game = activeSportsGame {
                 SportsLiveActivity(game: game)
                     .padding(.top, sportsDropOffset)
@@ -675,8 +712,7 @@ struct ContentView: View {
             if vm.notchState == .closed,
                !vm.hideOnClosed,
                usesNotchlessIslandPresentation,
-               sportsActivitiesEnabled,
-               let banner = sportsManager.scoreBanner {
+               let banner = activeSportsBanner {
                 SportsScorePopdown(banner: banner)
                     .padding(.horizontal, 10)
                     .padding(.bottom, 10)
@@ -695,6 +731,9 @@ struct ContentView: View {
             }
             if vm.notchState == .open {
                 VStack {
+                    if modes.active?.hidesPrivateContent == true {
+                        PresentationModePlaceholder()
+                    } else {
                     switch coordinator.currentView {
                     case .home:
                         NotchHomeView(albumArtNamespace: albumArtNamespace)
@@ -704,6 +743,11 @@ struct ContentView: View {
                         ShelfView()
                     case .system:
                         SystemDashboardView()
+                    case .tools:
+                        ProductivityHubView()
+                    case .wallpapers:
+                        WallpaperBrowserView()
+                    }
                     }
                 }
                 .transition(
@@ -1396,6 +1440,10 @@ struct ContentView: View {
     // MARK: - Hover Management
 
     private func handleHover(_ hovering: Bool) {
+        if !hovering && vm.isEditingHomeLayout {
+            hoverTask?.cancel(); isHovering = false
+            return
+        }
         if coordinator.firstLaunch { return }
         hoverTask?.cancel()
         
@@ -1410,7 +1458,7 @@ struct ContentView: View {
             
             guard vm.notchState == .closed,
                   !coordinator.sneakPeek.show,
-                  Defaults[.openNotchOnHover] else { return }
+                  WorkspaceModePolicy.hover(base: Defaults[.openNotchOnHover], mode: modes.active) else { return }
             
             hoverTask = Task {
                 try? await Task.sleep(for: .seconds(Defaults[.minimumHoverDuration]))
@@ -1419,7 +1467,8 @@ struct ContentView: View {
                 await MainActor.run {
                     guard self.vm.notchState == .closed,
                           self.isHovering,
-                          !self.coordinator.sneakPeek.show else { return }
+                          !self.coordinator.sneakPeek.show,
+                          WorkspaceModePolicy.hover(base: Defaults[.openNotchOnHover], mode: self.modes.active) else { return }
                     
                     self.doOpen()
                 }

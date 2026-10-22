@@ -7,6 +7,22 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C0D3A0180000000000000018 /* WallpaperModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F0180000000000000018; };
+		C0D3A0190000000000000019 /* WallpaperCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F0190000000000000019; };
+		C0D3A01A000000000000001A /* WindowsWallpaperCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F01A000000000000001A; };
+		C0D3A01B000000000000001B /* NotchUtilityModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F01B000000000000001B; };
+		C0D3A01C000000000000001C /* NotchWallpaperManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F01C000000000000001C; };
+		C0D3A01D000000000000001D /* WallpaperViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F01D000000000000001D; };
+		C0D3A01E000000000000001E /* UtilityToolsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F01E000000000000001E; };
+		C0D3A01F000000000000001F /* WorkspaceModeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F01F000000000000001F; };
+		C0D3A0200000000000000020 /* WorkspaceModeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F0200000000000000020; };
+		C0D3A0210000000000000021 /* WorkspaceModesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F0210000000000000021; };
+		C0D3A0110000000000000011 /* ProductivityModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F0110000000000000011; };
+		C0D3A0120000000000000012 /* LocalToolsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F0120000000000000012; };
+		C0D3A0160000000000000016 /* AppleNotesSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F0160000000000000016; };
+		C0D3A0130000000000000013 /* DeviceControlsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F0130000000000000013; };
+		C0D3A0140000000000000014 /* AgentInsightsManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F0140000000000000014; };
+		C0D3A0150000000000000015 /* ProductivityViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F0150000000000000015; };
 		ACCA00080000000000000008 /* AccountSignInAttempt.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCF00080000000000000008; };
 		ACCA00060000000000000006 /* AccountCredentialStorage.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACCF00060000000000000006; };
 		ACCA00070000000000000007 /* SimpleKeychain in Frameworks */ = {isa = PBXBuildFile; productRef = ACCD00070000000000000007; };
@@ -199,6 +215,22 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		C0D3F0180000000000000018 /* WallpaperModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WallpaperModels.swift; sourceTree = "<group>"; };
+		C0D3F0190000000000000019 /* WallpaperCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WallpaperCatalog.swift; sourceTree = "<group>"; };
+		C0D3F01A000000000000001A /* WindowsWallpaperCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowsWallpaperCatalog.swift; sourceTree = "<group>"; };
+		C0D3F01B000000000000001B /* NotchUtilityModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchUtilityModels.swift; sourceTree = "<group>"; };
+		C0D3F01C000000000000001C /* NotchWallpaperManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotchWallpaperManager.swift; sourceTree = "<group>"; };
+		C0D3F01D000000000000001D /* WallpaperViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WallpaperViews.swift; sourceTree = "<group>"; };
+		C0D3F01E000000000000001E /* UtilityToolsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UtilityToolsView.swift; sourceTree = "<group>"; };
+		C0D3F01F000000000000001F /* WorkspaceModeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceModeModels.swift; sourceTree = "<group>"; };
+		C0D3F0200000000000000020 /* WorkspaceModeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceModeManager.swift; sourceTree = "<group>"; };
+		C0D3F0210000000000000021 /* WorkspaceModesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceModesView.swift; sourceTree = "<group>"; };
+		C0D3F0110000000000000011 /* ProductivityModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductivityModels.swift; sourceTree = "<group>"; };
+		C0D3F0120000000000000012 /* LocalToolsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalToolsManager.swift; sourceTree = "<group>"; };
+		C0D3F0160000000000000016 /* AppleNotesSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleNotesSyncManager.swift; sourceTree = "<group>"; };
+		C0D3F0130000000000000013 /* DeviceControlsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceControlsManager.swift; sourceTree = "<group>"; };
+		C0D3F0140000000000000014 /* AgentInsightsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentInsightsManager.swift; sourceTree = "<group>"; };
+		C0D3F0150000000000000015 /* ProductivityViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProductivityViews.swift; sourceTree = "<group>"; };
 		ACCF00080000000000000008 /* AccountSignInAttempt.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountSignInAttempt.swift; sourceTree = "<group>"; };
 		ACCF00060000000000000006 /* AccountCredentialStorage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountCredentialStorage.swift; sourceTree = "<group>"; };
 		ACCF00050000000000000005 /* AccountSDKNotices.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = AccountSDKNotices.txt; sourceTree = "<group>"; };
@@ -547,6 +579,12 @@
 		147163B52C5D804B0068B555 /* managers */ = {
 			isa = PBXGroup;
 			children = (
+				C0D3F0120000000000000012 /* LocalToolsManager.swift */,
+				C0D3F01C000000000000001C /* NotchWallpaperManager.swift */,
+				C0D3F0200000000000000020 /* WorkspaceModeManager.swift */,
+				C0D3F0160000000000000016 /* AppleNotesSyncManager.swift */,
+				C0D3F0130000000000000013 /* DeviceControlsManager.swift */,
+				C0D3F0140000000000000014 /* AgentInsightsManager.swift */,
 				ACCF00060000000000000006 /* AccountCredentialStorage.swift */,
 				ACCF00080000000000000008 /* AccountSignInAttempt.swift */,
 				ACCF00020000000000000002 /* AccountManager.swift */,
@@ -672,6 +710,12 @@
 		14D570C72C5F38760011E668 /* models */ = {
 			isa = PBXGroup;
 			children = (
+				C0D3F0110000000000000011 /* ProductivityModels.swift */,
+				C0D3F0180000000000000018 /* WallpaperModels.swift */,
+				C0D3F0190000000000000019 /* WallpaperCatalog.swift */,
+				C0D3F01A000000000000001A /* WindowsWallpaperCatalog.swift */,
+				C0D3F01B000000000000001B /* NotchUtilityModels.swift */,
+				C0D3F01F000000000000001F /* WorkspaceModeModels.swift */,
 				ACCF00010000000000000001 /* AccountSettingsPolicy.swift */,
 				C0D3F0080000000000000008 /* CustomizationModels.swift */,
 				11F748812ECB07A400F841DB /* MusicControlButton.swift */,
@@ -769,6 +813,10 @@
 			children = (
 				ACCF00030000000000000003 /* AccountSettingsView.swift */,
 				C0D3F0100000000000000010 /* CustomizationSettings.swift */,
+				C0D3F0150000000000000015 /* ProductivityViews.swift */,
+				C0D3F01D000000000000001D /* WallpaperViews.swift */,
+				C0D3F01E000000000000001E /* UtilityToolsView.swift */,
+				C0D3F0210000000000000021 /* WorkspaceModesView.swift */,
 				11F748832ECB27DC00F841DB /* MusicSlotConfigurationView.swift */,
 				11C5E3152DFE88510065821E /* SettingsView.swift */,
 				11C5E3112DFE85970065821E /* SettingsWindowController.swift */,
@@ -977,6 +1025,22 @@
 				ACCA00030000000000000003 /* AccountSettingsView.swift in Sources */,
 				C0D3A0090000000000000009 /* CustomizationManager.swift in Sources */,
 				C0D3A0100000000000000010 /* CustomizationSettings.swift in Sources */,
+				C0D3A0110000000000000011 /* ProductivityModels.swift in Sources */,
+				C0D3A0180000000000000018 /* WallpaperModels.swift in Sources */,
+				C0D3A0190000000000000019 /* WallpaperCatalog.swift in Sources */,
+				C0D3A01A000000000000001A /* WindowsWallpaperCatalog.swift in Sources */,
+				C0D3A01B000000000000001B /* NotchUtilityModels.swift in Sources */,
+				C0D3A01C000000000000001C /* NotchWallpaperManager.swift in Sources */,
+				C0D3A01D000000000000001D /* WallpaperViews.swift in Sources */,
+				C0D3A01E000000000000001E /* UtilityToolsView.swift in Sources */,
+				C0D3A01F000000000000001F /* WorkspaceModeModels.swift in Sources */,
+				C0D3A0200000000000000020 /* WorkspaceModeManager.swift in Sources */,
+				C0D3A0210000000000000021 /* WorkspaceModesView.swift in Sources */,
+				C0D3A0120000000000000012 /* LocalToolsManager.swift in Sources */,
+				C0D3A0160000000000000016 /* AppleNotesSyncManager.swift in Sources */,
+				C0D3A0130000000000000013 /* DeviceControlsManager.swift in Sources */,
+				C0D3A0140000000000000014 /* AgentInsightsManager.swift in Sources */,
+				C0D3A0150000000000000015 /* ProductivityViews.swift in Sources */,
 				115C12EC2ED3D003009754CA /* OpenNotchHUD.swift in Sources */,
 				14C08BB92C8DE4B1000F8AA0 /* BoringCalendar.swift in Sources */,
 				5955950D2E900ED800C66711 /* ApplicationRelauncher.swift in Sources */,
@@ -1300,14 +1364,15 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				EXECUTABLE_NAME = "Boring Notch";
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/mediaremote-adapter",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = boringNotch/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Boring Notch";
-				INFOPLIST_KEY_CFBundleName = "Boring Notch";
+				INFOPLIST_KEY_CFBundleDisplayName = Notchscape;
+				INFOPLIST_KEY_CFBundleName = Notchscape;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSBackgroundOnly = NO;
 				INFOPLIST_KEY_LSUIElement = YES;
@@ -1323,7 +1388,8 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = "2.8.4";
 				PRODUCT_BUNDLE_IDENTIFIER = theboringteam.boringnotch;
-				PRODUCT_NAME = "Boring Notch";
+				PRODUCT_MODULE_NAME = Boring_Notch;
+				PRODUCT_NAME = Notchscape;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_STRICT_CONCURRENCY = targeted;
@@ -1332,6 +1398,7 @@
 					"$(inherited)",
 					"$(SDKROOT)/System/Library/PrivateFrameworks",
 				);
+				WRAPPER_NAME = "Boring Notch.app";
 			};
 			name = Debug;
 		};
@@ -1354,14 +1421,15 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
+				EXECUTABLE_NAME = "Boring Notch";
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(PROJECT_DIR)/mediaremote-adapter",
 				);
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = boringNotch/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Boring Notch";
-				INFOPLIST_KEY_CFBundleName = "Boring Notch";
+				INFOPLIST_KEY_CFBundleDisplayName = Notchscape;
+				INFOPLIST_KEY_CFBundleName = Notchscape;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSBackgroundOnly = NO;
 				INFOPLIST_KEY_LSUIElement = YES;
@@ -1377,7 +1445,8 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MARKETING_VERSION = "2.8.4";
 				PRODUCT_BUNDLE_IDENTIFIER = theboringteam.boringnotch;
-				PRODUCT_NAME = "Boring Notch";
+				PRODUCT_MODULE_NAME = Boring_Notch;
+				PRODUCT_NAME = Notchscape;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_STRICT_CONCURRENCY = targeted;
@@ -1386,6 +1455,7 @@
 					"$(inherited)",
 					"$(SDKROOT)/System/Library/PrivateFrameworks",
 				);
+				WRAPPER_NAME = "Boring Notch.app";
 			};
 			name = Release;
 		};

@@ -7,6 +7,7 @@
 import SwiftUI
 
 struct MinimalFaceFeatures: View {
+    @ObservedObject private var performance = AppPerformanceManager.shared
     @State private var isBlinking = false
     @State var height:CGFloat = 20;
     @State var width:CGFloat = 30;
@@ -40,26 +41,46 @@ struct MinimalFaceFeatures: View {
             }
         }
         .frame(width: self.width, height: self.height) // Maximum size of face
-        .onAppear {
-            startBlinking()
+        // SwiftUI cancels this task on disappearance or when animation policy
+        // changes. Disabled effects have no sleeping loop or repeating timer.
+        .task(id: performance.suppressAnimations) {
+            await blinkWhileVisible()
         }
     }
     
-    func startBlinking() {
-        Timer.scheduledTimer(withTimeInterval: 3, repeats: true) { _ in
-            withAnimation(.spring(duration: 0.2)) {
-                isBlinking = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+    private func blinkWhileVisible() async {
+        resetBlinkWithoutAnimation()
+        guard !performance.suppressAnimations else { return }
+        defer { resetBlinkWithoutAnimation() }
+
+        do {
+            try await Task.sleep(for: .seconds(3))
+            while !Task.isCancelled {
+                guard !performance.suppressAnimations else { return }
+                withAnimation(.spring(duration: 0.2)) {
+                    isBlinking = true
+                }
+                try await Task.sleep(for: .milliseconds(100))
+                guard !Task.isCancelled, !performance.suppressAnimations else { return }
                 withAnimation(.spring(duration: 0.2)) {
                     isBlinking = false
                 }
+                try await Task.sleep(for: .milliseconds(2900))
             }
+        } catch {
+            // Cancellation ends the sequence; never start a replacement loop.
         }
+    }
+
+    private func resetBlinkWithoutAnimation() {
+        var transaction = Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { isBlinking = false }
     }
 }
 
 struct Eye: View {
+    @ObservedObject private var performance = AppPerformanceManager.shared
     @Binding var isBlinking: Bool
     
     var body: some View {
@@ -67,7 +88,7 @@ struct Eye: View {
             .fill(Color.white)
             .frame(width: 4, height: isBlinking ? 1 : 4)
             .frame(maxWidth: 15, maxHeight: 15) // Adjusted max size
-            .animation(.easeInOut(duration: 0.1), value: isBlinking)
+            .animation(performance.suppressAnimations ? nil : .easeInOut(duration: 0.1), value: isBlinking)
     }
 }
 

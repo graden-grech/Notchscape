@@ -37,6 +37,7 @@ struct AgentActivity: Identifiable, Codable, Equatable {
     var title: String
     var detail: String
     var state: AgentActivityState
+    var startedAt: Date = Date()
     var updatedAt: Date
 }
 
@@ -101,7 +102,10 @@ final class AgentStatusManager: ObservableObject {
         do {
             let parameters = NWParameters.tcp
             parameters.allowLocalEndpointReuse = true
-            let listener = try NWListener(using: parameters, on: NWEndpoint.Port(rawValue: Self.port)!)
+            parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: NWEndpoint.Port(rawValue: Self.port)!)
+            // requiredLocalEndpoint already specifies the port. Passing it
+            // again through `on:` is rejected with EINVAL by Network.framework.
+            let listener = try NWListener(using: parameters)
             listener.newConnectionHandler = { [weak self] connection in
                 self?.receive(connection)
             }
@@ -133,6 +137,7 @@ final class AgentStatusManager: ObservableObject {
 
     private nonisolated func receive(_ connection: NWConnection) {
         connection.start(queue: .global(qos: .utility))
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 5) { connection.cancel() }
         collect(on: connection, data: Data())
     }
 
@@ -140,6 +145,7 @@ final class AgentStatusManager: ObservableObject {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [weak self] chunk, _, complete, error in
             var accumulated = data
             if let chunk { accumulated.append(chunk) }
+            guard accumulated.count <= 256 * 1024 else { connection.cancel(); return }
 
             if complete || error != nil || accumulated.containsHTTPBody {
                 let body = accumulated.httpBody
@@ -167,6 +173,8 @@ final class AgentStatusManager: ObservableObject {
         else { return }
 
         let resolvedProvider = (object["provider"] as? String) ?? provider
+        AgentInsightsManager.shared.ingest(object, provider: resolvedProvider)
+        if event == "UsageUpdate" { return } // A reading is not a task-state event.
 
         let sessionID = (object["session_id"] as? String) ?? UUID().uuidString
         let cwd = object["cwd"] as? String
@@ -246,6 +254,7 @@ final class AgentStatusManager: ObservableObject {
             title: project,
             detail: detail,
             state: state,
+            startedAt: activities.first(where: { $0.id == activityID })?.startedAt ?? now,
             updatedAt: now
         )
 

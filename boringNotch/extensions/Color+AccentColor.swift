@@ -8,6 +8,21 @@
 import SwiftUI
 import Defaults
 
+enum LightsaberColors {
+    static func resolve(mode: LightsaberColorMode, theme: AppTheme, album: NSColor, customData: Data?) -> Color {
+        let themeColor = theme.starWarsVariant?.accentColor ?? StarWarsThemeVariant.jedi.accentColor
+        switch mode {
+        case .theme: return Color(nsColor: themeColor)
+        case .albumArtwork: return Color(nsColor: album).ensureMinimumBrightness(factor: 0.7)
+        case .custom:
+            guard let data = customData, data.count < 16_384,
+                  let saved = try? NSKeyedUnarchiver.unarchivedObject(ofClass: NSColor.self, from: data)
+            else { return Color(nsColor: themeColor) }
+            return Color(nsColor: saved.withAlphaComponent(1))
+        }
+    }
+}
+
 extension Color {
     static var effectiveAccent: Color {
         Color(nsColor: .effectiveAccent)

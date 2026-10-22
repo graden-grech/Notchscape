@@ -9,6 +9,11 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
+    groups:
+      # init and analyze share configuration and must run the same version.
+      codeql-actions:
+        patterns:
+          - "github/codeql-action/*"
 
   - package-ecosystem: "pip"
     directory: "/Configuration/dmg"
@@ -19,4 +24,4 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
-    target-branch: "dev"
+    target-branch: "main"
