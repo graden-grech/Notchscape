@@ -3,6 +3,29 @@
     <channel>
         <title>Notchscape</title>
         <item>
+            <title>Notchscape 2.9.0</title>
+            <pubDate>Fri, 23 Oct 2026 13:08:12 -0400</pubDate>
+            <link>https://github.com/graden-grech/Notchscape/releases/tag/v2.9.0</link>
+            <sparkle:version>289</sparkle:version>
+            <sparkle:shortVersionString>2.9.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[# Notchscape 2.9.0 — Workspace, capture and appearance
+
+- Commands search, calculator/conversions, encrypted snippets, Quicklinks and saved colors.
+- Stopwatch/laps, focus cycles, Keep Awake and pinned event countdowns.
+- Capture Studio: markup/redaction, optional searchable library, QR/barcodes, explicit silent recording, trimming and MP4/M4A/GIF export.
+- Window positioning/Undo, saved layouts and app/window switching with optional one-shot previews.
+- Preferred audio outputs, input selection, supported hardware mute and accessory low-battery alerts.
+- Additional watched download folders, pinned notes, Finder Services and Apple Shortcuts actions.
+- Network/disk/memory-pressure stats, saved appearance presets and six new static palette scenes.
+- Includes the AI chat-title fix. Existing settings, signing identity, HUD permissions and update key are preserved. Accounts remain disabled.
+
+New capture/routing/alert actions are explicit or opt-in. Recording is silent and selected with Apple's picker. A real music Up Next queue remains unavailable. Requires Apple silicon/macOS 14; recording needs macOS 15 and native Liquid Glass needs macOS 26. Development-signed, not notarized. Hardware, multi-display, other macOS versions and the complete live export/appearance/permission matrix are not fully verified. See the release notes and feature tracker for limits.
+]]></description>
+            <enclosure url="https://github.com/graden-grech/Notchscape/releases/download/v2.9.0/Notchscape.zip" length="31126207" type="application/octet-stream" sparkle:edSignature="CP/NuFfubm+q9LY9tQsSm0qN9u1Sl+eDcOykVX6CBJNnVCjLqu3iGW/emgIf7DMKzJfF+1yD/v0fQcIwCphZAA=="/>
+        </item>
+        <item>
             <title>Notchscape 2.8.5</title>
             <pubDate>Fri, 23 Oct 2026 11:00:22 -0400</pubDate>
             <link>https://github.com/graden-grech/Notchscape/releases/tag/v2.8.5</link>

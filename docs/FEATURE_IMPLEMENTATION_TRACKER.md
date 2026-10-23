@@ -58,10 +58,11 @@ roadmap items, not hidden implemented features.
   account allowlist 89, window geometry 32, capture/QR 12 and synthetic media 12.
   Python helper suite and CI steps include the new feature policy suites.
   Per-release GitHub and local test results are reported separately.
-- Latest installed PID 69168: exactly one enabled media-key interceptor after
-  cold launch. User reported HUD working during this batch. **Restart HUD,
-  closing Settings and a real future Sparkle update still need their separate
-  final regression checks.** Mac locked again before final UI checks completed.
+- Initial feature-build PID 69168 had exactly one enabled media-key interceptor
+  after cold launch, and the user reported HUD working. Before the 2.9.0 update,
+  PID 96158 also passed Restart HUD and closing Settings with exactly one enabled
+  interceptor. A real 2.9.0 Sparkle update/relaunch and physical-key check are
+  separate final release steps and must not be inferred from these results.
 - Preserved: HUD on, Dock icon hidden, System theme, seasonal switching off,
   clipboard recording off, Notes/Devices/OCR on, Tools/Wallpapers visible,
   System tab off, external presentation style and Home order/visibility.
@@ -70,8 +71,8 @@ roadmap items, not hidden implemented features.
   used for new capture testing. Recording stopped/finalized. No actual audio
   route/microphone mute, other app positions, user notes/clipboard, calendar
   events, desktop wallpaper or notification permission was changed for tests.
-- Window-layout test remains blocked on an unlocked Mac. The Preview test
-  document is still open; no windows were moved or saved layouts created.
+- Window-layout live testing is not complete. The earlier test stopped when the
+  Mac locked; no windows were moved or saved layouts created by that test.
 - Tools windows intentionally use capture exclusion; white automated window
   screenshots are not visual QA evidence. Appearance Settings/editor screenshots
   were visually checked. Notched hardware, smallest-window/light/high-contrast
