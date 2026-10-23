@@ -44,3 +44,11 @@ The status checks the actual enabled event tap and its run-loop source. An exist
 permission denial must still be handled by the user in macOS; never reset TCC or
 grant access automatically. Do not overwrite a published release archive with a
 new build; release a new version for subsequent corrections.
+
+For local Sparkle archive signing, explicitly select the existing Keychain
+account `boringNotch-custom` with `sign_update --account boringNotch-custom`.
+The global default account `ed25519` is not this app's update key. Independently
+verify the resulting archive signature against the `SUPublicEDKey` pinned in
+the trusted app before uploading or changing the feed. A signing tool exiting
+successfully does not establish that it selected the right key. Never export
+private keys, change the app's pinned key, or rotate keys to bypass this gate.

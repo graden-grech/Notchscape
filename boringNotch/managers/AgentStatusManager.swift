@@ -56,6 +56,7 @@ final class AgentStatusManager: ObservableObject {
     private var lastWorkingPublishAt: [String: Date] = [:]
     private var limitedSessions: [String: Date] = [:]
     private var interruptedSessions: [String: Date] = [:]
+    private let chatTitles = AgentChatTitleResolver()
     private struct HistoryRun {
         let id: UUID
         let startedAt: Date
@@ -178,9 +179,12 @@ final class AgentStatusManager: ObservableObject {
 
         let sessionID = (object["session_id"] as? String) ?? UUID().uuidString
         let cwd = object["cwd"] as? String
-        let project = cwd.map { URL(fileURLWithPath: $0).lastPathComponent } ?? "Codex task"
         let tool = object["tool_name"] as? String
         let activityID = "\(resolvedProvider):\(sessionID)"
+        let explicitTitle = AgentChatTitlePolicy.explicit(in: object)
+        let title = explicitTitle
+            ?? activities.first(where: { $0.id == activityID })?.title
+            ?? AgentChatTitlePolicy.fallback(provider: resolvedProvider, cwd: cwd)
         let now = Date()
         limitedSessions = limitedSessions.filter { now.timeIntervalSince($0.value) < 3600 }
         interruptedSessions = interruptedSessions.filter { now.timeIntervalSince($0.value) < 3600 }
@@ -235,10 +239,11 @@ final class AgentStatusManager: ObservableObject {
         // Codex can emit PreToolUse/PostToolUse hooks in rapid bursts. Updating
         // SwiftUI for every hook needlessly re-renders the notch and can compete
         // with coding apps and DisplayLink-driven screens.
-        recordOutcome(activityID: activityID, provider: resolvedProvider, title: project, event: event, state: state, now: now)
+        recordOutcome(activityID: activityID, provider: resolvedProvider, title: title, event: event, state: state, now: now)
         if state == .working,
            let lastPublish = lastWorkingPublishAt[activityID],
-           now.timeIntervalSince(lastPublish) < AppPerformanceManager.shared.hookInterval {
+           now.timeIntervalSince(lastPublish) < AppPerformanceManager.shared.hookInterval,
+           explicitTitle == nil || explicitTitle == activities.first(where: { $0.id == activityID })?.title {
             return
         }
 
@@ -251,7 +256,7 @@ final class AgentStatusManager: ObservableObject {
         let activity = AgentActivity(
             id: activityID,
             provider: resolvedProvider,
-            title: project,
+            title: title,
             detail: detail,
             state: state,
             startedAt: activities.first(where: { $0.id == activityID })?.startedAt ?? now,
@@ -262,6 +267,24 @@ final class AgentStatusManager: ObservableObject {
         activities.removeAll { $0.id == activity.id }
         activities.insert(activity, at: 0)
         activities = Array(activities.prefix(6))
+
+        if explicitTitle == nil {
+            let transcriptPath = object["transcript_path"] as? String
+            Task { [weak self, chatTitles] in
+                guard let title = await chatTitles.resolve(provider: resolvedProvider, sessionID: sessionID, transcriptPath: transcriptPath),
+                      let self else { return }
+                // A late lookup must not overwrite a newer hook's explicit name
+                // or resurrect a completed/dismissed activity.
+                if let index = self.activities.firstIndex(where: { $0.id == activityID && $0.updatedAt == now }) {
+                    self.activities[index].title = title
+                }
+                if let runID = self.historyRuns[activityID]?.id,
+                   let index = self.history.firstIndex(where: { $0.id == runID && $0.endedAt == now }) {
+                    self.history[index].title = title
+                    Defaults[.agentHistory] = self.history
+                }
+            }
+        }
 
         if state == .completed || state == .interrupted || state == .usageLimited {
             dismissalTasks[activity.id] = Task { @MainActor [weak self] in

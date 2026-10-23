@@ -872,9 +872,10 @@ struct ContentView: View {
 
                 if agentDetailExpanded {
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(activity.provider)
+                        Text(activity.title)
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(.white)
+                            .lineLimit(1)
                         Text(activity.detail)
                             .font(.caption2)
                             .foregroundStyle(accent)
@@ -889,7 +890,7 @@ struct ContentView: View {
             .liquidGlassCapsule(tint: accent)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(activity.provider), \(activity.state.label), \(activity.detail)")
+        .accessibilityLabel("\(activity.title), \(activity.provider), \(activity.state.label), \(activity.detail)")
         .accessibilityHint("Click to show or hide agent details")
         .contextMenu {
             Button("Open \(activity.provider)") {

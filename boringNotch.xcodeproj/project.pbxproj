@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C0D3A0320000000000000032 /* AgentChatTitle.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F0320000000000000032; };
 		C0D3A0180000000000000018 /* WallpaperModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F0180000000000000018; };
 		C0D3A0190000000000000019 /* WallpaperCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F0190000000000000019; };
 		C0D3A01A000000000000001A /* WindowsWallpaperCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0D3F01A000000000000001A; };
@@ -215,6 +216,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		C0D3F0320000000000000032 /* AgentChatTitle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentChatTitle.swift; sourceTree = "<group>"; };
 		C0D3F0180000000000000018 /* WallpaperModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WallpaperModels.swift; sourceTree = "<group>"; };
 		C0D3F0190000000000000019 /* WallpaperCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WallpaperCatalog.swift; sourceTree = "<group>"; };
 		C0D3F01A000000000000001A /* WindowsWallpaperCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowsWallpaperCatalog.swift; sourceTree = "<group>"; };
@@ -710,6 +712,7 @@
 		14D570C72C5F38760011E668 /* models */ = {
 			isa = PBXGroup;
 			children = (
+				C0D3F0320000000000000032 /* AgentChatTitle.swift */,
 				C0D3F0110000000000000011 /* ProductivityModels.swift */,
 				C0D3F0180000000000000018 /* WallpaperModels.swift */,
 				C0D3F0190000000000000019 /* WallpaperCatalog.swift */,
@@ -1026,6 +1029,7 @@
 				C0D3A0090000000000000009 /* CustomizationManager.swift in Sources */,
 				C0D3A0100000000000000010 /* CustomizationSettings.swift in Sources */,
 				C0D3A0110000000000000011 /* ProductivityModels.swift in Sources */,
+				C0D3A0320000000000000032 /* AgentChatTitle.swift in Sources */,
 				C0D3A0180000000000000018 /* WallpaperModels.swift in Sources */,
 				C0D3A0190000000000000019 /* WallpaperCatalog.swift in Sources */,
 				C0D3A01A000000000000001A /* WindowsWallpaperCatalog.swift in Sources */,
@@ -1178,14 +1182,14 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 287;
+				CURRENT_PROJECT_VERSION = 288;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BoringNotchXPCHelper/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = BoringNotchXPCHelper;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = "2.8.4";
+				MARKETING_VERSION = "2.8.5";
 				PRODUCT_BUNDLE_IDENTIFIER = theboringteam.boringnotch.BoringNotchXPCHelper;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -1203,14 +1207,14 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 287;
+				CURRENT_PROJECT_VERSION = 288;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BoringNotchXPCHelper/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = BoringNotchXPCHelper;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = "2.8.4";
+				MARKETING_VERSION = "2.8.5";
 				PRODUCT_BUNDLE_IDENTIFIER = theboringteam.boringnotch.BoringNotchXPCHelper;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
@@ -1357,7 +1361,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 287;
+				CURRENT_PROJECT_VERSION = 288;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"boringNotch/Preview Content\"";
 				DEVELOPMENT_TEAM = "";
@@ -1386,7 +1390,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = "2.8.4";
+				MARKETING_VERSION = "2.8.5";
 				PRODUCT_BUNDLE_IDENTIFIER = theboringteam.boringnotch;
 				PRODUCT_MODULE_NAME = Boring_Notch;
 				PRODUCT_NAME = Notchscape;
@@ -1415,7 +1419,7 @@
 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 287;
+				CURRENT_PROJECT_VERSION = 288;
 				DEAD_CODE_STRIPPING = YES;
 				DEVELOPMENT_ASSET_PATHS = "\"boringNotch/Preview Content\"";
 				DEVELOPMENT_TEAM = "";
@@ -1443,7 +1447,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = "2.8.4";
+				MARKETING_VERSION = "2.8.5";
 				PRODUCT_BUNDLE_IDENTIFIER = theboringteam.boringnotch;
 				PRODUCT_MODULE_NAME = Boring_Notch;
 				PRODUCT_NAME = Notchscape;

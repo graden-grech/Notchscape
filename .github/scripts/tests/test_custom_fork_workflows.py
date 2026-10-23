@@ -8,6 +8,11 @@ ROOT = Path(__file__).resolve().parents[3]
 
 
 class CustomForkWorkflowTests(unittest.TestCase):
+    def test_ai_chat_title_checks_run_in_ci(self):
+        workflow = (ROOT / ".github/workflows/cicd.yml").read_text()
+        self.assertIn("boringNotch/models/AgentChatTitle.swift tests/AgentChatTitleTests.swift", workflow)
+        self.assertIn('"$RUNNER_TEMP/agent-chat-title-tests"', workflow)
+
     def test_nightly_is_opt_in_for_forks(self):
         workflow = (ROOT / ".github/workflows/nightly.yml").read_text()
         prepare = workflow.split("  prepare:\n", 1)[1].split("  build:\n", 1)[0]

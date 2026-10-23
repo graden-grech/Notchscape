@@ -58,6 +58,12 @@ jobs:
           boringNotch/managers/AppleNotesSyncManager.swift tests/AppleNotesScriptTests.swift \
           -o "$RUNNER_TEMP/apple-notes-script-tests"
         "$RUNNER_TEMP/apple-notes-script-tests"
+    - name: Check AI chat titles and read-only metadata fallbacks
+      run: |
+        set -euo pipefail
+        swiftc boringNotch/models/AgentChatTitle.swift tests/AgentChatTitleTests.swift \
+          -o "$RUNNER_TEMP/agent-chat-title-tests"
+        "$RUNNER_TEMP/agent-chat-title-tests"
     - name: Check wallpaper, utility and settings navigation policies
       run: |
         set -euo pipefail
