@@ -134,7 +134,7 @@ enum WallpaperBrowseSort: String, CaseIterable, Identifiable {
 /// A visual browsing suggestion, never a command to change the desktop.
 /// Raw theme IDs keep this policy usable by lightweight catalog tests.
 enum WallpaperThemeMatch: String, CaseIterable, Identifiable {
-    case classicMac, autumn, halloween, christmas, winter, spring, jedi, darkSide, desert
+    case classicMac, autumn, halloween, christmas, winter, spring, summer, botanical, space, jedi, darkSide, desert
     var id: Self { self }
     static func matching(_ themeID: String) -> Self {
         switch themeID {
@@ -142,7 +142,11 @@ enum WallpaperThemeMatch: String, CaseIterable, Identifiable {
         case "halloween": .halloween
         case "christmas": .christmas
         case "winter": .winter
-        case "easter": .spring
+        case "easter", "springBloom": .spring
+        case "summerCoast": .summer
+        case "nightSky": .space
+        case "botanical": .botanical
+        case "desertDusk": .desert
         case "starWarsDarkSide", "starWarsVader", "starWarsMaul": .darkSide
         case "starWarsLuke", "starWarsObiWan", "starWarsRey": .desert
         case "starWars", "starWarsAhsoka", "starWarsYoda", "starWarsMaceWindu": .jedi

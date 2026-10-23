@@ -3,6 +3,8 @@ import SwiftUI
 
 struct UtilityToolsView: View {
     var expanded = false
+    @ObservedObject private var tools = LocalToolsManager.shared
+    @State private var format: ColorFormat = .hex
     @State private var link = ""
     @State private var sampledColor: NSColor?
     @State private var sampler: NSColorSampler?
@@ -15,6 +17,10 @@ struct UtilityToolsView: View {
                       Int((color.greenComponent * 255).rounded()), Int((color.blueComponent * 255).rounded()))
     }
     var body: some View {
+        ScrollView { content }.scrollIndicators(expanded ? .automatic : .hidden)
+            .task { await tools.load() }
+    }
+    private var content: some View {
         VStack(alignment: .leading, spacing: expanded ? 18 : 8) {
             VStack(alignment: .leading, spacing: 6) {
                 Label("Clean Link", systemImage: "link").font(.headline)
@@ -37,12 +43,27 @@ struct UtilityToolsView: View {
                     .accessibilityLabel(hex ?? "No sampled color")
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Screen Color").font(.headline)
-                    Text(hex ?? "Use Apple’s color sampler").font(.caption.monospaced()).foregroundStyle(.secondary).textSelection(.enabled)
+                    Text(hex.flatMap { ColorFormatPolicy.format($0, as: format) } ?? "Use Apple’s color sampler").font(.caption.monospaced()).foregroundStyle(.secondary).textSelection(.enabled)
                 }
                 Spacer(minLength: 0)
                 Button("Pick Color…") { sample() }.disabled(sampling)
-                Button("Copy Hex") { if let hex { copy(hex); message = "Copied \(hex)." } }.disabled(hex == nil)
+                Button("Copy") { if let hex, let value = ColorFormatPolicy.format(hex, as: format) { copy(value); message = "Copied \(format.rawValue)." } }.disabled(hex == nil)
             }
+            HStack {
+                Picker("Color format", selection: $format) { ForEach(ColorFormat.allCases) { Text($0.rawValue).tag($0) } }.pickerStyle(.menu)
+                Button("Save Swatch") { if let hex { tools.saveSwatch(hex) } }.disabled(hex == nil || !tools.loaded || tools.workspace.swatches.count >= 100)
+            }
+            if expanded, !tools.workspace.swatches.isEmpty {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 130))], alignment: .leading) {
+                    ForEach(tools.workspace.swatches) { swatch in
+                        HStack {
+                            Button(swatch.name) { if let value = ColorFormatPolicy.format(swatch.hex, as: format) { copy(value); message = "Copied saved swatch." } }.font(.caption.monospaced())
+                            Button { tools.removeSwatch(swatch.id) } label: { Image(systemName: "xmark.circle") }.help("Remove swatch").accessibilityLabel("Remove \(swatch.name) swatch")
+                        }
+                    }
+                }
+            }
+            Button { WorkspaceToolsWindowController.shared.show() } label: { Label("Calculator, Snippets, Quicklinks & Clocks…", systemImage: "command") }
             if let message { Text(message).font(.caption).foregroundStyle(.secondary).accessibilityLabel(message) }
             if expanded {
                 Text("These tools only run when you use them. Links are never opened or uploaded; signed links and functional query parameters are preserved. Color sampling uses the macOS picker, not background screen capture. Nothing here is added to saved history automatically.")
@@ -61,7 +82,7 @@ struct UtilityToolsView: View {
         picker.show { color in
             Task { @MainActor in
                 sampling = false; sampler = nil
-                guard let session = CGSessionCopyCurrentDictionary() as? [String: Any], session["CGSSessionScreenIsLocked"] as? Bool != true else { return }
+                guard WorkspaceAccess.privateToolsAllowed else { return }
                 if let color { sampledColor = color; message = nil }
             }
         }

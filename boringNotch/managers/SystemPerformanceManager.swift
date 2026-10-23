@@ -1,6 +1,7 @@
 import AppKit
 import Darwin
 import Foundation
+import IOKit
 
 @MainActor
 final class SystemPerformanceManager: ObservableObject {
@@ -14,6 +15,13 @@ final class SystemPerformanceManager: ObservableObject {
     @Published private(set) var usedDisk: Int64 = 0
     @Published private(set) var totalDisk: Int64 = 0
     @Published private(set) var thermalState = "Nominal"
+    @Published private(set) var networkReceived: Double = 0
+    @Published private(set) var networkSent: Double = 0
+    @Published private(set) var diskReadRate: Double?
+    @Published private(set) var diskWriteRate: Double?
+    @Published private(set) var memoryPressure = "No recent signal"
+    private var pressureSource: DispatchSourceMemoryPressure?
+    private var previousIO: (Date, UInt64, UInt64, UInt64?, UInt64?)?
 
     private var samplingTask: Task<Void, Never>?
     private var previousCPUTicks: (user: UInt64, system: UInt64, idle: UInt64, nice: UInt64)?
@@ -22,6 +30,13 @@ final class SystemPerformanceManager: ObservableObject {
 
     func startSampling() {
         guard samplingTask == nil else { return }
+        previousIO = nil
+        let pressure = DispatchSource.makeMemoryPressureSource(eventMask: [.normal, .warning, .critical], queue: .main)
+        pressure.setEventHandler { [weak self] in
+            guard let self, let flags = pressureSource?.data else { return }
+            memoryPressure = flags.contains(.critical) ? "Critical" : flags.contains(.warning) ? "Warning" : "Normal"
+        }
+        pressureSource = pressure; pressure.resume()
         refresh()
         samplingTask = Task { [weak self] in
             while !Task.isCancelled {
@@ -35,12 +50,14 @@ final class SystemPerformanceManager: ObservableObject {
     func stopSampling() {
         samplingTask?.cancel()
         samplingTask = nil
+        pressureSource?.cancel(); pressureSource = nil; previousIO = nil
     }
 
     func refresh() {
         updateCPU()
         updateMemory()
         updateDisk()
+        updateIO()
         thermalState = Self.thermalLabel(ProcessInfo.processInfo.thermalState)
     }
 
@@ -129,6 +146,45 @@ final class SystemPerformanceManager: ObservableObject {
         let available = values.volumeAvailableCapacityForImportantUsage ?? 0
         usedDisk = max(0, totalDisk - available)
         diskUsage = totalDisk > 0 ? Double(usedDisk) / Double(totalDisk) : 0
+    }
+
+    private func updateIO() {
+        var interfaces: UnsafeMutablePointer<ifaddrs>?
+        var received: UInt64 = 0, sent: UInt64 = 0
+        if getifaddrs(&interfaces) == 0 {
+            defer { freeifaddrs(interfaces) }
+            var pointer = interfaces
+            while let entry = pointer {
+                defer { pointer = entry.pointee.ifa_next }
+                guard let address = entry.pointee.ifa_addr, address.pointee.sa_family == UInt8(AF_LINK),
+                      let data = entry.pointee.ifa_data, let name = entry.pointee.ifa_name else { continue }
+                // Physical en* interfaces only: avoid double-counting VPN, bridge
+                // and loopback traffic. No packet content or connection history.
+                guard String(cString: name).hasPrefix("en") else { continue }
+                let counters = data.assumingMemoryBound(to: if_data.self).pointee
+                received += UInt64(counters.ifi_ibytes); sent += UInt64(counters.ifi_obytes)
+            }
+        }
+        var read: UInt64?, written: UInt64?
+        var iterator: io_iterator_t = 0
+        if IOServiceGetMatchingServices(kIOMainPortDefault, IOServiceMatching("IOBlockStorageDriver"), &iterator) == KERN_SUCCESS {
+            defer { IOObjectRelease(iterator) }; var count = 0
+            while count < 64 {
+                let service = IOIteratorNext(iterator); guard service != 0 else { break }; count += 1
+                defer { IOObjectRelease(service) }
+                if let stats = IORegistryEntryCreateCFProperty(service, "Statistics" as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? [String: Any],
+                   let r = stats["Bytes (Read)"] as? NSNumber, let w = stats["Bytes (Write)"] as? NSNumber {
+                    read = (read ?? 0) &+ r.uint64Value; written = (written ?? 0) &+ w.uint64Value
+                }
+            }
+        }
+        let now = Date(); defer { previousIO = (now, received, sent, read, written) }
+        guard let prior = previousIO else { networkReceived = 0; networkSent = 0; diskReadRate = nil; diskWriteRate = nil; return }
+        let seconds = now.timeIntervalSince(prior.0); guard seconds > 0 else { return }
+        networkReceived = received >= prior.1 ? Double(received-prior.1)/seconds : 0
+        networkSent = sent >= prior.2 ? Double(sent-prior.2)/seconds : 0
+        diskReadRate = read.flatMap { value in prior.3.flatMap { value >= $0 ? Double(value-$0)/seconds : nil } }
+        diskWriteRate = written.flatMap { value in prior.4.flatMap { value >= $0 ? Double(value-$0)/seconds : nil } }
     }
 
     private static func thermalLabel(_ state: ProcessInfo.ThermalState) -> String {

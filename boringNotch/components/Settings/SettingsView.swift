@@ -1088,6 +1088,12 @@ struct ActivitySettings: View {
                 Toggle("Timers", isOn: $timerActivitiesEnabled)
                 Toggle("Sports scores", isOn: $sportsActivitiesEnabled)
                 Toggle("Downloads folder progress", isOn: $enableDownloadListener)
+                ForEach(downloads.folders) { folder in
+                    HStack { Label(folder.name, systemImage: "folder"); Spacer(); Button("Remove") { downloads.removeFolder(folder.id) } }
+                }
+                Button("Add Watched Folder…") { downloads.chooseFolder() }.disabled(!enableDownloadListener || downloads.folders.count >= 8)
+                Text("Downloads plus up to eight chosen folders. Top-level entries only; filesystem events while idle and bounded scans while downloading. Paused when locked or presenting.").font(.caption).foregroundStyle(.secondary)
+                if let error = downloads.folderError { Text(error).font(.caption).foregroundStyle(.orange) }
                 if privacy.microphoneInUse || privacy.cameraInUse {
                     Label(
                         privacy.cameraInUse && privacy.microphoneInUse
@@ -1104,6 +1110,7 @@ struct ActivitySettings: View {
             .disabled(!liveActivitiesEnabled)
 
             Section("Quick Timers") {
+                Button("Stopwatch and Focus Cycles…") { WorkspaceToolsWindowController.shared.show() }
                 HStack {
                     Button("5 min") { timer.start(minutes: 5) }
                     Button("10 min") { timer.start(minutes: 10) }
@@ -2094,9 +2101,17 @@ struct Appearance: View {
             } header: {
                 Text("Menu theme")
             } footer: {
-                Text("Preview Home’s scenes. Star Wars opens its own Jedi, Dark Side, and Characters page. Winter has no holiday decorations.")
+                Text("Preview Home’s scenes and six quiet, scalable palette themes. Star Wars opens its own Jedi, Dark Side, and Characters page. Winter has no holiday decorations.")
             }
             .sheet(isPresented: $starWarsSettingsPresented) { StarWarsThemeSettingsView() }
+
+            Section {
+                Defaults.Toggle("Quiet scene detail", key: .themeDetailsEnabled)
+                Text("Adds a small, static motif to the six palette themes. Off by default; no animation, particles, audio, or background work. Low-impact mode hides the extra detail.")
+                    .font(.caption).foregroundStyle(.secondary)
+            } header: { Text("Scene Detail") }
+
+            AppearanceRecipesView()
 
             Section("App icon") {
                 SeasonalIconPicker()

@@ -73,7 +73,7 @@ struct ProductivityHubView: View {
                 switch tools.selectedTool {
                 case .clipboard: clipboardContent
                 case .notes: notesContent
-                case .devices: DeviceControlsView()
+                case .devices: DeviceControlsView(expanded: expanded)
                 case .capture: captureContent
                 case .utilities: UtilityToolsView(expanded: expanded)
                 }
@@ -194,7 +194,10 @@ struct ProductivityHubView: View {
                         }
                     } else {
                         Text(note.text.isEmpty ? "Start writing a note…" : note.text).font(.caption).lineLimit(3).frame(maxWidth: .infinity, alignment: .topLeading)
-                        Button("Edit Note…") { tools.selectedNote = note.id; NotchToolsWindowController.shared.show(.notes) }
+                        HStack {
+                            Button("Edit Note…") { tools.selectedNote = note.id; NotchToolsWindowController.shared.show(.notes) }
+                            Button("Pin…") { PinnedScratchpadController.shared.show(note: note.id) }
+                        }
                     }
                 }
             } else {
@@ -211,6 +214,10 @@ struct ProductivityHubView: View {
                 Spacer(minLength: 0)
                 Button("Copy Text") { tools.copyCapture() }.disabled(tools.captureText.isEmpty)
             }.disabled(tools.recognizing)
+            ForEach(tools.capturedCodes, id: \.self) { code in
+                HStack { Label(code, systemImage: "qrcode.viewfinder").lineLimit(2).textSelection(.enabled); Spacer(); Button("Copy Code") { tools.copyCode(code) } }
+                    .font(.caption).padding(6).background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+            }
             if tools.captureText.isEmpty {
                 Text("Recognition runs on device. Results are not copied or saved until you choose an action.")
                     .font(.caption).foregroundStyle(.secondary)
@@ -225,6 +232,7 @@ struct ProductivityHubView: View {
 }
 
 struct DeviceControlsView: View {
+    var expanded = false
     @ObservedObject private var manager = DeviceControlsManager.shared
     @Default(.deviceControlsEnabled) private var enabled
     @State private var viewerID = UUID()
@@ -237,6 +245,8 @@ struct DeviceControlsView: View {
                 Button { manager.refresh(includeBatteryReport: true) } label: { Image(systemName: "arrow.clockwise") }
                     .help("Refresh devices and reported batteries").accessibilityLabel("Refresh devices and batteries").disabled(manager.refreshing)
             }
+            if expanded { AudioRoutingControlsView() }
+            else { Button("Input and Preferred Outputs…") { NotchToolsWindowController.shared.show(.devices) } }
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 7) {
                     if manager.devices.isEmpty { Text("No paired devices found. Pair devices in Bluetooth settings.").font(.caption).foregroundStyle(.secondary) }
@@ -278,6 +288,8 @@ struct ProductivitySettings: View {
     @Default(.quickNotesEnabled) private var notesEnabled
     @Default(.deviceControlsEnabled) private var devicesEnabled
     @Default(.deviceConnectionAlerts) private var deviceAlerts
+    @Default(.deviceLowBatteryAlerts) private var batteryAlerts
+    @Default(.deviceLowBatteryThreshold) private var batteryThreshold
     @Default(.textCaptureEnabled) private var captureEnabled
     var body: some View {
         Form {
@@ -313,7 +325,10 @@ struct ProductivitySettings: View {
                         if enabled { DeviceControlsManager.shared.requestConnectionNotifications() }
                     }
                 Button("Open Devices…") { NotchToolsWindowController.shared.show(.devices) }.disabled(!devicesEnabled)
-            } header: { Text("Devices") } footer: { Text("Uses paired devices, not nearby discovery. Refreshes only while Devices is visible. Earbud and case battery availability depends on what macOS exposes for your hardware.") }
+                Toggle("Accessory low-battery alerts", isOn: $batteryAlerts).disabled(!devicesEnabled)
+                    .onChange(of: batteryAlerts) { _, value in if value { DeviceControlsManager.shared.requestConnectionNotifications() } }
+                Picker("Alert below", selection: $batteryThreshold) { Text("10%").tag(10); Text("20%").tag(20); Text("30%").tag(30) }.disabled(!devicesEnabled || !batteryAlerts)
+            } header: { Text("Devices") } footer: { Text("Uses paired devices, not nearby discovery. Refreshes while Devices is visible, or every two minutes if low-battery alerts are explicitly enabled. Stops while locked/presenting. Earbud, case and hardware-mute availability depends on macOS and the device.") }
             Section {
                 Toggle("On-device text recognition", isOn: $captureEnabled)
                 Button("Open Text Capture…") { NotchToolsWindowController.shared.show(.capture) }.disabled(!captureEnabled)

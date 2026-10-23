@@ -177,6 +177,10 @@ extension WallpaperThemeMatch {
             // Keep the neutral Winter collection free of Christmas decorations.
             wallpaper.id != "internet-winter-christmas-snow" && SeasonalWallpaperCatalog.contains(wallpaper, season: .winter)
         case .spring: SeasonalWallpaperCatalog.contains(wallpaper, season: .spring)
+        case .summer: SeasonalWallpaperCatalog.contains(wallpaper, season: .summer)
+        case .botanical:
+            ["internet-spring-misty-forest", "internet-fall-golden-forest", "internet-fall-autumn-lane", "internet-fall-redwood-light", "internet-winter-snowy-pines", "internet-summer-green-valley", "sequoia-sunrise"].contains(wallpaper.id)
+        case .space: wallpaper.platform == .space
         case .jedi:
             wallpaper.platform == .space || ["sequoia-sunrise", "internet-spring-misty-forest", "internet-fall-redwood-light", "internet-summer-green-valley", "internet-winter-snowy-pines"].contains(wallpaper.id)
         case .darkSide:

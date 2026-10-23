@@ -47,6 +47,56 @@ class CustomForkWorkflowTests(unittest.TestCase):
         self.assertIn('"$RUNNER_TEMP/workspace-mode-tests"', workflow)
         self.assertIn("tests/AccountSettingsPolicyTests.swift", workflow)
 
+    def test_new_feature_policy_steps_compile_and_run_without_skipping_failures(self):
+        workflow = (ROOT / ".github/workflows/cicd.yml").read_text()
+        cases = (
+            (
+                "Check AI chat titles and read-only metadata fallbacks",
+                ("boringNotch/models/AgentChatTitle.swift", "tests/AgentChatTitleTests.swift"),
+                "agent-chat-title-tests",
+            ),
+            (
+                "Check personal workspace tools and input-safety policies",
+                (
+                    "boringNotch/models/WorkspaceToolsModels.swift",
+                    "boringNotch/models/WindowGeometry.swift",
+                    "tests/WorkspaceToolsPolicyTests.swift",
+                ),
+                "workspace-tools-tests",
+            ),
+            (
+                "Check bounded appearance recipe import and export policies",
+                ("boringNotch/models/AppearanceRecipe.swift", "tests/AppearanceRecipePolicyTests.swift"),
+                "appearance-recipe-tests",
+            ),
+            (
+                "Check local capture redaction and QR policies",
+                ("boringNotch/models/CapturePolicy.swift", "tests/CapturePolicyTests.swift"),
+                "capture-policy-tests",
+            ),
+            (
+                "Check portable window layout geometry policies",
+                ("boringNotch/models/WindowGeometry.swift", "tests/WindowGeometryTests.swift"),
+                "window-geometry-tests",
+            ),
+            (
+                "Check synthetic media export without screen capture",
+                ("boringNotch/managers/MediaToolsManager.swift", "tests/MediaToolsSmoke.swift"),
+                "media-tools-smoke",
+            ),
+        )
+        for title, sources, executable in cases:
+            with self.subTest(step=title):
+                step = workflow.split(f"    - name: {title}\n", 1)[1].split("    - name:", 1)[0]
+                self.assertIn("set -euo pipefail", step)
+                self.assertIn("swiftc ", step)
+                for source in sources:
+                    self.assertTrue((ROOT / source).is_file(), source)
+                    self.assertIn(source, step)
+                self.assertIn(f'        "$RUNNER_TEMP/{executable}"', step)
+                self.assertNotIn("continue-on-error", step)
+                self.assertNotIn("      if:", step)
+
 
 if __name__ == "__main__":
     unittest.main()

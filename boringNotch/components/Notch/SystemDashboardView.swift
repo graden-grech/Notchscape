@@ -24,6 +24,16 @@ struct SystemDashboardView: View {
                 )
             }
 
+            HStack(spacing: 10) {
+                Label("↓ \(rate(performance.networkReceived))   ↑ \(rate(performance.networkSent))", systemImage: "network")
+                Spacer(minLength: 0)
+                Text("Memory pressure: \(performance.memoryPressure)")
+            }.font(.caption2).foregroundStyle(.secondary)
+            HStack {
+                Label("Read \(rate(performance.diskReadRate)) · Write \(rate(performance.diskWriteRate))", systemImage: "internaldrive")
+                Spacer(minLength: 0)
+            }.font(.caption2).foregroundStyle(.secondary)
+
             if #available(macOS 26.0, *), !rendering.lowImpact, !rendering.reduceTransparency {
                 GlassEffectContainer(spacing: 8) { controls }
             } else { controls }
@@ -83,5 +93,9 @@ struct SystemDashboardView: View {
     private func byteSummary(_ used: UInt64, _ total: UInt64) -> String {
         guard total > 0 else { return "Loading…" }
         return "\(ByteCountFormatter.string(fromByteCount: Int64(used), countStyle: .memory)) / \(ByteCountFormatter.string(fromByteCount: Int64(total), countStyle: .memory))"
+    }
+    private func rate(_ value: Double?) -> String {
+        guard let value, value.isFinite, value >= 0 else { return "Unavailable" }
+        return ByteCountFormatter.string(fromByteCount: Int64(min(value, Double(Int64.max/2))), countStyle: .file) + "/s"
     }
 }

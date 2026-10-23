@@ -144,12 +144,14 @@ enum AppTheme: String, CaseIterable, Defaults.Serializable, Identifiable {
     case christmas
     case winter
     case easter
+    case springBloom, summerCoast, nightSky, botanical, desertDusk, graphite
     case starWars, starWarsDarkSide, starWarsLuke, starWarsObiWan
     case starWarsAhsoka, starWarsYoda, starWarsMaceWindu, starWarsRey, starWarsVader, starWarsMaul
 
     var id: Self { self }
     var starWarsVariant: StarWarsThemeVariant? { StarWarsThemeVariant(rawValue: rawValue) }
     var isStarWars: Bool { starWarsVariant != nil }
+    var nativeSceneStyle: NativeAppearanceStyle? { NativeAppearanceStyle(rawValue: rawValue) }
     static var pickerThemes: [Self] { allCases.filter { !$0.isStarWars || $0 == .starWars } }
 
     var title: String {
@@ -160,6 +162,12 @@ enum AppTheme: String, CaseIterable, Defaults.Serializable, Identifiable {
         case .christmas: "Christmas"
         case .winter: "Winter"
         case .easter: "Easter"
+        case .springBloom: "Spring Bloom"
+        case .summerCoast: "Summer Coast"
+        case .nightSky: "Night Sky"
+        case .botanical: "Botanical"
+        case .desertDusk: "Desert Dusk"
+        case .graphite: "Graphite"
         default: "Star Wars · \(starWarsVariant?.title ?? "Jedi")"
         }
     }
@@ -172,6 +180,12 @@ enum AppTheme: String, CaseIterable, Defaults.Serializable, Identifiable {
         case .christmas: "tree.fill"
         case .winter: "snowflake"
         case .easter: "leaf.circle.fill"
+        case .springBloom: "camera.macro"
+        case .summerCoast: "water.waves"
+        case .nightSky: "moon.stars.fill"
+        case .botanical: "leaf.fill"
+        case .desertDusk: "sun.horizon.fill"
+        case .graphite: "circle.lefthalf.filled"
         default: "sparkles"
         }
     }
@@ -184,6 +198,12 @@ enum AppTheme: String, CaseIterable, Defaults.Serializable, Identifiable {
         case .christmas: NSColor(red: 0.14, green: 0.62, blue: 0.38, alpha: 1)
         case .winter: NSColor(red: 0.35, green: 0.64, blue: 0.84, alpha: 1)
         case .easter: NSColor(red: 0.42, green: 0.72, blue: 0.59, alpha: 1)
+        case .springBloom, .summerCoast, .nightSky, .botanical, .desertDusk, .graphite:
+            NSColor(name: NSColor.Name("Notchscape.\(rawValue)")) { [style = NativeAppearanceStyle(rawValue: rawValue) ?? .graphite] appearance in
+                let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+                let (r, g, b) = AppearanceRecipe.rgb(dark ? style.darkAccent : style.lightAccent) ?? (128, 128, 128)
+                return NSColor(srgbRed: Double(r)/255, green: Double(g)/255, blue: Double(b)/255, alpha: 1)
+            }
         default: starWarsVariant?.accentColor
         }
     }
@@ -223,7 +243,7 @@ enum AppTheme: String, CaseIterable, Defaults.Serializable, Identifiable {
         }
     }
 
-    var hasHomeScene: Bool { homeBackdrop != nil }
+    var hasHomeScene: Bool { homeBackdrop != nil || nativeSceneStyle != nil }
 
     func homeBackdrop(characterArtwork: StarWarsCharacterArtwork, characterArtworkAvailable: Bool = true) -> String? {
         starWarsVariant?.backdropName(artwork: characterArtwork, characterArtworkAvailable: characterArtworkAvailable) ?? homeBackdrop
@@ -237,6 +257,12 @@ enum AppTheme: String, CaseIterable, Defaults.Serializable, Identifiable {
         case .christmas: "Tree lights and a cozy fireplace"
         case .winter: "Snowy pines, without holiday decorations"
         case .easter: "Spring blossoms and pastel Easter eggs"
+        case .springBloom: "Soft blossoms and fresh spring color"
+        case .summerCoast: "Quiet waves and a sunlit horizon"
+        case .nightSky: "A moonlit sky, without animation"
+        case .botanical: "Deep greens and simple leaf silhouettes"
+        case .desertDusk: "Warm dunes beneath a twilight sky"
+        case .graphite: "Understated contours and neutral gray"
         default: "Jedi, Dark Side, and character-inspired palettes"
         }
     }

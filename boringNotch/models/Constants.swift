@@ -92,6 +92,9 @@ extension Defaults.Keys {
     static let seasonalEaster = Key<Bool>("seasonalEaster", default: false)
     static let deviceControlsEnabled = Key<Bool>("deviceControlsEnabled", default: false)
     static let deviceConnectionAlerts = Key<Bool>("deviceConnectionAlerts", default: false)
+    static let deviceLowBatteryAlerts = Key<Bool>("deviceLowBatteryAlerts", default: false)
+    static let deviceLowBatteryThreshold = Key<Int>("deviceLowBatteryThreshold", default: 20)
+    static let preferredAudioRouting = Key<Bool>("preferredAudioRouting", default: false)
     static let textCaptureEnabled = Key<Bool>("textCaptureEnabled", default: false)
     static let agentUsageEnabled = Key<Bool>("agentUsageEnabled", default: false)
     // MARK: General
@@ -138,6 +141,7 @@ extension Defaults.Keys {
     static let appIconVariant = Key<AppIconVariant>("appIconVariant", default: .standard)
     static let appIconFollowsTheme = Key<Bool>("appIconFollowsTheme", default: true)
     static let appTheme = Key<AppTheme>("appTheme", default: .system)
+    static let themeDetailsEnabled = Key<Bool>("themeDetailsEnabled", default: false)
     static let starWarsPreferredCharacter = Key<StarWarsThemeVariant>("starWarsPreferredCharacter", default: .luke)
     static let starWarsVaderArtwork = Key<StarWarsCharacterArtwork>("starWarsVaderArtwork", default: .lightsaber)
     static let lightsaberMusicBar = Key<Bool>("lightsaberMusicBar", default: true)

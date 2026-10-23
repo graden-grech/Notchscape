@@ -171,3 +171,14 @@ Standalone regression: compile `ProductivityModels.swift` with
 and recognizes a harmless fixture without reading the screen. Signed-build,
 live UI, persistence, physical Bluetooth hardware, true screen-capture permission,
 lock transitions, accessibility and HUD/update checks must be reported separately.
+
+AI activity labels prefer explicit chat-title metadata, then a matching local
+Codex session-index/state-database title or Claude dedicated title record. A
+working folder is only a fallback; root/empty folders display “Codex chat” or
+“Claude Code chat”, never `/`. Lookups match the exact session ID, run off the UI
+actor, use bounded reads and a short cache, and never modify provider data. These
+optional metadata formats are best-effort, not a guaranteed provider API. Names
+stay local (and enter local outcome history only when that feature is enabled).
+Missing titles are not invented from prompt/tool content. The compact island
+keeps its provider icon; clicking it reveals the chat title. Standalone regression:
+compile `AgentChatTitle.swift` with `tests/AgentChatTitleTests.swift`.

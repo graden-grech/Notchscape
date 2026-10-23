@@ -6,6 +6,7 @@ export const booleans = new Set([
 ]);
 export const choices = {
   appTheme: ['system', 'autumn', 'halloween', 'christmas', 'winter', 'easter',
+    'springBloom', 'summerCoast', 'nightSky', 'botanical', 'desertDusk', 'graphite',
     'starWars', 'starWarsDarkSide', 'starWarsLuke', 'starWarsObiWan', 'starWarsAhsoka',
     'starWarsYoda', 'starWarsMaceWindu', 'starWarsRey', 'starWarsVader', 'starWarsMaul'],
   appIconVariant: ['standard', 'autumn', 'halloween', 'christmas', 'winter', 'easter'],

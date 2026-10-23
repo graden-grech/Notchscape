@@ -14,6 +14,7 @@ actor LocalToolsVault {
         var clipboard: [ClipboardEntry]
         var notes: [QuickNote]
         var appleNotes: AppleNotesState?
+        var workspace: PersonalWorkspace?
     }
     private var key: SymmetricKey?
     private var file: URL {
@@ -46,18 +47,18 @@ actor LocalToolsVault {
         key = value
         return value
     }
-    func load() throws -> ([ClipboardEntry], [QuickNote], AppleNotesState) {
+    func load() throws -> ([ClipboardEntry], [QuickNote], AppleNotesState, PersonalWorkspace) {
         let key = try encryptionKey()
-        guard FileManager.default.fileExists(atPath: file.path) else { return ([], [], .init()) }
+        guard FileManager.default.fileExists(atPath: file.path) else { return ([], [], .init(), .init()) }
         let data = try Data(contentsOf: file)
         guard data.count < 64_000_000 else { throw CocoaError(.fileReadCorruptFile) }
         let clear = try AES.GCM.open(AES.GCM.SealedBox(combined: data), using: key)
         let snapshot = try JSONDecoder().decode(Snapshot.self, from: clear)
-        return (snapshot.clipboard, snapshot.notes, snapshot.appleNotes ?? .init())
+        return (snapshot.clipboard, snapshot.notes, snapshot.appleNotes ?? .init(), snapshot.workspace?.bounded ?? .init())
     }
-    func save(clipboard: [ClipboardEntry], notes: [QuickNote], appleNotes: AppleNotesState) throws {
+    func save(clipboard: [ClipboardEntry], notes: [QuickNote], appleNotes: AppleNotesState, workspace: PersonalWorkspace) throws {
         let key = try encryptionKey()
-        let data = try JSONEncoder().encode(Snapshot(clipboard: clipboard, notes: notes, appleNotes: appleNotes))
+        let data = try JSONEncoder().encode(Snapshot(clipboard: clipboard, notes: notes, appleNotes: appleNotes, workspace: workspace.bounded))
         // Link baselines add to the snapshot. Never write a file that the bounded
         // loader would reject on the next launch; retain the previous file.
         guard data.count < 63_999_936 else { throw CocoaError(.fileWriteOutOfSpace) }
@@ -75,12 +76,14 @@ final class LocalToolsManager: ObservableObject {
     @Published private(set) var clipboard: [ClipboardEntry] = []
     @Published private(set) var notes: [QuickNote] = []
     @Published private(set) var appleNotesState = AppleNotesState()
+    @Published private(set) var workspace = PersonalWorkspace()
     @Published private(set) var loaded = false
     @Published private(set) var paused = false
     @Published var selectedNote: UUID?
     @Published var selectedTool: NotchTool = .clipboard
     @Published private(set) var error: String?
     @Published var captureText = ""
+    @Published private(set) var capturedCodes: [String] = []
     @Published private(set) var recognizing = false
     @Published private(set) var needsSave = false
     private let vault = LocalToolsVault()
@@ -103,14 +106,14 @@ final class LocalToolsManager: ObservableObject {
         Defaults.publisher(.clipboardRetentionDays).dropFirst().receive(on: RunLoop.main).sink { [weak self] _ in self?.prune() }.store(in: &observations)
         Defaults.publisher(.textCaptureEnabled).receive(on: RunLoop.main).sink { [weak self] change in
             self?.configureShortcuts()
-            if !change.newValue { self?.captureGeneration += 1; self?.captureText = "" }
+            if !change.newValue { self?.captureGeneration += 1; self?.captureText = ""; self?.capturedCodes = [] }
         }.store(in: &observations)
         Defaults.publisher(.agentUsageEnabled).dropFirst().receive(on: RunLoop.main).sink { change in
             if !change.newValue { AgentInsightsManager.shared.clear() }
         }.store(in: &observations)
         WorkspaceModeManager.shared.$session.dropFirst().receive(on: RunLoop.main).sink { [weak self] session in
             guard let self else { return }
-            if session?.mode.hidesPrivateContent == true { captureGeneration += 1; captureText = "" }
+            if session?.mode.hidesPrivateContent == true { captureGeneration += 1; captureText = ""; capturedCodes = [] }
             configureClipboard()
         }.store(in: &observations)
         configureClipboard()
@@ -125,6 +128,7 @@ final class LocalToolsManager: ObservableObject {
                 clipboard = ClipboardPolicy.retained(snapshot.0, now: Date(), days: Defaults[.clipboardRetentionDays])
                 notes = Array(snapshot.1.prefix(100)).map { var n = $0; n.text = NotePolicy.bounded(n.text); return n }
                 appleNotesState = snapshot.2
+                workspace = snapshot.3
                 loaded = true; error = nil
             } catch { self.error = "Private tools couldn’t open their encrypted storage. Nothing has been replaced." }
         }
@@ -145,7 +149,7 @@ final class LocalToolsManager: ObservableObject {
     }
     func setLocked(_ locked: Bool) {
         if locked { captureGeneration += 1 }
-        self.locked = locked; captureText = ""
+        self.locked = locked; captureText = ""; capturedCodes = []
         configureClipboard()
     }
     func pause(_ value: Bool) { userPaused = value; configureClipboard() }
@@ -272,7 +276,7 @@ final class LocalToolsManager: ObservableObject {
             do { try await Task.sleep(for: .milliseconds(500)) } catch { return }
             guard let self, !Task.isCancelled else { return }
             do {
-                try await vault.save(clipboard: clipboard, notes: notes, appleNotes: appleNotesState)
+                try await vault.save(clipboard: clipboard, notes: notes, appleNotes: appleNotesState, workspace: workspace)
                 if revision == savingRevision { needsSave = false; error = nil }
             }
             catch { self.error = "Changes couldn’t be saved. Keep this window open and try again." }
@@ -283,13 +287,69 @@ final class LocalToolsManager: ObservableObject {
         guard loaded, needsSave else { return }
         let savingRevision = revision
         do {
-            try await vault.save(clipboard: clipboard, notes: notes, appleNotes: appleNotesState)
+            try await vault.save(clipboard: clipboard, notes: notes, appleNotes: appleNotesState, workspace: workspace)
             if revision == savingRevision { needsSave = false }
         }
         catch { self.error = "Changes couldn’t be saved." }
     }
+    func saveSnippet(id: UUID? = nil, name: String, text: String) {
+        guard loaded, !locked, !privateContentHidden, !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !text.isEmpty, text.count <= 20_000, name.count <= 80 else { return }
+        let value = TextSnippet(id: id ?? UUID(), name: name, text: text)
+        if let index = workspace.snippets.firstIndex(where: { $0.id == value.id }) { workspace.snippets[index] = value }
+        else if workspace.snippets.count < 100 { workspace.snippets.append(value) }
+        persist()
+    }
+    func removeSnippet(_ id: UUID) { guard !locked, !privateContentHidden else { return }; workspace.snippets.removeAll { $0.id == id }; persist() }
+    func copySnippet(_ value: TextSnippet) {
+        guard !locked, !privateContentHidden, workspace.snippets.contains(value) else { return }
+        NSPasteboard.general.clearContents(); NSPasteboard.general.setString(value.text, forType: .string)
+        NSPasteboard.general.setString("", forType: .init("org.nspasteboard.AutoGeneratedType"))
+        changeCount = NSPasteboard.general.changeCount
+    }
+    func saveQuicklink(name: String, template: String) {
+        guard loaded, !locked, !privateContentHidden, workspace.links.count < 100,
+              !name.isEmpty, name.count <= 80, QuicklinkPolicy.url(template, query: "test") != nil else { return }
+        workspace.links.append(.init(name: name, template: template)); persist()
+    }
+    func chooseQuicklinkFolder() {
+        guard loaded, !locked, !privateContentHidden, workspace.links.count < 100 else { return }
+        let panel = NSOpenPanel(); panel.canChooseFiles = false; panel.canChooseDirectories = true
+        panel.message = "Choose a folder for a named Quicklink. Notchscape won’t scan its contents."
+        panel.begin { [weak self] result in
+            Task { @MainActor in
+                guard let self, !self.locked, !self.privateContentHidden, result == .OK, let url = panel.url,
+                      let data = try? url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil),
+                      self.workspace.links.count < 100 else { return }
+                self.workspace.links.append(.init(name: String(url.lastPathComponent.prefix(80)), template: "", folderBookmark: data)); self.persist()
+            }
+        }
+    }
+    func removeQuicklink(_ id: UUID) { guard !locked, !privateContentHidden else { return }; workspace.links.removeAll { $0.id == id }; persist() }
+    func openQuicklink(_ link: NamedQuicklink, query: String = "") {
+        guard !locked, !privateContentHidden, workspace.links.contains(link) else { return }
+        if let bookmark = link.folderBookmark {
+            var stale = false
+            guard let url = try? URL(resolvingBookmarkData: bookmark, options: [.withSecurityScope, .withoutUI], relativeTo: nil, bookmarkDataIsStale: &stale),
+                  !stale, url.startAccessingSecurityScopedResource() else { error = "Choose this Quicklink’s folder again to renew access."; return }
+            defer { url.stopAccessingSecurityScopedResource() }; NSWorkspace.shared.open(url)
+        } else if let url = QuicklinkPolicy.url(link.template, query: query) { NSWorkspace.shared.open(url) }
+    }
+    func saveSwatch(_ hex: String) {
+        guard loaded, !locked, !privateContentHidden, workspace.swatches.count < 100,
+              let normalized = ColorFormatPolicy.format(hex, as: .hex), !workspace.swatches.contains(where: { $0.hex == normalized }) else { return }
+        workspace.swatches.append(.init(name: normalized, hex: normalized)); persist()
+    }
+    func removeSwatch(_ id: UUID) { guard !locked, !privateContentHidden else { return }; workspace.swatches.removeAll { $0.id == id }; persist() }
+    func saveWindowLayout(_ layout: SavedWindowLayout) {
+        guard loaded, !locked, !privateContentHidden, layout.isValid, (workspace.windowLayouts?.count ?? 0) < 20 else { return }
+        if workspace.windowLayouts == nil { workspace.windowLayouts = [] }
+        workspace.windowLayouts?.append(layout); persist()
+    }
+    func removeWindowLayout(_ id: UUID) { guard loaded, !locked, !privateContentHidden else { return }; workspace.windowLayouts?.removeAll { $0.id == id }; persist() }
     func recognizeImageFile() {
         guard Defaults[.textCaptureEnabled], !locked, !privateContentHidden, !recognizing else { return }
+        captureGeneration += 1; captureText = ""; capturedCodes = []
         let generation = captureGeneration
         let panel = NSOpenPanel(); panel.allowedContentTypes = [.image]; panel.allowsMultipleSelection = false
         panel.message = "Choose a screenshot or image. Text recognition stays on this Mac."
@@ -308,6 +368,7 @@ final class LocalToolsManager: ObservableObject {
         guard CGPreflightScreenCaptureAccess() || CGRequestScreenCaptureAccess() else {
             error = "Allow Screen Recording in System Settings to capture a region, or choose an image instead."; return
         }
+        captureGeneration += 1; captureText = ""; capturedCodes = []
         recognizing = true; error = nil
         let generation = captureGeneration
         Task {
@@ -327,23 +388,37 @@ final class LocalToolsManager: ObservableObject {
         guard Defaults[.textCaptureEnabled], !locked, !privateContentHidden else { return }
         let generation = captureGeneration
         recognizing = true; error = nil
-        let result = await Task.detached(priority: .userInitiated) { () -> String? in
+        let result = await Task.detached(priority: .userInitiated) { () -> (String, [String])? in
             guard let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
-                  (attrs[.size] as? NSNumber)?.intValue ?? Int.max < 30_000_000 else { return nil }
+                  (attrs[.size] as? NSNumber)?.intValue ?? Int.max < 30_000_000,
+                  let image = CGImageSourceCreateWithURL(url as CFURL, nil),
+                  let props = CGImageSourceCopyPropertiesAtIndex(image, 0, nil) as? [CFString: Any],
+                  let width = props[kCGImagePropertyPixelWidth] as? Int,
+                  let height = props[kCGImagePropertyPixelHeight] as? Int,
+                  width > 0, height > 0, width <= 30_000, height <= 30_000,
+                  Double(width)*Double(height) <= 100_000_000 else { return nil }
             let request = VNRecognizeTextRequest(); request.recognitionLevel = .accurate
             request.usesLanguageCorrection = true; request.automaticallyDetectsLanguage = true
+            let barcodes = VNDetectBarcodesRequest()
             do {
-                try VNImageRequestHandler(url: url).perform([request])
-                return request.results?.compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n")
+                try VNImageRequestHandler(url: url).perform([request, barcodes])
+                let text = request.results?.compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n") ?? ""
+                let codes = Array(Set((barcodes.results ?? []).compactMap(\.payloadStringValue).filter { !$0.isEmpty && $0.count <= 4096 })).sorted()
+                return (text, Array(codes.prefix(20)))
             } catch { return nil }
         }.value
         recognizing = false
         guard !locked, !privateContentHidden, Defaults[.textCaptureEnabled], generation == captureGeneration else { return }
-        if let result, !result.isEmpty { captureText = String(result.prefix(100_000)) }
+        if let result, !result.0.isEmpty || !result.1.isEmpty { captureText = String(result.0.prefix(100_000)); capturedCodes = result.1 }
         else { error = "No readable text found. Try a sharper image under 30 MB." }
     }
     func copyCapture() {
         guard !locked, !privateContentHidden, !captureText.isEmpty else { return }
         NSPasteboard.general.clearContents(); NSPasteboard.general.setString(captureText, forType: .string)
+    }
+    func copyCode(_ value: String) {
+        guard !locked, !privateContentHidden, capturedCodes.contains(value) else { return }
+        NSPasteboard.general.clearContents(); NSPasteboard.general.setString(value, forType: .string)
+        NSPasteboard.general.setString("", forType: .init("org.nspasteboard.AutoGeneratedType")); changeCount = NSPasteboard.general.changeCount
     }
 }

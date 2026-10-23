@@ -6,6 +6,11 @@ against the current source and official product documentation. Cost estimates
 are engineering judgments; partial coverage is identified rather than counted
 as an entirely absent feature.
 
+Implementation has advanced since this research snapshot. See the current
+[implementation and verification tracker](FEATURE_IMPLEMENTATION_TRACKER.md)
+for what is installed, tested, blocked or still a roadmap item. The proposal
+tables below must not be read as an all-features-complete claim.
+
 ## Implementation status
 
 - Workspace Modes: temporary overrides are connected in source and the signed

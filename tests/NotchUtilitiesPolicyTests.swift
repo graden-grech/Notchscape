@@ -40,7 +40,7 @@ struct NotchUtilitiesPolicyTests {
         check(!WallpaperPolicy.pool(platform: .macOS, favorites: ["not-in-catalog"], previous: nil).isEmpty, "Missing favorite falls back safely")
         check(SeasonalWallpaperCatalog.all.count == 46, "Seasonal collection preserves curation with verified additions")
         check(SpaceWallpaperCatalog.all.count == 4, "Official NASA Space collection")
-        for theme in ["system", "autumn", "halloween", "christmas", "winter", "easter", "starWars", "starWarsDarkSide", "starWarsLuke", "starWarsObiWan", "starWarsAhsoka", "starWarsYoda", "starWarsMaceWindu", "starWarsRey", "starWarsVader", "starWarsMaul"] {
+        for theme in ["system", "autumn", "halloween", "christmas", "winter", "easter", "springBloom", "summerCoast", "nightSky", "botanical", "desertDusk", "graphite", "starWars", "starWarsDarkSide", "starWarsLuke", "starWarsObiWan", "starWarsAhsoka", "starWarsYoda", "starWarsMaceWindu", "starWarsRey", "starWarsVader", "starWarsMaul"] {
             check(all.contains { WallpaperThemeMatch.matching(theme).contains($0) }, "Theme matching always has suggestions")
         }
         check(!all.contains { WallpaperThemeMatch.matching("winter").contains($0) && $0.name.localizedCaseInsensitiveContains("Christmas") }, "Neutral Winter does not suggest Christmas")

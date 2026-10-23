@@ -79,6 +79,37 @@ jobs:
         swiftc boringNotch/models/WorkspaceModeModels.swift \
           tests/WorkspaceModePolicyTests.swift -o "$RUNNER_TEMP/workspace-mode-tests"
         "$RUNNER_TEMP/workspace-mode-tests"
+    - name: Check personal workspace tools and input-safety policies
+      run: |
+        set -euo pipefail
+        swiftc boringNotch/models/WorkspaceToolsModels.swift \
+          boringNotch/models/WindowGeometry.swift \
+          tests/WorkspaceToolsPolicyTests.swift -o "$RUNNER_TEMP/workspace-tools-tests"
+        "$RUNNER_TEMP/workspace-tools-tests"
+    - name: Check bounded appearance recipe import and export policies
+      run: |
+        set -euo pipefail
+        swiftc boringNotch/models/AppearanceRecipe.swift \
+          tests/AppearanceRecipePolicyTests.swift -o "$RUNNER_TEMP/appearance-recipe-tests"
+        "$RUNNER_TEMP/appearance-recipe-tests"
+    - name: Check local capture redaction and QR policies
+      run: |
+        set -euo pipefail
+        swiftc boringNotch/models/CapturePolicy.swift \
+          tests/CapturePolicyTests.swift -o "$RUNNER_TEMP/capture-policy-tests"
+        "$RUNNER_TEMP/capture-policy-tests"
+    - name: Check portable window layout geometry policies
+      run: |
+        set -euo pipefail
+        swiftc boringNotch/models/WindowGeometry.swift \
+          tests/WindowGeometryTests.swift -o "$RUNNER_TEMP/window-geometry-tests"
+        "$RUNNER_TEMP/window-geometry-tests"
+    - name: Check synthetic media export without screen capture
+      run: |
+        set -euo pipefail
+        xcrun swiftc -D MEDIA_TOOLS_SMOKE boringNotch/managers/MediaToolsManager.swift \
+          tests/MediaToolsSmoke.swift -o "$RUNNER_TEMP/media-tools-smoke"
+        "$RUNNER_TEMP/media-tools-smoke"
     - name: Check account settings allowlist
       run: |
         set -euo pipefail

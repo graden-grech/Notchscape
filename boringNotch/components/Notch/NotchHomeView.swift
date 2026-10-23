@@ -23,10 +23,25 @@ struct HomeThemeScene: View {
     let theme: AppTheme
     let vaderArtwork: StarWarsCharacterArtwork
     var imageAlignment: Alignment = .center
+    var detailsOverride: Bool?
+    @Default(.themeDetailsEnabled) private var detailsEnabled
+    @ObservedObject private var performance = AppPerformanceManager.shared
+
+    init(theme: AppTheme, vaderArtwork: StarWarsCharacterArtwork, imageAlignment: Alignment = .center, detailsOverride: Bool? = nil) {
+        self.theme = theme; self.vaderArtwork = vaderArtwork; self.imageAlignment = imageAlignment; self.detailsOverride = detailsOverride
+    }
 
     var body: some View {
         GeometryReader { geometry in
-            if let backdrop = theme.homeBackdrop(characterArtwork: vaderArtwork,
+            if let style = theme.nativeSceneStyle {
+                nativeScene(style)
+                    .overlay(alignment: .bottomTrailing) {
+                        if (detailsOverride ?? detailsEnabled) && !performance.lowImpact {
+                            Image(systemName: style.symbol).font(.system(size: 22, weight: .ultraLight))
+                                .foregroundStyle(.white.opacity(0.32)).padding(20)
+                        }
+                    }
+            } else if let backdrop = theme.homeBackdrop(characterArtwork: vaderArtwork,
                 characterArtworkAvailable: StarWarsArtworkAvailability.vaderSceneAvailable) {
                 Image(backdrop).resizable().scaledToFill()
                     .frame(width: geometry.size.width, height: geometry.size.height,
@@ -36,6 +51,56 @@ struct HomeThemeScene: View {
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+        .transaction { if performance.suppressAnimations { $0.animation = nil; $0.disablesAnimations = true } }
+    }
+
+    /// Deterministic vector content: no random values, timers, videos, blur loops
+    /// or image transfers. Keep detail to the right of Home's information tiles.
+    private func nativeScene(_ style: NativeAppearanceStyle) -> some View {
+        Canvas { context, size in
+            let w = size.width, h = size.height
+            let colors = style.sky.map { hex -> Color in
+                let (r, g, b) = AppearanceRecipe.rgb(hex) ?? (0, 0, 0)
+                return Color(red: Double(r)/255, green: Double(g)/255, blue: Double(b)/255)
+            }
+            context.fill(Path(CGRect(origin: .zero, size: size)), with: .linearGradient(Gradient(colors: colors),
+                         startPoint: .zero, endPoint: CGPoint(x: w, y: h)))
+            if style == .nightSky {
+                for index in 0..<18 {
+                    let x = w * (0.48 + CGFloat((index * 37) % 49) / 100)
+                    let y = h * (0.10 + CGFloat((index * 19) % 48) / 100)
+                    let radius: CGFloat = index % 3 == 0 ? 1.2 : 0.65
+                    context.fill(Path(ellipseIn: CGRect(x: x, y: y, width: radius * 2, height: radius * 2)), with: .color(.white.opacity(0.5)))
+                }
+            }
+            if [.nightSky, .summerCoast, .desertDusk].contains(style) {
+                let diameter = min(h * 0.28, w * 0.07)
+                context.fill(Path(ellipseIn: CGRect(x: w * 0.84, y: h * 0.18, width: diameter, height: diameter)),
+                             with: .color((style == .nightSky ? Color.white : Color.orange).opacity(style == .nightSky ? 0.72 : 0.6)))
+            }
+            for layer in 0..<3 {
+                let offset = CGFloat(layer) * h * 0.10
+                var path = Path()
+                path.move(to: CGPoint(x: 0, y: h * 0.76 + offset))
+                path.addCurve(to: CGPoint(x: w, y: h * 0.64 + offset),
+                              control1: CGPoint(x: w * 0.38, y: h * (style == .summerCoast ? 0.85 : 0.38) + offset),
+                              control2: CGPoint(x: w * 0.70, y: h * 0.98 + offset))
+                path.addLine(to: CGPoint(x: w, y: h)); path.addLine(to: CGPoint(x: 0, y: h)); path.closeSubpath()
+                context.fill(path, with: .color(colors[layer % colors.count].opacity(0.78)))
+                if style == .graphite || style == .summerCoast {
+                    context.stroke(path, with: .color(.white.opacity(0.08)), lineWidth: 0.8)
+                }
+            }
+            if style == .botanical || style == .springBloom {
+                for index in 0..<5 {
+                    var leaf = context
+                    leaf.translateBy(x: w * (0.79 + CGFloat(index % 2) * 0.08), y: h * (0.26 + CGFloat(index) * 0.12))
+                    leaf.rotate(by: .degrees(index % 2 == 0 ? -35 : 35))
+                    leaf.fill(Path(ellipseIn: CGRect(x: -h * 0.12, y: -h * 0.045, width: h * 0.24, height: h * 0.09)),
+                              with: .color((style == .springBloom ? Color.pink : Color.green).opacity(0.25)))
+                }
+            }
+        }
     }
 }
 

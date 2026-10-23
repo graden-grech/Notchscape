@@ -98,8 +98,12 @@ struct DynamicNotchApp: App {
                     SettingsWindowController.shared.showWindow()
                 }
             }
-            .keyboardShortcut(KeyEquivalent(","), modifiers: .command)
             CheckForUpdatesView(updater: updaterController.updater)
+            Button("Commands…") { CommandPaletteController.shared.show() }
+            Button("Workspace Tools…") { WorkspaceToolsWindowController.shared.show() }
+            Button("Capture Studio…") { CaptureStudioController.shared.show() }
+            Button("Windows & Workspaces…") { WindowToolsController.shared.show() }
+            RecordingMenuControl()
             Button("Open Tools…") { NotchToolsWindowController.shared.show() }
             WorkspaceModeMenu()
             Divider()
@@ -110,6 +114,23 @@ struct DynamicNotchApp: App {
                 NSApplication.shared.terminate(self)
             }
             .keyboardShortcut(KeyEquivalent("Q"), modifiers: .command)
+        }
+        .commands {
+            CommandGroup(replacing: .appSettings) {
+                Button("Settings…") { SettingsWindowController.shared.showWindow() }
+                    .keyboardShortcut(",", modifiers: .command)
+            }
+            // App-local menu commands, not a global hotkey that steals Finder's
+            // Network shortcut or another app's keystrokes. Available before a
+            // lazily-created menu-bar-extra popover has ever opened.
+            CommandMenu("Tools") {
+                Button("Commands…") { CommandPaletteController.shared.show() }
+                    .keyboardShortcut("k", modifiers: [.command, .shift])
+                Button("Workspace Tools…") { WorkspaceToolsWindowController.shared.show() }
+                Button("Capture Studio…") { CaptureStudioController.shared.show() }
+                Button("Windows & Workspaces…") { WindowToolsController.shared.show() }
+                RecordingMenuControl()
+            }
         }
     }
 }
@@ -162,16 +183,24 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return false
     }
 
+    func application(_ application: NSApplication, open urls: [URL]) {
+        for url in urls.prefix(8) where url.scheme == "notchscape" { WorkspaceActions.handle(url) }
+    }
+
     private var toolsTerminationInProgress = false
     private var toolsTerminationApproved = false
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard !toolsTerminationApproved, LocalToolsManager.shared.needsSave else { return .terminateNow }
+        guard !toolsTerminationApproved, LocalToolsManager.shared.needsSave || MediaToolsManager.shared.isBusy else { return .terminateNow }
         guard !toolsTerminationInProgress else { return .terminateCancel }
         toolsTerminationInProgress = true
         // Keep AppKit's normal event loop running while Swift concurrency flushes
         // encrypted storage. A terminateLater modal loop can starve that task.
         Task { @MainActor in
+            MediaToolsManager.shared.privacyStop()
+            for _ in 0..<50 where MediaToolsManager.shared.finalizing || MediaToolsManager.shared.converting {
+                try? await Task.sleep(for: .milliseconds(100))
+            }
             await LocalToolsManager.shared.flush()
             var shouldQuit = true
             if LocalToolsManager.shared.needsSave {
@@ -192,6 +221,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        WorkspaceClockManager.shared.stopKeepAwake()
         unlockTransitionTask?.cancel()
         lockPreviewTask?.cancel()
         NotificationCenter.default.removeObserver(self)
@@ -213,10 +243,19 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func onScreenLocked(_ notification: Notification) {
         isScreenLocked = true
         LocalToolsManager.shared.setLocked(true)
+        DownloadWatcher.shared.setLocked(true)
         AppleNotesSyncManager.shared.setLocked(true)
         NotchWallpaperManager.shared.setLocked(true)
         NotchToolsWindowController.shared.close()
+        WorkspaceToolsWindowController.shared.close()
+        CommandPaletteController.shared.close()
+        PinnedScratchpadController.shared.close()
+        CaptureStudioController.shared.close()
+        WindowToolsController.shared.close()
+        MediaToolsManager.shared.privacyStop()
+        WorkspaceClockManager.shared.stopKeepAwake()
         DeviceControlsManager.shared.stop()
+        AudioRoutingManager.shared.stop()
         AgentInsightsManager.shared.clear()
         unlockTransitionTask?.cancel()
         lockPreviewTask?.cancel()
@@ -248,9 +287,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
               session["CGSSessionScreenIsLocked"] as? Bool != true else { return }
         isScreenLocked = false
         LocalToolsManager.shared.setLocked(false)
+        DownloadWatcher.shared.setLocked(false)
         AppleNotesSyncManager.shared.setLocked(false)
         NotchWallpaperManager.shared.setLocked(false)
         DeviceControlsManager.shared.configureNotifications()
+        AudioRoutingManager.shared.configure()
         disableSkyLightOnAllWindows()
     }
     
@@ -464,6 +505,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.servicesProvider = NotchscapeFinderServices.shared
 
         // The existing optional SkyLight integration also needs a safe initial
         // state if the app is restarted while the Mac is already locked.
@@ -488,6 +530,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         AppleNotesSyncManager.shared.start()
         AppleNotesSyncManager.shared.setLocked(isScreenLocked)
         DeviceControlsManager.shared.start()
+        _ = AudioRoutingManager.shared
         NotchWallpaperManager.shared.start(locked: isScreenLocked)
 
         externalDisplayObservation = Defaults.publisher(.showOnExternalDisplays)

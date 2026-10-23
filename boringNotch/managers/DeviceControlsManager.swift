@@ -47,6 +47,7 @@ final class DeviceControlsManager: NSObject, ObservableObject {
     private var subscriptions = Set<AnyCancellable>()
     private var connectNotification: IOBluetoothUserNotification?
     private var disconnectNotifications: [IOBluetoothUserNotification] = []
+    private var lowBatteryReported = Set<String>()
     private override init() { super.init() }
 
     func start() {
@@ -57,23 +58,32 @@ final class DeviceControlsManager: NSObject, ObservableObject {
         Defaults.publisher(.deviceConnectionAlerts).receive(on: RunLoop.main).sink { [weak self] _ in
             self?.configureNotifications()
         }.store(in: &subscriptions)
+        Defaults.publisher(.deviceLowBatteryAlerts).receive(on: RunLoop.main).sink { [weak self] _ in
+            self?.configureNotifications(); self?.configurePolling()
+        }.store(in: &subscriptions)
+        WorkspaceModeManager.shared.$session.dropFirst().receive(on: RunLoop.main).sink { [weak self] _ in
+            guard let self else { return }
+            if !WorkspaceAccess.privateToolsAllowed { stop() }
+            else { configureNotifications(); configurePolling() }
+        }.store(in: &subscriptions)
     }
     func requestConnectionNotifications() {
-        guard Defaults[.deviceControlsEnabled], Defaults[.deviceConnectionAlerts] else { return }
+        guard Defaults[.deviceControlsEnabled], Defaults[.deviceConnectionAlerts] || Defaults[.deviceLowBatteryAlerts] else { return }
         Task {
             let granted = (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])) == true
             if granted { configureNotifications() }
-            else { Defaults[.deviceConnectionAlerts] = false; message = "Connection notifications are off. You can allow them in System Settings." }
+            else { Defaults[.deviceConnectionAlerts] = false; Defaults[.deviceLowBatteryAlerts] = false; message = "Device notifications are off. You can allow them in System Settings." }
         }
     }
     func configureNotifications() {
         connectNotification?.unregister(); connectNotification = nil
         disconnectNotifications.forEach { $0.unregister() }; disconnectNotifications = []
-        guard Defaults[.deviceControlsEnabled], Defaults[.deviceConnectionAlerts],
+        guard Defaults[.deviceControlsEnabled], Defaults[.deviceConnectionAlerts] || Defaults[.deviceLowBatteryAlerts], WorkspaceAccess.privateToolsAllowed,
               let session = CGSessionCopyCurrentDictionary() as? [String: Any],
               session["CGSSessionScreenIsLocked"] as? Bool != true else { return }
         connectNotification = IOBluetoothDevice.register(forConnectNotifications: self, selector: #selector(deviceConnected(_:device:)))
         observeDisconnects()
+        configurePolling()
     }
     private func observeDisconnects() {
         disconnectNotifications.forEach { $0.unregister() }; disconnectNotifications = []
@@ -94,7 +104,7 @@ final class DeviceControlsManager: NSObject, ObservableObject {
         Task { @MainActor [weak self] in self?.notify(name, connected: false); self?.refresh() }
     }
     private func notify(_ name: String, connected: Bool) {
-        guard Defaults[.deviceControlsEnabled], Defaults[.deviceConnectionAlerts],
+        guard Defaults[.deviceControlsEnabled], Defaults[.deviceConnectionAlerts], WorkspaceAccess.privateToolsAllowed,
               let session = CGSessionCopyCurrentDictionary() as? [String: Any], session["CGSSessionScreenIsLocked"] as? Bool != true else { return }
         let content = UNMutableNotificationContent()
         content.title = connected ? "Bluetooth connected" : "Bluetooth disconnected"
@@ -106,15 +116,19 @@ final class DeviceControlsManager: NSObject, ObservableObject {
         viewers.insert(id)
         guard Defaults[.deviceControlsEnabled] else { return }
         refresh(includeBatteryReport: Date().timeIntervalSince(lastBatteryReport) >= 300)
-        guard timer == nil else { return }
-        timer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.refresh() }
-        }
-        timer?.tolerance = 5
+        configurePolling()
     }
     func disappear(_ id: UUID) {
         viewers.remove(id)
-        if viewers.isEmpty { timer?.invalidate(); timer = nil }
+        configurePolling()
+    }
+    private func configurePolling() {
+        timer?.invalidate(); timer = nil
+        guard Defaults[.deviceControlsEnabled], WorkspaceAccess.privateToolsAllowed,
+              !viewers.isEmpty || Defaults[.deviceLowBatteryAlerts] else { return }
+        let seconds: TimeInterval = viewers.isEmpty ? 120 : 30
+        timer = Timer.scheduledTimer(withTimeInterval: seconds, repeats: true) { [weak self] _ in Task { @MainActor in self?.refresh() } }
+        timer?.tolerance = seconds/6
     }
     func stop() {
         timer?.invalidate(); timer = nil; devices = []; outputs = []
@@ -123,7 +137,7 @@ final class DeviceControlsManager: NSObject, ObservableObject {
     }
 
     func refresh(includeBatteryReport: Bool = false) {
-        guard Defaults[.deviceControlsEnabled], !refreshing else { return }
+        guard Defaults[.deviceControlsEnabled], WorkspaceAccess.privateToolsAllowed, !refreshing else { return }
         refreshing = true
         let readReport = includeBatteryReport && Date().timeIntervalSince(lastBatteryReport) >= 30
         let cache = Date().timeIntervalSince(lastBatteryReport) < 300 ? reportedBattery : [:]
@@ -133,8 +147,9 @@ final class DeviceControlsManager: NSObject, ObservableObject {
             let audio = Self.readAudio()
             Task { @MainActor in
                 guard let self else { return }; self.refreshing = false
-                guard Defaults[.deviceControlsEnabled] else { return }
+                guard Defaults[.deviceControlsEnabled], WorkspaceAccess.privateToolsAllowed else { return }
                 self.devices = snapshot; self.outputs = audio.0; self.selectedOutput = audio.1
+                self.checkLowBattery(snapshot)
                 if readReport { self.reportedBattery = report; self.lastBatteryReport = Date() }
             }
         }
@@ -153,6 +168,18 @@ final class DeviceControlsManager: NSObject, ObservableObject {
             do { try await Task.sleep(for: .seconds(20)) } catch { return }
             guard let self, connecting == model.id else { return }
             connecting = nil; message = "Connection timed out. Open Bluetooth settings to finish connecting."; refresh()
+        }
+    }
+    private func checkLowBattery(_ devices: [NotchBluetoothDevice]) {
+        guard Defaults[.deviceLowBatteryAlerts], WorkspaceAccess.privateToolsAllowed else { return }
+        let threshold = max(5, min(30, Defaults[.deviceLowBatteryThreshold]))
+        for device in devices where device.connected {
+            guard let level = [device.battery, device.left, device.right, device.caseBattery].compactMap({ $0 }).min() else { continue }
+            if level >= threshold+10 { lowBatteryReported.remove(device.id) }
+            guard level <= threshold, lowBatteryReported.insert(device.id).inserted else { continue }
+            let content = UNMutableNotificationContent(); content.title = "Accessory battery low"
+            content.body = "\(device.name): \(level)% remaining"
+            UNUserNotificationCenter.current().add(.init(identifier: "notchscape-low-battery-\(DeviceBatteryPolicy.address(device.id))", content: content, trigger: nil))
         }
     }
     @objc nonisolated func connectionComplete(_ device: IOBluetoothDevice!, status: IOReturn) {
