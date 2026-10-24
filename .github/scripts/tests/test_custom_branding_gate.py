@@ -11,6 +11,14 @@ ROOT = Path(__file__).resolve().parents[3]
 
 
 class BrandingGateContractTests(unittest.TestCase):
+    def test_security_and_contribution_routes_belong_to_notchscape(self):
+        security = (ROOT / "SECURITY.md").read_text()
+        self.assertIn("https://github.com/graden-grech/Notchscape/security/advisories/new", security)
+        self.assertNotIn("TheBoredTeam", security)
+        template = (ROOT / ".github/PULL_REQUEST.md").read_text()
+        self.assertNotIn("crowdin.com/project/boring-notch", template)
+        self.assertNotIn("target `dev`", template)
+
     def test_restart_uses_current_bundle_not_an_older_installed_copy(self):
         source = (ROOT / "Notchscape/helpers/ApplicationRelauncher.swift").read_text()
         self.assertIn("let appURL = Bundle.main.bundleURL", source)

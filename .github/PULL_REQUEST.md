@@ -1,23 +1,17 @@
-## Pull Request template
-Please, go through these steps before you submit a PR.
+## Summary
 
-1. Make sure that your PR is not a duplicate.
-2. If not, then make sure that:
+Describe what changed and why. Link the issue with `Closes #123` when applicable.
 
-    a. Your changes MUST NOT change translations. Please submit translations on [Crowdin](https://crowdin.com/project/boring-notch).
+## Verification
 
-    b. You have tested the code yourself to ensure it builds correctly and functions as intended.
+- [ ] Targets this repository's `main` branch.
+- [ ] Builds with the supported Xcode SDK and passes the affected checks.
+- [ ] Includes relevant tests and, for UI changes, screenshots or a short clip.
+- [ ] Preserves settings, signing/update trust and required legal notices.
+- [ ] Screenshots, logs and fixtures contain no secrets or personal content.
 
-3. **After** these steps, you're ready to open a pull request.
+Submit localization changes here with the affected strings and locales; this
+project does not send contributions to another product's translation service.
 
-    a. Your pull request MUST NOT target the `main` branch on this repository. You probably want to target `dev` instead.
-
-    b. Give a descriptive title to your PR.
-
-    c. Describe your changes. PR should also include screen recording or screenshots to show the changes that were made.
-
-    d. Put `closes #XXXX` in your description to link your PR to the issue(s) that it fixes (if such).
-
-IMPORTANT: Please review the [CONTRIBUTING.md](../CONTRIBUTING.md) file for detailed contributing guidelines.
-
-**PLEASE REMOVE THIS TEMPLATE BEFORE SUBMITTING**
+See [CONTRIBUTING.md](../CONTRIBUTING.md). Report vulnerabilities privately using
+the Notchscape [security policy](../SECURITY.md), not in a public pull request.
