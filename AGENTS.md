@@ -1,6 +1,8 @@
 # Custom fork build and release rules
 
-- Preserve user preferences, app identity, and the installed app path. Do not reset
+- Preserve user preferences and app signing/update identity. New public app
+  bundles, executables, source folders and installers are named Notchscape.
+  An existing install-path rename needs a recoverable, tested migration. Do not reset
   macOS permissions or modify global Dock settings as part of a build or update.
 - Use `.github/scripts/build_custom_signed_app.sh` for local install/release builds,
   with a previously trusted app as the identity baseline. Never install unsigned

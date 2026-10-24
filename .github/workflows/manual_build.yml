@@ -29,7 +29,7 @@ jobs:
     name: Authorize manual build
     # The custom fork uses its local identity-preserving signed-build process.
     # Opt in only after configuring hosted signing and verifying its identity.
-    if: ${{ github.repository == 'TheBoredTeam/boring.notch' || vars.ENABLE_HOSTED_SIGNED_BUILDS == 'true' }}
+    if: ${{ vars.ENABLE_HOSTED_SIGNED_BUILDS == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -78,7 +78,7 @@ jobs:
           SOURCE_PROJECT="$RUNNER_TEMP/source-project.pbxproj"
           gh api \
             -H "Accept: application/vnd.github.raw+json" \
-            "repos/${REPO}/contents/boringNotch.xcodeproj/project.pbxproj?ref=${SOURCE_SHA}" \
+            "repos/${REPO}/contents/Notchscape.xcodeproj/project.pbxproj?ref=${SOURCE_SHA}" \
             > "$SOURCE_PROJECT"
           SOURCE_BUILD="$(python3 .github/scripts/extract_build_number.py \
             --pbxproj "$SOURCE_PROJECT" \

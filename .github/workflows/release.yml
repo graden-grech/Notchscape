@@ -18,8 +18,8 @@ permissions:
   pull-requests: read
 
 env:
-  PROJECT_NAME: boringNotch
-  APP_NAME: Boring Notch
+  PROJECT_NAME: Notchscape
+  APP_NAME: Notchscape
   BETA_CHANNEL_NAME: beta
 
 jobs:
@@ -27,7 +27,7 @@ jobs:
     name: Preparation
     # This inherited pipeline still requires upstream-specific publishing setup.
     # Custom releases use the local signing/identity gates unless opted in.
-    if: ${{ github.repository == 'TheBoredTeam/boring.notch' || vars.ENABLE_HOSTED_RELEASES == 'true' }}
+    if: ${{ vars.ENABLE_HOSTED_RELEASES == 'true' }}
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.extract_version.outputs.version }}
@@ -280,7 +280,7 @@ jobs:
         with:
           client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-          repositories: boring.notch
+          repositories: Notchscape
           permission-contents: write
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -328,8 +328,8 @@ jobs:
           fi
           printf '%s' "$SPARKLE_PRIVATE_KEY" | "$RUNNER_TEMP/generate_appcast" \
             --ed-key-file - \
-            --link "https://github.com/TheBoredTeam/boring.notch/releases" \
-            --download-url-prefix "https://github.com/TheBoredTeam/boring.notch/releases/download/v${VERSION}/" \
+            --link "https://github.com/graden-grech/Notchscape/releases" \
+            --download-url-prefix "https://github.com/graden-grech/Notchscape/releases/download/v${VERSION}/" \
             --embed-release-notes \
             "${CHANNEL_ARGS[@]}" \
             -o "$APPCAST_OUT" \
@@ -376,7 +376,7 @@ jobs:
         with:
           client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-          repositories: boring.notch
+          repositories: Notchscape
           permission-contents: write
 
       - name: Merge release PR
@@ -434,7 +434,7 @@ jobs:
         with:
           client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-          repositories: boring.notch
+          repositories: Notchscape
           permission-contents: write
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -509,7 +509,7 @@ jobs:
         with:
           client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-          repositories: boring.notch
+          repositories: Notchscape
           permission-contents: write
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -573,7 +573,7 @@ jobs:
 
   upgrade-brew:
     name: Update Homebrew cask
-    if: ${{ always() && needs.preparation.result == 'success' && ((needs.preparation.outputs.is_beta == 'true' && needs.publish_beta.result == 'success') || (needs.preparation.outputs.is_beta == 'false' && needs.publish_stable.result == 'success')) }}
+    if: ${{ vars.ENABLE_HOMEBREW_TAP == 'true' && always() && needs.preparation.result == 'success' && ((needs.preparation.outputs.is_beta == 'true' && needs.publish_beta.result == 'success') || (needs.preparation.outputs.is_beta == 'false' && needs.publish_stable.result == 'success')) }}
     needs: [preparation, publish, publish_beta, publish_stable]
     runs-on: ubuntu-latest
     env:
@@ -583,7 +583,7 @@ jobs:
       - name: Generate cask files
         run: |
           set -euo pipefail
-          DMG_URL="https://github.com/TheBoredTeam/boring.notch/releases/download/v${VERSION}/${PROJECT_NAME}.dmg"
+          DMG_URL="https://github.com/graden-grech/Notchscape/releases/download/v${VERSION}/${PROJECT_NAME}.dmg"
 
           # Retry SHA calculation (release may need a moment to propagate)
           for attempt in 1 2 3; do
@@ -601,20 +601,14 @@ jobs:
             url "${DMG_URL}"
             name "${DISPLAY_NAME}"
             desc "${DESC}"
-            homepage "https://github.com/TheBoredTeam/boring.notch"
+            homepage "https://github.com/graden-grech/Notchscape"
             livecheck do
               url :url
               strategy :github_latest
             end
             auto_updates true
             depends_on macos: :sonoma
-            app "Boring Notch.app"
-
-            postflight do
-              app_path = appdir/"Boring Notch.app"
-              next unless app_path.exist?
-              system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", app_path]
-            end
+            app "Notchscape.app"
 
             uninstall quit: "theboringteam.boringnotch"
 
@@ -626,18 +620,18 @@ jobs:
           CASK
           }
 
-          write_cask "boring-notch@rc" "Boring Notch RC" \
-            "Not so boring notch That Rocks (Release Candidate)" > boring-notch@rc.rb
+          write_cask "notchscape@rc" "Notchscape RC" \
+            "Your Mac, together. (Release Candidate)" > notchscape@rc.rb
           if [[ "${IS_BETA}" == "false" ]]; then
-            write_cask "boring-notch" "Boring Notch" \
-              "Not so boring notch That Rocks" > boring-notch.rb
+            write_cask "notchscape" "Notchscape" \
+              "Your Mac, together." > notchscape.rb
           fi
 
       - name: Upload cask artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: homebrew-cask-${{ env.VERSION }}
-          path: boring-notch*.rb
+          path: notchscape*.rb
 
       - name: Create Homebrew tap app token
         id: tap_app_token
@@ -645,12 +639,12 @@ jobs:
         with:
           client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-          repositories: homebrew-boring-notch
+          repositories: homebrew-notchscape
           permission-contents: write
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: TheBoredTeam/homebrew-boring-notch
+          repository: graden-grech/homebrew-notchscape
           path: homebrew-tap
           persist-credentials: false
 
@@ -658,11 +652,11 @@ jobs:
         id: update_casks
         run: |
           set -euo pipefail
-          cp boring-notch@rc.rb homebrew-tap/Casks/boring-notch@rc.rb
-          COMMIT_MSG="Update boring-notch@rc to v${VERSION}"
+          cp notchscape@rc.rb homebrew-tap/Casks/notchscape@rc.rb
+          COMMIT_MSG="Update notchscape@rc to v${VERSION}"
           if [[ "${IS_BETA}" == "false" ]]; then
-            cp boring-notch.rb homebrew-tap/Casks/boring-notch.rb
-            COMMIT_MSG="Update boring-notch and boring-notch@rc to v${VERSION}"
+            cp notchscape.rb homebrew-tap/Casks/notchscape.rb
+            COMMIT_MSG="Update notchscape and notchscape@rc to v${VERSION}"
           fi
           cd homebrew-tap
           git config user.name "github-actions[bot]"

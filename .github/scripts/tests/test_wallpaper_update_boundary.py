@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[3]
 
 class WallpaperUpdateBoundaryTests(unittest.TestCase):
     def test_combined_app_keeps_the_existing_update_identity(self):
-        with (ROOT / "boringNotch/Info.plist").open("rb") as file:
+        with (ROOT / "Notchscape/Info.plist").open("rb") as file:
             info = plistlib.load(file)
         # Xcode otherwise derives CFBundleName from the compatibility PRODUCT_NAME,
         # even with INFOPLIST_KEY_CFBundleName set. Keep public branding explicit.
@@ -27,11 +27,11 @@ class WallpaperUpdateBoundaryTests(unittest.TestCase):
 
     def test_wallpaper_integration_does_not_bring_a_second_updater_or_analytics(self):
         for relative in (
-            "boringNotch/managers/NotchWallpaperManager.swift",
-            "boringNotch/components/Settings/WallpaperViews.swift",
-            "boringNotch/models/WallpaperModels.swift",
-            "boringNotch/models/WallpaperCatalog.swift",
-            "boringNotch/models/WindowsWallpaperCatalog.swift",
+            "Notchscape/managers/NotchWallpaperManager.swift",
+            "Notchscape/components/Settings/WallpaperViews.swift",
+            "Notchscape/models/WallpaperModels.swift",
+            "Notchscape/models/WallpaperCatalog.swift",
+            "Notchscape/models/WindowsWallpaperCatalog.swift",
         ):
             with self.subTest(file=relative):
                 source = (ROOT / relative).read_text(encoding="utf-8")

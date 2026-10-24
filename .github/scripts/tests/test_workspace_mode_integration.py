@@ -7,7 +7,7 @@ ROOT = Path(__file__).resolve().parents[3]
 
 class WorkspaceModeIntegrationTests(unittest.TestCase):
     def source(self, path):
-        return (ROOT / "boringNotch" / path).read_text(encoding="utf-8")
+        return (ROOT / "Notchscape" / path).read_text(encoding="utf-8")
 
     def test_manager_never_rewrites_saved_preferences(self):
         manager = self.source("managers/WorkspaceModeManager.swift")

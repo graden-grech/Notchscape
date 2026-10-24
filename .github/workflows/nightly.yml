@@ -15,11 +15,11 @@ permissions:
   contents: read
 
 env:
-  PROJECT_NAME: boringNotch
-  APP_NAME: Boring Notch
+  PROJECT_NAME: Notchscape
+  APP_NAME: Notchscape
   NIGHTLY_BRANCH: dev
   TAG: nightly
-  ASSET_NAME: boringNotch-nightly.dmg
+  ASSET_NAME: Notchscape-nightly.dmg
   TITLE: Latest Nightly
   APPCAST_FILE: appcast-dev.xml
   CAUTION_WARNING: >-
@@ -32,7 +32,7 @@ jobs:
     # The custom fork ships signed releases locally and has no dev branch or
     # hosted signing credentials. Do not run the upstream publishing pipeline
     # there unless its prerequisites have been deliberately configured.
-    if: ${{ github.repository == 'TheBoredTeam/boring.notch' || vars.ENABLE_NIGHTLY_BUILDS == 'true' }}
+    if: ${{ vars.ENABLE_NIGHTLY_BUILDS == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -155,7 +155,7 @@ jobs:
         with:
           client-id: ${{ vars.RELEASE_APP_CLIENT_ID }}
           private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-          repositories: boring.notch
+          repositories: Notchscape
           permission-contents: write
 
       - name: Checkout nightly source
@@ -170,7 +170,7 @@ jobs:
           name: ${{ env.PROJECT_NAME }}.dmg
           path: Release
 
-      # The stable DMG keeps the legacy boringNotch.dmg asset name for
+      # The stable DMG uses the current Notchscape product name for
       # compatibility; the nightly channel ships it under a fixed rolling name.
       - name: Rename DMG to the rolling nightly name
         run: mv "Release/${PROJECT_NAME}.dmg" "Release/${ASSET_NAME}"
@@ -189,7 +189,7 @@ jobs:
           cat > "Release/${ASSET_NAME%.dmg}.html" <<HTML
           <h2>Nightly ${BRANCH_NAME}</h2>
           <p>Commit: <code>${SOURCE_SHA}</code></p>
-          <p>Source: <a href="https://github.com/TheBoredTeam/boring.notch/commit/${SOURCE_SHA}">View commit</a></p>
+          <p>Source: <a href="https://github.com/graden-grech/Notchscape/commit/${SOURCE_SHA}">View commit</a></p>
           HTML
 
       - name: Fetch Sparkle generate_appcast
@@ -224,8 +224,8 @@ jobs:
           rm -f "$APPCAST_OUTPUT"
           printf '%s' "$SPARKLE_PRIVATE_KEY" | "$RUNNER_TEMP/generate_appcast" \
             --ed-key-file - \
-            --link "https://github.com/TheBoredTeam/boring.notch/commits/${BRANCH_NAME}" \
-            --download-url-prefix "https://github.com/TheBoredTeam/boring.notch/releases/download/${TAG}/" \
+            --link "https://github.com/graden-grech/Notchscape/commits/${BRANCH_NAME}" \
+            --download-url-prefix "https://github.com/graden-grech/Notchscape/releases/download/${TAG}/" \
             --embed-release-notes \
             --channel "${BRANCH_NAME}" \
             -o "$APPCAST_OUTPUT" \

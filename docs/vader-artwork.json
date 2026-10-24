@@ -1,6 +1,6 @@
 {
-  "requestedAsset": "boringNotch/Assets.xcassets/StarWarsVaderSceneBackdrop.imageset/StarWarsVaderSceneBackdrop.png",
-  "reference": "boringNotch/Assets.xcassets/StarWarsDarkSideBackdrop.imageset/StarWarsDarkSideBackdrop.png",
+  "requestedAsset": "Notchscape/Assets.xcassets/StarWarsVaderSceneBackdrop.imageset/StarWarsVaderSceneBackdrop.png",
+  "reference": "Notchscape/Assets.xcassets/StarWarsDarkSideBackdrop.imageset/StarWarsDarkSideBackdrop.png",
   "status": "Blocked by image generator. No finished character scene is bundled. Original lightsaber scene is retained.",
   "onlineSubstituteRemoved": true,
   "generationAttempt": {

@@ -27,7 +27,7 @@ jobs:
         xcode:
           - ^26
         scheme:
-          - boringNotch
+          - Notchscape
     # Native Liquid Glass requires the macOS 26 SDK. Hosted Intel complements
     # locally verified signed ARM builds without relying on the congested ARM pool.
     runs-on: macos-26-intel
@@ -36,12 +36,12 @@ jobs:
       # TODO: pin to immutable SHA
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Keep unfinished accounts out of public builds
-      run: python3 .github/scripts/verify_public_feature_flags.py boringNotch/Info.plist
+      run: python3 .github/scripts/verify_public_feature_flags.py Notchscape/Info.plist
     - name: Check customization policies
       run: |
         set -euo pipefail
         swiftc -D CUSTOMIZATION_POLICY_TEST \
-          boringNotch/models/CustomizationModels.swift \
+          Notchscape/models/CustomizationModels.swift \
           tests/CustomizationPolicyTests.swift \
           -o "$RUNNER_TEMP/customization-policy-tests"
         "$RUNNER_TEMP/customization-policy-tests"
@@ -50,70 +50,70 @@ jobs:
     - name: Check local tools privacy and usage policies
       run: |
         set -euo pipefail
-        swiftc boringNotch/models/ProductivityModels.swift tests/ProductivityPolicyTests.swift \
+        swiftc Notchscape/models/ProductivityModels.swift tests/ProductivityPolicyTests.swift \
           -o "$RUNNER_TEMP/productivity-policy-tests"
         "$RUNNER_TEMP/productivity-policy-tests"
         swiftc -D APPLE_NOTES_SCRIPT_TEST \
-          boringNotch/models/ProductivityModels.swift \
-          boringNotch/managers/AppleNotesSyncManager.swift tests/AppleNotesScriptTests.swift \
+          Notchscape/models/ProductivityModels.swift \
+          Notchscape/managers/AppleNotesSyncManager.swift tests/AppleNotesScriptTests.swift \
           -o "$RUNNER_TEMP/apple-notes-script-tests"
         "$RUNNER_TEMP/apple-notes-script-tests"
     - name: Check AI chat titles and read-only metadata fallbacks
       run: |
         set -euo pipefail
-        swiftc boringNotch/models/AgentChatTitle.swift tests/AgentChatTitleTests.swift \
+        swiftc Notchscape/models/AgentChatTitle.swift tests/AgentChatTitleTests.swift \
           -o "$RUNNER_TEMP/agent-chat-title-tests"
         "$RUNNER_TEMP/agent-chat-title-tests"
     - name: Check wallpaper, utility and settings navigation policies
       run: |
         set -euo pipefail
-        swiftc boringNotch/models/WallpaperModels.swift \
-          boringNotch/models/WallpaperCatalog.swift \
-          boringNotch/models/WindowsWallpaperCatalog.swift \
-          boringNotch/models/NotchUtilityModels.swift tests/NotchUtilitiesPolicyTests.swift \
+        swiftc Notchscape/models/WallpaperModels.swift \
+          Notchscape/models/WallpaperCatalog.swift \
+          Notchscape/models/WindowsWallpaperCatalog.swift \
+          Notchscape/models/NotchUtilityModels.swift tests/NotchUtilitiesPolicyTests.swift \
           -o "$RUNNER_TEMP/notch-utilities-policy-tests"
         "$RUNNER_TEMP/notch-utilities-policy-tests"
     - name: Check temporary workspace Modes and privacy policies
       run: |
         set -euo pipefail
-        swiftc boringNotch/models/WorkspaceModeModels.swift \
+        swiftc Notchscape/models/WorkspaceModeModels.swift \
           tests/WorkspaceModePolicyTests.swift -o "$RUNNER_TEMP/workspace-mode-tests"
         "$RUNNER_TEMP/workspace-mode-tests"
     - name: Check personal workspace tools and input-safety policies
       run: |
         set -euo pipefail
-        swiftc boringNotch/models/WorkspaceToolsModels.swift \
-          boringNotch/models/WindowGeometry.swift \
+        swiftc Notchscape/models/WorkspaceToolsModels.swift \
+          Notchscape/models/WindowGeometry.swift \
           tests/WorkspaceToolsPolicyTests.swift -o "$RUNNER_TEMP/workspace-tools-tests"
         "$RUNNER_TEMP/workspace-tools-tests"
     - name: Check bounded appearance recipe import and export policies
       run: |
         set -euo pipefail
-        swiftc boringNotch/models/AppearanceRecipe.swift \
+        swiftc Notchscape/models/AppearanceRecipe.swift \
           tests/AppearanceRecipePolicyTests.swift -o "$RUNNER_TEMP/appearance-recipe-tests"
         "$RUNNER_TEMP/appearance-recipe-tests"
     - name: Check local capture redaction and QR policies
       run: |
         set -euo pipefail
-        swiftc boringNotch/models/CapturePolicy.swift \
+        swiftc Notchscape/models/CapturePolicy.swift \
           tests/CapturePolicyTests.swift -o "$RUNNER_TEMP/capture-policy-tests"
         "$RUNNER_TEMP/capture-policy-tests"
     - name: Check portable window layout geometry policies
       run: |
         set -euo pipefail
-        swiftc boringNotch/models/WindowGeometry.swift \
+        swiftc Notchscape/models/WindowGeometry.swift \
           tests/WindowGeometryTests.swift -o "$RUNNER_TEMP/window-geometry-tests"
         "$RUNNER_TEMP/window-geometry-tests"
     - name: Check synthetic media export without screen capture
       run: |
         set -euo pipefail
-        xcrun swiftc -D MEDIA_TOOLS_SMOKE boringNotch/managers/MediaToolsManager.swift \
+        xcrun swiftc -D MEDIA_TOOLS_SMOKE Notchscape/managers/MediaToolsManager.swift \
           tests/MediaToolsSmoke.swift -o "$RUNNER_TEMP/media-tools-smoke"
         "$RUNNER_TEMP/media-tools-smoke"
     - name: Check account settings allowlist
       run: |
         set -euo pipefail
-        swiftc boringNotch/models/AccountSettingsPolicy.swift \
+        swiftc Notchscape/models/AccountSettingsPolicy.swift \
           tests/AccountSettingsPolicyTests.swift -o "$RUNNER_TEMP/account-policy-tests"
         "$RUNNER_TEMP/account-policy-tests"
     - name: Check first-login Keychain handling
@@ -122,7 +122,7 @@ jobs:
       run: |
         set -euo pipefail
         swiftc -parse-as-library -swift-version 6 \
-          boringNotch/managers/AccountSignInAttempt.swift \
+          Notchscape/managers/AccountSignInAttempt.swift \
           tests/AccountSignInAttemptTests.swift -o "$RUNNER_TEMP/account-sign-in-tests"
         "$RUNNER_TEMP/account-sign-in-tests"
     - # TODO: pin to immutable SHA

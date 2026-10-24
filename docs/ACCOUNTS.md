@@ -60,7 +60,7 @@ do not describe the feature as collecting no personal information at all.
 
 ## Public configuration
 
-`boringNotch/Info.plist` contains the tenant domain, native application's public
+`Notchscape/Info.plist` contains the tenant domain, native application's public
 client ID, API audience, HTTPS settings endpoint and the Apple-connection readiness
 flag. These are identifiers, not secrets. Credentials are stored by Auth0's
 CredentialsManager in macOS Keychain, namespaced to this client and tenant.
@@ -289,7 +289,7 @@ Local regressions (from the repository root):
 ```sh
 bash .github/scripts/test_account_storage.sh
 swiftc -parse-as-library -swift-version 6 \
-  boringNotch/managers/AccountSignInAttempt.swift \
+  Notchscape/managers/AccountSignInAttempt.swift \
   tests/AccountSignInAttemptTests.swift -o /tmp/notch-account-sign-in-tests
 /tmp/notch-account-sign-in-tests
 ```

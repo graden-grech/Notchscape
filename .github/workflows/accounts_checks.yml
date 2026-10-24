@@ -4,13 +4,13 @@ on:
   push:
     paths:
       - 'services/accounts/**'
-      - 'boringNotch/models/AccountSettingsPolicy.swift'
+      - 'Notchscape/models/AccountSettingsPolicy.swift'
       - 'tests/AccountSettingsPolicyTests.swift'
       - '.github/workflows/accounts_checks.yml'
   pull_request:
     paths:
       - 'services/accounts/**'
-      - 'boringNotch/models/AccountSettingsPolicy.swift'
+      - 'Notchscape/models/AccountSettingsPolicy.swift'
       - 'tests/AccountSettingsPolicyTests.swift'
       - '.github/workflows/accounts_checks.yml'
 

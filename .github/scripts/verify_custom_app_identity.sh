@@ -14,9 +14,31 @@ for app in "$candidate" "$previous"; do
     [[ "$update_key" == "nqZKiSN++X9uwH4MqHVLSJ9RQ6bvbT9Y2B07flQ34OQ=" ]] || { echo 'FAIL: update trust key changed'; exit 1; }
 done
 
-for relative in '' '/Contents/XPCServices/BoringNotchXPCHelper.xpc'; do
-    candidate_requirement=$(/usr/bin/codesign -dr - "$candidate$relative" 2>&1 | sed -n 's/^designated => //p')
-    previous_requirement=$(/usr/bin/codesign -dr - "$previous$relative" 2>&1 | sed -n 's/^designated => //p')
+# Match helpers by their stable signing identifier, not their old product filename.
+# This permits cosmetic app/helper renames without weakening the trust comparison.
+helper_path() {
+    local app="$1" found='' service identifier
+    for service in "$app"/Contents/XPCServices/*.xpc; do
+        [[ -d "$service" ]] || continue
+        identifier=$(/usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$service/Contents/Info.plist")
+        if [[ "$identifier" == 'theboringteam.boringnotch.BoringNotchXPCHelper' ]]; then
+            [[ -z "$found" ]] || { echo 'FAIL: duplicate helpers' >&2; return 1; }
+            found="$service"
+        fi
+    done
+    [[ -n "$found" ]] || { echo 'FAIL: expected signed helper is missing' >&2; return 1; }
+    printf '%s\n' "$found"
+}
+candidate_helper=$(helper_path "$candidate")
+previous_helper=$(helper_path "$previous")
+for component in app helper; do
+    if [[ "$component" == app ]]; then
+        candidate_path="$candidate"; previous_path="$previous"
+    else
+        candidate_path="$candidate_helper"; previous_path="$previous_helper"
+    fi
+    candidate_requirement=$(/usr/bin/codesign -dr - "$candidate_path" 2>&1 | sed -n 's/^designated => //p')
+    previous_requirement=$(/usr/bin/codesign -dr - "$previous_path" 2>&1 | sed -n 's/^designated => //p')
     [[ -n "$candidate_requirement" && "$candidate_requirement" == "$previous_requirement" ]] || {
         echo "FAIL: signing requirement changed for app/helper; plan permission migration before release"
         exit 1

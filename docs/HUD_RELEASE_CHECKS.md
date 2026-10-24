@@ -17,15 +17,18 @@ DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer \
 ```
 
 This fails on invalid/ad-hoc signing, a changed bundle identity or team, a changed
-Sparkle public key, or a changed app/helper designated signing requirement. Keep
-the installed path stable. Switching from Apple Development to Developer ID
+Sparkle public key, or a changed app/helper designated signing requirement.
+The 2.9.1 rebrand changes the public app filename and executable to Notchscape.
+Treat existing-installation renaming as a separate, tested migration; never
+silently leave a second copy running. Switching from Apple Development to Developer ID
 requires a deliberate permission-migration plan; do not silently switch identities.
 
 The signed build entry point also checks that the built `CFBundleName` and
 `CFBundleDisplayName` match the explicit source branding. Do not install a stale
 or generated-plist artifact merely because its signature is valid. The visible
-product name may change, but the compatibility executable and wrapper paths are
-explicitly preserved and still pass the identity gate.
+product name, executable and app filename must all agree. The identity gate
+matches helpers by their stable identifier so product filenames can change
+without silently weakening signing validation.
 
 With HUD replacement enabled, identify the installed app's running PID and run:
 

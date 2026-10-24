@@ -61,6 +61,10 @@ or external-display behavior. A newly approved binary release still needs the
 separate [HUD/update release checks](HUD_RELEASE_CHECKS.md), a trusted-identity
 comparison, and a real supported update from an older installed version.
 
-The rename does not change the app bundle identifier, executable/wrapper,
-helper identifiers, signing requirement, preference/Keychain domains or update
-public key. Cosmetic branding does not authorize changing those trust boundaries.
+The repository rename did not change the app bundle identifier, helper
+identifiers, signing requirement, preference/Keychain domains or update public
+key. The 2.9.1 branding correction changes the executable, source/project names,
+helper product filename and downloadable wrapper to Notchscape. Existing
+installation-path migration must be verified separately: the current Sparkle
+framework replaces an existing host at its existing path. Do not claim that a
+branded ZIP alone renames every previous installation.
